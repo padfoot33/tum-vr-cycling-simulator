@@ -32,21 +32,36 @@ if (Get-Module -ListAvailable -Name "powershell-yaml") {
 # Import required modules
 Import-Module powershell-yaml
 
-# Check Python 3.11 installation
-if (-not (Test-CommandExists python)) {
-    Write-Host "Python 3.11 is not installed. Please install Python 3.11 from https://www.python.org/downloads/"
-    Exit 1
+Write-Host "Searching for Python 3.11..."
+
+# 1. Get all python executables available in the system PATH
+$allPythons = where.exe python
+$pythonCmd = $null
+
+# 2. Loop through them to find version 3.11
+foreach ($py in $allPythons) {
+    # Skip the Windows Store shortcut to avoid triggering the Microsoft Store popup
+    if ($py -match "WindowsApps") { continue }
+    
+    # Check the version of this specific executable
+    $version = & $py --version 2>&1
+    
+    if ($version -match "3\.11") {
+        $pythonCmd = $py
+        Write-Host "Success: Found Python 3.11 at $pythonCmd"
+        break
+    }
 }
 
-$pythonVersion = python --version
-if (-not ($pythonVersion -like "*3.11*")) {
-    Write-Host "Python 3.11 is required. Current version: $pythonVersion"
+# 3. Exit if we never found a 3.11 version
+if ($null -eq $pythonCmd) {
+    Write-Host "Python 3.11 is not installed or not in your PATH. Please install from https://www.python.org/downloads/"
     Exit 1
 }
 
 # Install vcstool2
 Write-Host "Installing vcstool2..."
-pip install vcstool2
+& $pythonCmd -m pip install vcstool2
 
 # Importing submodules using vcs
 Write-Host "Importing submodules..."
@@ -55,7 +70,7 @@ $vcsCommand = $null
 
 # First try: installed via pip command
 try {
-    $vcsPath = (python -m pip show vcstool2 -f | Select-String "Location:" | ForEach-Object { $_.ToString().Split("Location:")[1].Trim() }) + "\Scripts\vcs.exe"
+    $vcsPath = (& $pythonCmd -m pip show vcstool2 -f | Select-String "Location:" | ForEach-Object { $_.ToString().Split("Location:")[1].Trim() }) + "\Scripts\vcs.exe"
     if (Test-Path $vcsPath) {
         $vcsCommand = $vcsPath
     }
@@ -116,11 +131,11 @@ if (-not (Test-Path "Assets/Sumonity/SumoTraCI")) {
 cd Assets/Sumonity/SumoTraCI
 
 # Install virtualenv
-pip install virtualenv
+& $pythonCmd -m pip install virtualenv
 
-# Create and activate virtual environment
-python -m venv venv
-.\venv\Scripts\Activate
+# Create and activate virtual environment. Unity ignores folders starting with "." (https://docs.unity3d.com/Manual/SpecialFolders.html).
+& $pythonCmd -m venv .venv
+.\.venv\Scripts\Activate
 
 # Install requirements
 pip install -r requirements.txt
