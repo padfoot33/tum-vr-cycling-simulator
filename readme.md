@@ -7,7 +7,7 @@
 - Windows 10/11
 - Python 3.11 
 - Git Bash
-- Unity 2022.3.8f1 
+- Unity 6.3 LTS
 
 ## Automatic installation
 
