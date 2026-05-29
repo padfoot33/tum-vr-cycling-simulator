@@ -19,7 +19,7 @@ repositories:
     type: git
     url: https://github.com/TUM-VT/Sumonity-UnityModelTemplate.git
     version: taxi
-  Assets/Sumonity/SumoTraCI/sumoProject:
+  Assets/SumoProject:
     type: git
     url: https://github.com/TUM-VT/Sumonity-SumoProject.git
     version: main
