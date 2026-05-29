@@ -33,5 +33,5 @@ repositories:
     version: main
   Assets/Sim_BuStop:
     type: git
-    url: https://gitlab.lrz.de/tum-vt/simulation/sim-busstop.git
+    url: git@gitlab.lrz.de:tum-vt/simulation/sim-busstop.git
     version: main
