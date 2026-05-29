@@ -101,7 +101,8 @@ Assets/Sumonity-PassengerCars/
 Assets/Sumonity-BicycleModel/
 Assets/3d_model/
 Assets/Packages/
-Assets/Sim-BusStop
+Assets/Sim-BusStop/
+Assets/SumoProject/
 
 speedsLogs.txt
 .vsconfig
