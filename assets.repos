@@ -31,7 +31,7 @@ repositories:
     type: git
     url: https://github.com/TUM-VT/Sumonity-PedestrianModel.git
     version: main
-  Assets/Sim_BuStop:
+  Assets/Sim_BusStop:
     type: git
     url: git@gitlab.lrz.de:tum-vt/simulation/sim-busstop.git
     version: main
