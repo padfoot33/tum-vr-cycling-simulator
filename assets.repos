@@ -35,3 +35,7 @@ repositories:
     type: git
     url: git@gitlab.lrz.de:tum-vt/simulation/sim-busstop.git
     version: main
+  Assets/Sumonity-AgentNavigation:
+    type: git
+    url: git@gitlab.lrz.de:tum-vt/simulation/sumonity-agent-navigation.git
+    version: main
