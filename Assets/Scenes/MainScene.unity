@@ -831,7 +831,7 @@ PrefabInstance:
     - target: {fileID: 2891936277448558506, guid: d18f762cab7f1124b92d6eeb2ad6e358, type: 3}
       propertyPath: sumoConfigFile
       value: 
-      objectReference: {fileID: 102900000, guid: 254870552c5ea3442b73a54a899ad939, type: 3}
+      objectReference: {fileID: 102900000, guid: 1e54f83f05618804884235ac4c49d756, type: 3}
     - target: {fileID: 2891936277448558506, guid: d18f762cab7f1124b92d6eeb2ad6e358, type: 3}
       propertyPath: startSumoOnStart
       value: 1
