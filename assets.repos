@@ -39,3 +39,7 @@ repositories:
     type: git
     url: git@gitlab.lrz.de:tum-vt/simulation/sumonity-agent-navigation.git
     version: main
+  Assets/Sim_Intersections:
+    type: git
+    url: git@gitlab.lrz.de:tum-vt/simulation/sim-intersections.git
+    version: main
