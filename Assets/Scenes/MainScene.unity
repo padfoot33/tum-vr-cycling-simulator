@@ -7956,7 +7956,7 @@ Transform:
   m_GameObject: {fileID: 230667164}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.54354066, z: -0, w: 0.8393828}
-  m_LocalPosition: {x: 429.4, y: 1.2, z: -18.2}
+  m_LocalPosition: {x: 441.23, y: 1.2, z: -23.44}
   m_LocalScale: {x: 0.99999994, y: 1, z: 0.99999994}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -24238,8 +24238,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.AI.SmartBicycleSafetyAssistant
   enableAutoBrake: 1
-  criticalBrakeDistance: 12
-  maxLateralOffset: 1.1
+  criticalBrakeDistance: 25
+  maxLateralOffset: 1.2
   obstacleLayers:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -32350,7 +32350,7 @@ Transform:
   m_GameObject: {fileID: 891295611}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.6, y: 0, z: 36.2}
+  m_LocalPosition: {x: 1.6, y: 0, z: 9.1}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -54230,7 +54230,7 @@ Transform:
   m_GameObject: {fileID: 1505264079}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.6, y: 0, z: 11.9}
+  m_LocalPosition: {x: 0.7, y: 0, z: -7.9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
