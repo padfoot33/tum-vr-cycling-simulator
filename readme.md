@@ -1,6 +1,33 @@
 # unity tum main campus
 
+## About this copy of the project
 
+This is a standalone copy of [TUM-VT/Sumonity-UnityBaseProject](https://github.com/TUM-VT/Sumonity-UnityBaseProject) with VR cycling experiment work added on top. It is not a GitHub fork, but the upstream history is preserved, so the branches line up like this:
+
+- `main` and `dev-jo` are unmodified copies of the TUM-VT baseline
+- `dev-param` is the default branch and holds all of the added work
+
+To review only what was added, use `git diff dev-jo..dev-param`.
+
+Design notes, scenario specs and a macOS setup guide live in `docs/`; start with `docs/PROJECT_MINDMAP.md`.
+
+### Git LFS is required
+
+The TUM campus textures in `Assets/3d_model_v3` (~124 MB) are stored in Git LFS. Install it before cloning, otherwise those files arrive as small text pointers and Unity will fail to load the materials:
+
+```
+git lfs install
+git clone https://github.com/padfoot33/tum-vr-cycling-simulator.git
+```
+
+If you already cloned without LFS, run `git lfs install && git lfs pull` inside the clone.
+
+### What this repository does not contain
+
+Two things must be fetched separately after cloning. Both follow the upstream project's convention of keeping large or externally owned assets out of git, so the project will open in Unity with missing models and broken references until they are in place.
+
+1. The dependencies listed in `assets.repos` (Sumonity, the vehicle and pedestrian models, the SUMO project, and others). Fetch them with `vcs import < assets.repos`, as described under installation below. Several are hosted on TUM's LRZ GitLab and require an account with access to those projects.
+2. The campus FBX meshes. `Assets/3d_model_v3` ships its textures but not its `.fbx` files, and the base campus model is downloaded via `download_unity_fbx.ps1`.
 
 ## Prerequistes
 - Sumo 1.21 (or later, important traci must be the same version)
@@ -13,13 +40,14 @@
 
 Clone the repo:
 ```
-git clone https://github.com/TUM-VT/Sumonity-UnityBaseProject.git
+git lfs install
+git clone https://github.com/padfoot33/tum-vr-cycling-simulator.git
 ```
 
 Execute the install script in Powershell as Admin:
 
 ```
-cd .\Sumonity-UnityBaseProject\
+cd .\tum-vr-cycling-simulator\
 .\setup.ps1
 ```
 
