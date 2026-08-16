@@ -477,6 +477,17 @@ namespace CyclingExperiment.Editor
             RenderSettings.ambientIntensity = 1.1f;
         }
 
+        [MenuItem("Cycling Experiment/Add Construction NavMesh Obstacles", false, 7)]
+        public static void AddConstructionNavMeshObstacles()
+        {
+            int added = Scenario3_ConstructionNarrowing.AddObstaclesToCampusConstructionProps();
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            EditorUtility.DisplayDialog("Cycling Experiment",
+                $"Added NavMeshObstacle carve to {added} construction prop(s) (ChevronSign, dumpsters, cones).\n\n" +
+                "City cars will go around those objects. Press Play to see the holes, or bake the road NavMesh if you want them in the static mesh.",
+                "OK");
+        }
+
         [MenuItem("Cycling Experiment/Clean Unused Scene Objects", false, 40)]
         public static void CleanUnusedSceneObjects()
         {

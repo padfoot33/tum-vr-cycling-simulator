@@ -2,6 +2,12 @@
 
 Working notes for current development. The project map lives in [PROJECT_MINDMAP.md](PROJECT_MINDMAP.md).
 
+## 17 Aug 2026 — City cars only, Route 2 traffic, carve props
+
+- Ambient / intersection pools no longer include `BusOpenSource` or Bogdan. Route 1 still uses Bogdan on the trigger path.
+- City traffic cap 12, 6 cars at start, ~40% of spawns use skybridge seeds around `(723, 128)`.
+- **Cycling Experiment → Add Construction NavMesh Obstacles** (also runs on Play) carves `ChevronSign`, dumpsters, and Route 2 cones.
+
 ## 16 Aug 2026 — Bus spawn debug
 
 Route 1 now spawns the Bogdan bus immediately on `[1]` / Play (not only after the roadside trigger). Ground snap ignores the bus's own collider so it cannot climb into the sky. `busSpeed` is clamped before spawn (scene had 45 m/s).

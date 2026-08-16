@@ -25,6 +25,7 @@ namespace CyclingExperiment.Scenarios
             RemoveDemoBusMarker();
             HideLegacyRoute2WaypointPaths();
             EnsureConstructionProps();
+            AddObstaclesToCampusConstructionProps();
         }
 
         public static void RemoveDemoBusMarker()
@@ -111,14 +112,71 @@ namespace CyclingExperiment.Scenarios
             AddCarveObstacle(barrier, new Vector3(0.8f, 1.2f, 2.0f));
         }
 
-        private static void AddCarveObstacle(GameObject obj, Vector3 size)
+        public static int AddObstaclesToCampusConstructionProps()
+        {
+            int added = 0;
+            var transforms = Resources.FindObjectsOfTypeAll<Transform>();
+            for (int i = 0; i < transforms.Length; i++)
+            {
+                Transform t = transforms[i];
+                if (t == null || !t.gameObject.scene.IsValid() || !t.gameObject.scene.isLoaded) continue;
+                if (!IsConstructionPropName(t.name)) continue;
+                if (AddCarveFromRenderer(t.gameObject)) added++;
+            }
+
+            return added;
+        }
+
+        private static bool IsConstructionPropName(string objectName)
+        {
+            if (string.IsNullOrEmpty(objectName)) return false;
+            return objectName.IndexOf("ChevronSign", System.StringComparison.OrdinalIgnoreCase) >= 0
+                   || objectName.IndexOf("Dumpster", System.StringComparison.OrdinalIgnoreCase) >= 0
+                   || objectName.IndexOf("Skip", System.StringComparison.OrdinalIgnoreCase) >= 0
+                   || objectName.IndexOf("Waste", System.StringComparison.OrdinalIgnoreCase) >= 0
+                   || objectName.StartsWith("Cone_", System.StringComparison.Ordinal)
+                   || objectName.StartsWith("Barrier_", System.StringComparison.Ordinal);
+        }
+
+        public static bool AddCarveFromRenderer(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            var renderer = obj.GetComponent<Renderer>();
+            if (renderer == null) renderer = obj.GetComponentInChildren<Renderer>();
+
+            Vector3 size = new Vector3(0.6f, 1.2f, 0.6f);
+            Vector3 center = Vector3.zero;
+            if (renderer != null)
+            {
+                Bounds world = renderer.bounds;
+                Vector3 lossy = obj.transform.lossyScale;
+                size = new Vector3(
+                    Mathf.Max(0.4f, world.size.x / Mathf.Max(0.001f, Mathf.Abs(lossy.x))),
+                    Mathf.Max(1f, world.size.y / Mathf.Max(0.001f, Mathf.Abs(lossy.y))),
+                    Mathf.Max(0.4f, world.size.z / Mathf.Max(0.001f, Mathf.Abs(lossy.z))));
+                center = obj.transform.InverseTransformPoint(world.center);
+            }
+
+            return AddCarveObstacle(obj, size, center);
+        }
+
+        private static bool AddCarveObstacle(GameObject obj, Vector3 size)
+        {
+            return AddCarveObstacle(obj, size, Vector3.zero);
+        }
+
+        private static bool AddCarveObstacle(GameObject obj, Vector3 size, Vector3 center)
         {
             var obstacle = obj.GetComponent<NavMeshObstacle>();
-            if (obstacle == null) obstacle = obj.AddComponent<NavMeshObstacle>();
+            bool created = obstacle == null;
+            if (created) obstacle = obj.AddComponent<NavMeshObstacle>();
             obstacle.carving = true;
             obstacle.carveOnlyStationary = true;
             obstacle.shape = NavMeshObstacleShape.Box;
             obstacle.size = size;
+            obstacle.center = center;
+            return created;
         }
 
         private static void TintRenderer(GameObject obj, Color color)

@@ -54,12 +54,14 @@ namespace CyclingExperiment.AI
             {
                 vehiclePrefabs = new List<GameObject>();
                 var taxi = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/TaxiModel/Prefabs/TaxiOpenSource.prefab");
-                var bus = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/BusModel/Prefabs/BogdanA092.prefab")
-                       ?? UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/BusModel/Prefabs/BusOpenSource.prefab");
                 if (taxi != null) vehiclePrefabs.Add(taxi);
-                if (bus != null) vehiclePrefabs.Add(bus);
             }
 #endif
+            if (vehiclePrefabs != null)
+            {
+                vehiclePrefabs.RemoveAll(p => p != null && GlobalCityTrafficManager.IsExcludedAmbientPrefab(p.name));
+            }
+
             if (vehiclePrefabs == null || vehiclePrefabs.Count == 0)
             {
                 if (cityTraffic == null && ExperimentRefs.Instance != null)

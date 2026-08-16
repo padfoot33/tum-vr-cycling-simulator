@@ -38,6 +38,15 @@ namespace CyclingExperiment.AI
             new Vector3(520f, 1f, 380f)
         };
 
+        private static readonly Vector3[] Route2SeedPoints =
+        {
+            new Vector3(723f, 1f, 90f),
+            new Vector3(723f, 1f, 110f),
+            new Vector3(723f, 1f, 128f),
+            new Vector3(723f, 1f, 150f),
+            new Vector3(723f, 1f, 170f)
+        };
+
         private readonly List<GameObject> _spawnedVehicles = new List<GameObject>();
         private float _spawnTimer;
 
@@ -45,10 +54,10 @@ namespace CyclingExperiment.AI
 
         private void Awake()
         {
-            if (maxVehicles > 8) maxVehicles = 8;
-            if (spawnInterval < 5f) spawnInterval = 6f;
+            if (maxVehicles > 12) maxVehicles = 12;
+            if (spawnInterval < 3f) spawnInterval = 3f;
             LoadAllVehiclePrefabsIfEmpty();
-            RemoveOffroadPrefabs();
+            SanitizePrefabPool();
             HideLegacyWaypointCityPaths();
             if (destinations == null) destinations = TrafficDestinationSet.Instance;
         }
@@ -83,19 +92,22 @@ namespace CyclingExperiment.AI
 
                 var taxi = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/TaxiModel/Prefabs/TaxiOpenSource.prefab");
                 if (taxi != null) vehiclePrefabs.Add(taxi);
-
-                var bus = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/BusModel/Prefabs/BogdanA092.prefab")
-                       ?? UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/BusModel/Prefabs/BusOpenSource.prefab");
-                if (bus != null) vehiclePrefabs.Add(bus);
             }
 #endif
+            SanitizePrefabPool();
         }
 
-        private void RemoveOffroadPrefabs()
+        private void SanitizePrefabPool()
         {
             if (vehiclePrefabs == null) return;
-            vehiclePrefabs.RemoveAll(p => p != null &&
-                p.name.IndexOf("offroad", System.StringComparison.OrdinalIgnoreCase) >= 0);
+            vehiclePrefabs.RemoveAll(p => p != null && IsExcludedAmbientPrefab(p.name));
+        }
+
+        public static bool IsExcludedAmbientPrefab(string prefabName)
+        {
+            if (string.IsNullOrEmpty(prefabName)) return false;
+            return prefabName.IndexOf("offroad", System.StringComparison.OrdinalIgnoreCase) >= 0
+                   || prefabName.IndexOf("bus", System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         public void RegisterPath(WaypointPath path)
@@ -133,21 +145,32 @@ namespace CyclingExperiment.AI
                 return;
             }
 
-            int initial = Mathf.Min(4, maxVehicles);
-            for (int i = 0; i < initial; i++)
+            int route2Count = Mathf.Min(4, maxVehicles);
+            for (int i = 0; i < route2Count; i++)
             {
-                SpawnVehicleOnNavMesh();
+                SpawnVehicleOnNavMesh(preferRoute2: true);
+            }
+
+            int campusCount = Mathf.Min(4, maxVehicles - _spawnedVehicles.Count);
+            for (int i = 0; i < campusCount; i++)
+            {
+                SpawnVehicleOnNavMesh(preferRoute2: false);
             }
         }
 
         public void SpawnVehicleOnNavMesh()
+        {
+            SpawnVehicleOnNavMesh(preferRoute2: Random.value < 0.65f);
+        }
+
+        public void SpawnVehicleOnNavMesh(bool preferRoute2)
         {
             if (vehiclePrefabs == null || vehiclePrefabs.Count == 0) return;
 
             GameObject prefab = vehiclePrefabs[Random.Range(0, vehiclePrefabs.Count)];
             if (prefab == null) return;
 
-            if (!TryFindSpawnPose(out Vector3 pos, out Quaternion rot))
+            if (!TryFindSpawnPose(preferRoute2, out Vector3 pos, out Quaternion rot))
             {
                 return;
             }
@@ -162,15 +185,25 @@ namespace CyclingExperiment.AI
             if (vehicle != null) _spawnedVehicles.Add(vehicle);
         }
 
-        private static bool TryFindSpawnPose(out Vector3 position, out Quaternion rotation)
+        private static bool TryFindSpawnPose(bool preferRoute2, out Vector3 position, out Quaternion rotation)
         {
             position = Vector3.zero;
             rotation = Quaternion.identity;
 
             for (int i = 0; i < 12; i++)
             {
-                Vector3 seed = SeedPoints[Random.Range(0, SeedPoints.Length)];
-                seed += new Vector3(Random.Range(-18f, 18f), 0f, Random.Range(-18f, 18f));
+                Vector3 seed;
+                bool useRoute2 = preferRoute2 || Random.value < 0.65f;
+                if (useRoute2)
+                {
+                    seed = Route2SeedPoints[Random.Range(0, Route2SeedPoints.Length)];
+                    seed += new Vector3(Random.Range(-8f, 8f), 0f, Random.Range(-10f, 10f));
+                }
+                else
+                {
+                    seed = SeedPoints[Random.Range(0, SeedPoints.Length)];
+                    seed += new Vector3(Random.Range(-18f, 18f), 0f, Random.Range(-18f, 18f));
+                }
 
                 if (!NavMesh.SamplePosition(seed, out NavMeshHit hit, 20f, NavMesh.AllAreas)) continue;
 
