@@ -22,6 +22,10 @@ namespace CyclingExperiment.UI
         public Vector3 scenario2Position = new Vector3(721.5f, 0.2f, 70.0f);
         public float scenario2Heading = 0f;
 
+        [Header("Cyclist")]
+        [SerializeField, Tooltip("Play cap in km/h. Applied when you pick a scenario.")]
+        private float cyclistMaxSpeedKph = 20f;
+
         [Header("Keys")]
         [SerializeField] private KeyCode toggleMenuKey = KeyCode.M;
         [SerializeField] private KeyCode toggleTrafficKey = KeyCode.T;
@@ -361,12 +365,12 @@ namespace CyclingExperiment.UI
             bike.rotation = Quaternion.Euler(0, heading, 0);
         }
 
-        private static void ApplyCyclistSpeedLimit(BikeURP.BicyclePhysicsController physics)
+        private void ApplyCyclistSpeedLimit(BikeURP.BicyclePhysicsController physics)
         {
             if (physics == null) return;
 
-            const float maxSpeedMps = 20f / 3.6f; // 20 km/h
-            physics.maxSpeed = maxSpeedMps;
+            float kph = Mathf.Max(1f, cyclistMaxSpeedKph);
+            physics.maxSpeed = kph / 3.6f;
             var speedField = physics.GetType().GetField("_speed", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             if (speedField != null) speedField.SetValue(physics, 0f);
         }

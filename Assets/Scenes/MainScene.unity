@@ -33711,6 +33711,12 @@ MonoBehaviour:
   rightTurnCarPath: {fileID: 1098182118}
   overtakingCarPrefab: {fileID: 4933583111240688830, guid: acf1b64a1fbe1d74d93024e62413459d, type: 3}
   overtakingCarSpeed: 55
+  busPassedAheadDistance: 4
+  cyclistClearedBusDistance: 4
+  carPassedAheadDistance: 3
+  stationAmbientVolume: 0.22
+  stationAmbientMinDistance: 6
+  stationAmbientMaxDistance: 36
   playerTransform: {fileID: 641229301}
   sceneRefs: {fileID: 2024471565}
   intersectionTraffic: {fileID: 1492515012}
@@ -34683,9 +34689,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.AI.GlobalCityTrafficManager
   isTrafficEnabled: 1
-  spawnInterval: 1
-  maxVehicles: 50
-  defaultTrafficSpeed: 12
+  spawnInterval: 3
+  maxVehicles: 30
+  defaultTrafficSpeed: 9
   vehiclePrefabs:
   - {fileID: 4933583111240688830, guid: acf1b64a1fbe1d74d93024e62413459d, type: 3}
   - {fileID: 7014147353987398875, guid: fb71e58c7d638de488082959e77cc8da, type: 3}
@@ -38353,6 +38359,7 @@ MonoBehaviour:
   scenario1Heading: 0
   scenario2Position: {x: 721.5, y: 0.2, z: 70}
   scenario2Heading: 0
+  cyclistMaxSpeedKph: 17
   toggleMenuKey: 109
   toggleTrafficKey: 116
   sceneRefs: {fileID: 2024471565}
@@ -52572,12 +52579,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.AI.IntersectionTrafficFlowManager
   intersectionCenter: {x: 430, y: 0, z: 174}
-  autoStart: 0
+  autoStart: 1
   spawnInterval: 3.5
   maxVehiclesInScene: 12
   vehicleSpeed: 9
   vehiclePrefabs:
-  - {fileID: 7193673960299363686, guid: 34aa031d1b5585b4d960d5bfc4116fa3, type: 3}
+  - {fileID: 4933583111240688830, guid: acf1b64a1fbe1d74d93024e62413459d, type: 3}
+  - {fileID: 7014147353987398875, guid: fb71e58c7d638de488082959e77cc8da, type: 3}
+  - {fileID: 5855428051584551815, guid: 92fc8451bba161645960c7ea0aecb50a, type: 3}
+  - {fileID: 5482471505496333758, guid: 32b8693c5b8095f48ac5100d268ae0ea, type: 3}
+  - {fileID: 7790148540567442869, guid: 75af29bd7d765e64c86e398c40b294b1, type: 3}
+  - {fileID: 548916645831260737, guid: b21811dbcaa66c342acc110bb573da4a, type: 3}
+  - {fileID: 3896649973512522099, guid: 3cd9373f59881a24dbc884e81a01dc89, type: 3}
   cityTraffic: {fileID: 975711439}
 --- !u!4 &1492515013
 Transform:

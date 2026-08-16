@@ -38,8 +38,8 @@ namespace CyclingExperiment.AI
 
         private void Start()
         {
-            if (maxVehiclesInScene > 6) maxVehiclesInScene = 6;
-            if (spawnInterval < 5f) spawnInterval = 6f;
+            if (maxVehiclesInScene < 1) maxVehiclesInScene = 1;
+            if (spawnInterval < 0.5f) spawnInterval = 0.5f;
             AutoFindPrefabsAndPaths();
             if (autoStart)
             {

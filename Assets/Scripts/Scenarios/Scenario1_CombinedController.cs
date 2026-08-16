@@ -21,7 +21,7 @@ namespace CyclingExperiment.Scenarios
         [SerializeField, Tooltip("Bus prefab to spawn")]
         private GameObject busPrefab;
 
-        [SerializeField, Tooltip("Speed of overtaking bus in m/s (~36 km/h)")]
+        [SerializeField, Tooltip("Speed of overtaking bus in m/s (10 ≈ 36 km/h)")]
         private float busSpeed = 10f;
 
         [Header("Stage 3: Right Turn Overtaking Car Setup")]
@@ -31,8 +31,21 @@ namespace CyclingExperiment.Scenarios
         [SerializeField, Tooltip("Overtaking car prefab")]
         private GameObject overtakingCarPrefab;
 
-        [SerializeField, Tooltip("Speed of overtaking car in m/s (~40 km/h)")]
+        [SerializeField, Tooltip("Speed of overtaking car in m/s (11 ≈ 40 km/h)")]
         private float overtakingCarSpeed = 11f;
+
+        [Header("Timing / Distances")]
+        [SerializeField, Tooltip("How far ahead the bus must be (m) to count as having overtaken")]
+        private float busPassedAheadDistance = 4f;
+        [SerializeField, Tooltip("How far ahead the cyclist must be (m) to end the bus stage")]
+        private float cyclistClearedBusDistance = 4f;
+        [SerializeField, Tooltip("How far ahead the right-turn car must be (m) to end that stage")]
+        private float carPassedAheadDistance = 3f;
+
+        [Header("Station Ambient")]
+        [SerializeField, Range(0f, 1f)] private float stationAmbientVolume = 0.22f;
+        [SerializeField] private float stationAmbientMinDistance = 6f;
+        [SerializeField] private float stationAmbientMaxDistance = 36f;
 
         [Header("Player Reference")]
         [SerializeField] private Transform playerTransform;
@@ -61,8 +74,6 @@ namespace CyclingExperiment.Scenarios
         private void Start()
         {
             AutoAssignReferences();
-            if (busSpeed > 12f) busSpeed = 10f;
-            if (overtakingCarSpeed > 14f) overtakingCarSpeed = 11f;
             StartStationAmbient();
         }
 
@@ -127,8 +138,6 @@ namespace CyclingExperiment.Scenarios
                 Debug.LogWarning("[Scenario1] Missing bus path or bus prefab.");
                 return;
             }
-
-            if (busSpeed > 12f) busSpeed = 10f;
 
             _busOvertakeTriggered = true;
             Debug.Log("[Scenario1] Stage 1: Bus Overtake Triggered!");
@@ -238,7 +247,7 @@ namespace CyclingExperiment.Scenarios
             if (_busOvertakeTriggered && !_busPassedPlayer && _spawnedBus != null && playerTransform != null)
             {
                 Vector3 toBus = _spawnedBus.transform.position - playerTransform.position;
-                if (Vector3.Dot(toBus, playerTransform.forward) > 4f)
+                if (Vector3.Dot(toBus, playerTransform.forward) > busPassedAheadDistance)
                 {
                     _busPassedPlayer = true;
                     Debug.Log("[Scenario1] Bus overtook cyclist.");
@@ -252,7 +261,7 @@ namespace CyclingExperiment.Scenarios
             if (_rightTurnTriggered && !_carPassedPlayer && _spawnedOvertakingCar != null && playerTransform != null)
             {
                 Vector3 toCar = _spawnedOvertakingCar.transform.position - playerTransform.position;
-                if (Vector3.Dot(toCar, playerTransform.forward) > 3f)
+                if (Vector3.Dot(toCar, playerTransform.forward) > carPassedAheadDistance)
                 {
                     _carPassedPlayer = true;
                     Debug.Log("[Scenario1] Overtaking car executed right turn. Logging RIGHT_TURN_END.");
@@ -302,9 +311,9 @@ namespace CyclingExperiment.Scenarios
             source.playOnAwake = false;
             source.spatialBlend = 1f;
             source.dopplerLevel = 0f;
-            source.volume = 0.22f;
-            source.minDistance = 6f;
-            source.maxDistance = 36f;
+            source.volume = stationAmbientVolume;
+            source.minDistance = stationAmbientMinDistance;
+            source.maxDistance = stationAmbientMaxDistance;
             source.rolloffMode = AudioRolloffMode.Linear;
             if (!source.isPlaying) source.Play();
         }
@@ -315,7 +324,7 @@ namespace CyclingExperiment.Scenarios
 
             bool busIsParked = _spawnedBusFollower != null && _spawnedBusFollower.IsAtEnd;
             Vector3 cyclistFromBus = playerTransform.position - _spawnedBus.transform.position;
-            bool cyclistIsAhead = Vector3.Dot(cyclistFromBus, playerTransform.forward) > 4f;
+            bool cyclistIsAhead = Vector3.Dot(cyclistFromBus, playerTransform.forward) > cyclistClearedBusDistance;
 
             // Normal path: wait for the bus to reach its stop and for the cyclist to pass it.
             // The route trigger fallback handles a legitimate pass that occurs in the same
