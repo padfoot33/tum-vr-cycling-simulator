@@ -29,6 +29,7 @@
 
 # Exclude Virtual Environment
 venv/
+.venv/
 
 # Gradle cache directory
 .gradle/
@@ -82,34 +83,22 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 
 
-# Exclude other repos from repo list
+# The dependency packages and 3D models that used to be excluded here are now
+# committed to this repository, so a plain ZIP download is a playable project.
+# Large binaries are handled by Git LFS, see .gitattributes.
 
-# Assets/3d_model/
-3d_model.meta
-*.fbx
-*.fbx.meta
-Assets/Sumonity/
-Assets/BicycleModel/
-Assets/CarModel/
-Assets/BusModel/
-Assets/TaxiModel/
+# Experiment output data
 Assets/#Data/*
-!Assets/#Data/.gitkeep 
-Assets/parkedvehiclespawner/
-Assets/PedestrianModel/
-Assets/Sumonity-AgentNavigation/
-Assets/Sumonity-PassengerCars/
-Assets/Sumonity-BicycleModel/
-Assets/3d_model/
-Assets/Packages/
-Assets/Sim-BusStop
-Assets/Sim-Intersections
+!Assets/#Data/.gitkeep
 
 speedsLogs.txt
 .vsconfig
 .config
 *.log
 *.csv
+
+# macOS
+.DS_Store
 
 AGENTS.md
 sumo_bridge.pid
