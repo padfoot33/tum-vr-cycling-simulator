@@ -11,23 +11,18 @@ To review only what was added, use `git diff dev-jo..dev-param`.
 
 Design notes, scenario specs and a macOS setup guide live in `docs/`; start with `docs/PROJECT_MINDMAP.md`.
 
-### Git LFS is required
+## Quick start: download and play
 
-The TUM campus textures in `Assets/3d_model_v3` (~124 MB) are stored in Git LFS. Install it before cloning, otherwise those files arrive as small text pointers and Unity will fail to load the materials:
+Everything needed to run the simulator in the Unity Editor is committed here, including the campus 3D models and all the dependency packages. There is no `vcs import` step and no separate model download.
 
-```
-git lfs install
-git clone https://github.com/padfoot33/tum-vr-cycling-simulator.git
-```
+1. Get the project, either way works:
+   - **Download ZIP**: use the green **Code** button above, then **Download ZIP**, and unpack it.
+   - **Clone**: `git lfs install` first, then `git clone https://github.com/padfoot33/tum-vr-cycling-simulator.git`. Without Git LFS installed, the large files arrive as small text pointers.
+2. Open the folder in Unity **6000.4.2f1** (the version pinned in `ProjectSettings/ProjectVersion.txt`).
+3. Wait for the first import. It processes about 1.4 GB of assets and can take a long time. `Library/` is deliberately not shipped because it is large and not portable between machines.
+4. Open `Assets/Scenes/MainScene.unity` and press Play.
 
-If you already cloned without LFS, run `git lfs install && git lfs pull` inside the clone.
-
-### What this repository does not contain
-
-Two things must be fetched separately after cloning. Both follow the upstream project's convention of keeping large or externally owned assets out of git, so the project will open in Unity with missing models and broken references until they are in place.
-
-1. The dependencies listed in `assets.repos` (Sumonity, the vehicle and pedestrian models, the SUMO project, and others). Fetch them with `vcs import < assets.repos`, as described under installation below. Several are hosted on TUM's LRZ GitLab and require an account with access to those projects.
-2. The campus FBX meshes. `Assets/3d_model_v3` ships its textures but not its `.fbx` files, and the base campus model is downloaded via `download_unity_fbx.ps1`.
+The only thing not included is the Python virtual environment for the SUMO bridge. Driving live SUMO traffic additionally needs SUMO 1.21 and Python 3.11, set up as described under Manual installation below. The scene itself opens and plays without them.
 
 ## Prerequistes
 - Sumo 1.21 (or later, important traci must be the same version)
@@ -51,11 +46,7 @@ cd .\tum-vr-cycling-simulator\
 .\setup.ps1
 ```
 
-
-Then get the 3d model from tum2twin:
-```
-powershell -ExecutionPolicy Bypass -File download_unity_fbx.ps1
-```
+The `download_unity_fbx.ps1` and `vcs import` steps that this script performs are no longer required: the campus model and all dependency packages are committed to this repository. They are kept for the upstream workflow, and for pulling fresh versions from TUM.
 
 ## Manual installation
 
