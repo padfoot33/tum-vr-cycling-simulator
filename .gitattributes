@@ -1,0 +1,5 @@
+# TUM campus model textures are large binaries; keep them out of the packfile.
+# Scoped to this folder so other project art is unaffected.
+Assets/3d_model_v3/**/*.png filter=lfs diff=lfs merge=lfs -text
+Assets/3d_model_v3/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+Assets/3d_model_v3/**/*.bmp filter=lfs diff=lfs merge=lfs -text
