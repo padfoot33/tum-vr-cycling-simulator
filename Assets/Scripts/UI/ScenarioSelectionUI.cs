@@ -1,0 +1,366 @@
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using CyclingExperiment.Camera;
+using CyclingExperiment.AI;
+using CyclingExperiment.Scenarios;
+using ExperimentRefs = CyclingExperiment.ExperimentSceneRefs;
+
+namespace CyclingExperiment.UI
+{
+    /// <summary>
+    /// Interactive in-game Scenario Selector UI & Teleportation System.
+    /// Supports Combined Route 1, Route 2 Construction, Free Roam, and Live Traffic ON/OFF Toggle.
+    /// Press 'M' or 'Tab' to open menu; 'T' to toggle city traffic.
+    /// </summary>
+    public class ScenarioSelectionUI : MonoBehaviour
+    {
+        [Header("Starting Spawn Positions")]
+        public Vector3 scenario1Position = new Vector3(436.1f, 0.2f, -80.0f);
+        public float scenario1Heading = 0f;
+
+        public Vector3 scenario2Position = new Vector3(721.5f, 0.2f, 70.0f);
+        public float scenario2Heading = 0f;
+
+        [Header("Keys")]
+        [SerializeField] private KeyCode toggleMenuKey = KeyCode.M;
+        [SerializeField] private KeyCode toggleTrafficKey = KeyCode.T;
+
+        [Header("Scene refs")]
+        [SerializeField] private ExperimentRefs sceneRefs;
+
+        private GameObject _modalPanel;
+        private Canvas _canvas;
+        private bool _isModalOpen;
+        private Text _trafficBtnText;
+
+        private ExperimentRefs Refs => sceneRefs != null ? sceneRefs : ExperimentRefs.Instance;
+
+        private void Awake()
+        {
+            if (sceneRefs == null) sceneRefs = ExperimentRefs.EnsureExists();
+            EnsureEventSystemExists();
+        }
+
+        private void Start()
+        {
+            EnsureEventSystemExists();
+            if (AlmostEqual(scenario2Position, new Vector3(450.0f, 0.2f, 0.0f)))
+            {
+                scenario2Position = Scenario3_ConstructionNarrowing.ApproachPosition;
+                scenario2Heading = Scenario3_ConstructionNarrowing.ApproachHeading;
+            }
+            CreateScenarioUI();
+            ShowModal(false);
+            SelectScenario(1);
+        }
+
+        private void EnsureEventSystemExists()
+        {
+            if (Refs != null && Refs.eventSystem != null) return;
+
+            GameObject eventSystemObj = new GameObject("EventSystem");
+            var created = eventSystemObj.AddComponent<EventSystem>();
+            eventSystemObj.AddComponent<StandaloneInputModule>();
+            if (Refs != null) Refs.eventSystem = created;
+        }
+
+        private void Update()
+        {
+            if (Input.GetKeyDown(toggleMenuKey) || Input.GetKeyDown(KeyCode.Tab))
+            {
+                ToggleModal();
+            }
+
+            if (Input.GetKeyDown(toggleTrafficKey))
+            {
+                ToggleGlobalTraffic();
+            }
+
+            if (_isModalOpen)
+            {
+                if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) SelectScenario(1);
+                if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) SelectScenario(2);
+                if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3) || Input.GetKeyDown(KeyCode.Escape)) SelectScenario(0);
+            }
+        }
+
+        public void ToggleModal()
+        {
+            ShowModal(!_isModalOpen);
+        }
+
+        public void ShowModal(bool show)
+        {
+            _isModalOpen = show;
+            if (_modalPanel != null)
+            {
+                _modalPanel.SetActive(show);
+            }
+
+            Cursor.lockState = show ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = show;
+        }
+
+        private void CreateScenarioUI()
+        {
+            GameObject canvasObj = new GameObject("ScenarioUI_Canvas");
+            canvasObj.transform.SetParent(transform);
+            _canvas = canvasObj.AddComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 200;
+            _canvas.pixelPerfect = true;
+
+            var scaler = canvasObj.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
+            scaler.matchWidthOrHeight = 0.5f;
+            scaler.dynamicPixelsPerUnit = 2.0f;
+
+            canvasObj.AddComponent<GraphicRaycaster>();
+
+            // Top-right Menu & Traffic Toggle Buttons
+            CreateTopButtons(canvasObj.transform);
+
+            // Modal Background Overlay
+            _modalPanel = new GameObject("ScenarioModal_Panel");
+            _modalPanel.transform.SetParent(canvasObj.transform, false);
+
+            var panelRect = _modalPanel.AddComponent<RectTransform>();
+            panelRect.anchorMin = Vector2.zero;
+            panelRect.anchorMax = Vector2.one;
+            panelRect.sizeDelta = Vector2.zero;
+
+            var panelBg = _modalPanel.AddComponent<Image>();
+            panelBg.color = new Color(0.04f, 0.07f, 0.12f, 0.92f);
+            panelBg.raycastTarget = true;
+
+            // Modal Card
+            GameObject card = new GameObject("ModalCard");
+            card.transform.SetParent(_modalPanel.transform, false);
+            var cardRect = card.AddComponent<RectTransform>();
+            cardRect.sizeDelta = new Vector2(760, 560);
+            cardRect.anchoredPosition = Vector2.zero;
+
+            var cardBg = card.AddComponent<Image>();
+            cardBg.color = new Color(0.11f, 0.15f, 0.22f, 0.98f);
+
+            // Title
+            CreateText(card.transform, "Title", "TUM VR CYCLING EXPERIMENT", new Vector2(0, 220), 28, FontStyle.Bold, Color.white);
+            CreateText(card.transform, "Subtitle", "Select a scenario to start simulation (or press 1, 2, 3):", new Vector2(0, 175), 18, FontStyle.Normal, new Color(0.75f, 0.85f, 0.95f));
+
+            // Buttons
+            CreateScenarioButton(card.transform, "[1]  Route 1: Combined Bus Stop & Right-Turn Sequence\n<size=15><color=#90CDF4>Gabelsbergerstr. • Bus Overtake & Park ➔ Red Strip Right-Turn</color></size>", new Vector2(0, 95), () => SelectScenario(1));
+            CreateScenarioButton(card.transform, "[2]  Route 2: Construction Narrowing Sequence\n<size=15><color=#90CDF4>Narrowed Roadway Chute with Passing Traffic Squeeze</color></size>", new Vector2(0, 10), () => SelectScenario(2));
+            CreateScenarioButton(card.transform, "[3]  Free Roam & City Exploration\n<size=15><color=#A0AEC0>Freely Ride and Explore the Munich TUM Campus with Ambient Traffic</color></size>", new Vector2(0, -75), () => SelectScenario(0));
+
+            // Traffic Toggle inside modal
+            CreateTrafficToggleButton(card.transform, new Vector2(0, -155));
+
+            // Hint
+            CreateText(card.transform, "Hint", "Press 'M' for Menu  •  Press 'T' to Toggle Traffic  •  Press 'V' for Cockpit View", new Vector2(0, -230), 16, FontStyle.Italic, new Color(0.6f, 0.75f, 0.9f));
+        }
+
+        private void CreateTopButtons(Transform parent)
+        {
+            // Menu Button
+            GameObject menuBtnObj = new GameObject("Top_Menu_Button");
+            menuBtnObj.transform.SetParent(parent, false);
+
+            var rect = menuBtnObj.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1, 1);
+            rect.anchorMax = new Vector2(1, 1);
+            rect.pivot = new Vector2(1, 1);
+            rect.anchoredPosition = new Vector2(-25, -25);
+            rect.sizeDelta = new Vector2(170, 46);
+
+            var img = menuBtnObj.AddComponent<Image>();
+            img.color = new Color(0.18f, 0.48f, 0.88f, 0.95f);
+            img.raycastTarget = true;
+
+            var btn = menuBtnObj.AddComponent<Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(ToggleModal);
+            CreateText(menuBtnObj.transform, "BtnText", "☰ Scenarios [M]", Vector2.zero, 17, FontStyle.Bold, Color.white);
+
+            // Traffic Toggle Button
+            GameObject trafficBtnObj = new GameObject("Top_Traffic_Button");
+            trafficBtnObj.transform.SetParent(parent, false);
+
+            var tRect = trafficBtnObj.AddComponent<RectTransform>();
+            tRect.anchorMin = new Vector2(1, 1);
+            tRect.anchorMax = new Vector2(1, 1);
+            tRect.pivot = new Vector2(1, 1);
+            tRect.anchoredPosition = new Vector2(-205, -25);
+            tRect.sizeDelta = new Vector2(170, 46);
+
+            var tImg = trafficBtnObj.AddComponent<Image>();
+            tImg.color = new Color(0.15f, 0.65f, 0.40f, 0.95f);
+            tImg.raycastTarget = true;
+
+            var tBtn = trafficBtnObj.AddComponent<Button>();
+            tBtn.targetGraphic = tImg;
+            tBtn.onClick.AddListener(ToggleGlobalTraffic);
+            _trafficBtnText = CreateText(trafficBtnObj.transform, "TBtnText", "🚗 Traffic: ON [T]", Vector2.zero, 16, FontStyle.Bold, Color.white);
+        }
+
+        private void CreateTrafficToggleButton(Transform parent, Vector2 pos)
+        {
+            GameObject btnObj = new GameObject("Modal_Traffic_Toggle");
+            btnObj.transform.SetParent(parent, false);
+
+            var rect = btnObj.AddComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(400, 50);
+            rect.anchoredPosition = pos;
+
+            var img = btnObj.AddComponent<Image>();
+            img.color = new Color(0.15f, 0.55f, 0.35f, 1f);
+            img.raycastTarget = true;
+
+            var btn = btnObj.AddComponent<Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(ToggleGlobalTraffic);
+
+            CreateText(btnObj.transform, "Text", "🚗 Ambient City Traffic: ON / OFF (Press T)", Vector2.zero, 16, FontStyle.Bold, Color.white);
+        }
+
+        private void CreateScenarioButton(Transform parent, string text, Vector2 pos, UnityEngine.Events.UnityAction action)
+        {
+            GameObject btnObj = new GameObject("Btn_" + pos.y);
+            btnObj.transform.SetParent(parent, false);
+
+            var rect = btnObj.AddComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(680, 70);
+            rect.anchoredPosition = pos;
+
+            var img = btnObj.AddComponent<Image>();
+            img.color = new Color(0.18f, 0.25f, 0.36f, 1f);
+            img.raycastTarget = true;
+
+            var btn = btnObj.AddComponent<Button>();
+            btn.targetGraphic = img;
+
+            var colors = btn.colors;
+            colors.highlightedColor = new Color(0.25f, 0.42f, 0.65f, 1f);
+            colors.pressedColor = new Color(0.10f, 0.20f, 0.35f, 1f);
+            btn.colors = colors;
+
+            btn.onClick.AddListener(action);
+
+            CreateText(btnObj.transform, "Text", text, Vector2.zero, 18, FontStyle.Normal, Color.white);
+        }
+
+        private Text CreateText(Transform parent, string name, string content, Vector2 pos, int fontSize, FontStyle style, Color color)
+        {
+            GameObject textObj = new GameObject(name);
+            textObj.transform.SetParent(parent, false);
+
+            var rect = textObj.AddComponent<RectTransform>();
+            rect.anchoredPosition = pos;
+            rect.sizeDelta = new Vector2(680, 70);
+
+            var text = textObj.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.text = content;
+            text.fontSize = fontSize;
+            text.fontStyle = style;
+            text.color = color;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.supportRichText = true;
+            text.raycastTarget = false;
+
+            return text;
+        }
+
+        public void ToggleGlobalTraffic()
+        {
+            var trafficMgr = Refs != null ? Refs.cityTraffic : null;
+            if (trafficMgr == null) return;
+
+            trafficMgr.ToggleTraffic();
+            bool state = trafficMgr.IsTrafficEnabled;
+            if (_trafficBtnText != null)
+            {
+                _trafficBtnText.text = state ? "🚗 Traffic: ON [T]" : "🚗 Traffic: OFF [T]";
+            }
+
+            if (Refs.hud != null) Refs.hud.ShowMessage(state ? "City Traffic ENABLED" : "City Traffic DISABLED", 3f);
+        }
+
+        public void SelectScenario(int scenarioIndex)
+        {
+            ShowModal(false);
+
+            GameObject bike = Refs != null ? Refs.bicycle : null;
+            if (bike == null)
+            {
+                Debug.LogError("[ScenarioSelectionUI] Bicycle reference is missing. Assign ExperimentSceneRefs.");
+                return;
+            }
+
+            ApplyCyclistSpeedLimit(Refs.bicyclePhysics);
+
+            if (Refs.route1 != null) Refs.route1.ResetScenario();
+
+            switch (scenarioIndex)
+            {
+                case 1:
+                    if (Refs.route1CyclistSpawn != null)
+                    {
+                        Vector3 spawnPos = Refs.route1CyclistSpawn.position;
+                        float spawnHeading = Refs.route1CyclistSpawn.eulerAngles.y;
+                        TeleportBike(Refs.bicyclePhysics, bike.transform, spawnPos, spawnHeading);
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[ScenarioSelectionUI] Cyclist_Spawn_Route1 missing; using fallback spawn.");
+                        TeleportBike(Refs.bicyclePhysics, bike.transform, scenario1Position, scenario1Heading);
+                    }
+                    if (Refs.hud != null) Refs.hud.ShowMessage("Route 1: Combined Bus Stop & Right-Turn Sequence", 5f);
+                    if (EventMarkerLogger.Instance != null) EventMarkerLogger.Instance.LogEvent("ROUTE1_START");
+                    break;
+
+                case 2:
+                    TeleportBike(Refs.bicyclePhysics, bike.transform, Scenario3_ConstructionNarrowing.ApproachPosition, Scenario3_ConstructionNarrowing.ApproachHeading);
+                    if (Refs.hud != null) Refs.hud.ShowMessage("Route 2: Construction Road Narrowing Sequence", 5f);
+                    if (EventMarkerLogger.Instance != null) EventMarkerLogger.Instance.LogEvent("ROUTE2_START");
+                    break;
+
+                case 0:
+                default:
+                    if (Refs.hud != null) Refs.hud.ShowMessage("Free Roam Mode Active", 4f);
+                    break;
+            }
+
+            if (Refs.followCamera != null) Refs.followCamera.SnapToTarget();
+        }
+
+        private static bool AlmostEqual(Vector3 a, Vector3 b)
+        {
+            return (a - b).sqrMagnitude < 0.01f;
+        }
+
+        private static void TeleportBike(BikeURP.BicyclePhysicsController physics, Transform bike, Vector3 position, float heading)
+        {
+            if (physics != null)
+            {
+                physics.Teleport(position, heading);
+                return;
+            }
+
+            bike.position = position;
+            bike.rotation = Quaternion.Euler(0, heading, 0);
+        }
+
+        private static void ApplyCyclistSpeedLimit(BikeURP.BicyclePhysicsController physics)
+        {
+            if (physics == null) return;
+
+            const float maxSpeedMps = 20f / 3.6f; // 20 km/h
+            physics.maxSpeed = maxSpeedMps;
+            var speedField = physics.GetType().GetField("_speed", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (speedField != null) speedField.SetValue(physics, 0f);
+        }
+
+    }
+}
