@@ -50,6 +50,12 @@ namespace CyclingExperiment.AI
         {
             if (_physicsController == null) return;
 
+            if (IsRiderReversing())
+            {
+                _physicsController.SetSafetyBrake(0f);
+                return;
+            }
+
             float brake = 0f;
             if (enableAutoBrake)
             {
@@ -70,6 +76,11 @@ namespace CyclingExperiment.AI
             {
                 CheckLateralProximityNudge();
             }
+        }
+
+        private bool IsRiderReversing()
+        {
+            return _physicsController.throttle01 < -0.1f || _physicsController.GetSpeedMps() < -0.15f;
         }
 
         private bool TryResolveOverlap()

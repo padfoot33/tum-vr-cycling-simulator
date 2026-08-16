@@ -24238,7 +24238,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.AI.SmartBicycleSafetyAssistant
   enableAutoBrake: 1
-  criticalBrakeDistance: 25
+  criticalBrakeDistance: 15
   maxLateralOffset: 1.2
   obstacleLayers:
     serializedVersion: 2
@@ -35379,8 +35379,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.AI.GlobalCityTrafficManager
   isTrafficEnabled: 1
   spawnInterval: 3
-  maxVehicles: 16
-  defaultTrafficSpeed: 9.5
+  maxVehicles: 100
+  defaultTrafficSpeed: 12
   vehiclePrefabs:
   - {fileID: 4933583111240688830, guid: acf1b64a1fbe1d74d93024e62413459d, type: 3}
   - {fileID: 7014147353987398875, guid: fb71e58c7d638de488082959e77cc8da, type: 3}
@@ -35389,7 +35389,6 @@ MonoBehaviour:
   - {fileID: 7790148540567442869, guid: 75af29bd7d765e64c86e398c40b294b1, type: 3}
   - {fileID: 548916645831260737, guid: b21811dbcaa66c342acc110bb573da4a, type: 3}
   - {fileID: 3896649973512522099, guid: 3cd9373f59881a24dbc884e81a01dc89, type: 3}
-  - {fileID: 7193673960299363686, guid: 34aa031d1b5585b4d960d5bfc4116fa3, type: 3}
   trafficPaths:
   - {fileID: 0}
   - {fileID: 0}
@@ -74235,7 +74234,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1849350041
 Transform:
   m_ObjectHideFlags: 0

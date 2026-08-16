@@ -2,6 +2,10 @@
 
 Working notes for current development. The project map lives in [PROJECT_MINDMAP.md](PROJECT_MINDMAP.md).
 
+## 17 Aug 2026 — Route 2 one-way, lanes, reverse
+
+Skybridge street (`x ≈ 723`) is northbound only: cars spawn at the south end facing `+Z`. Turns use a right-lane via so they do not cut onto the cyclist lane. Deadlocked cars reverse, check right, then repath. Auto-brake no longer blocks `S` reverse.
+
 ## 17 Aug 2026 — Cars stop for the cyclist
 
 City / intersection cars now yield: they track the bike from `ExperimentSceneRefs`, box-cast the lane, and halt the NavMesh agent instead of driving through. The bike also auto-brakes for a car closing from the front or side. Scripted Route 1 stress vehicles (bus / right-turn car) still complete their manoeuvre.

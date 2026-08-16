@@ -30,7 +30,7 @@ namespace CyclingExperiment.AI
         {
             new Vector3(436f, 1f, -40f),
             new Vector3(430f, 1f, 174f),
-            new Vector3(723f, 1f, 128f),
+            new Vector3(580f, 1f, 80f),
             new Vector3(436f, 1f, 80f),
             new Vector3(580f, 1f, 170f),
             new Vector3(300f, 1f, 172f),
@@ -40,11 +40,10 @@ namespace CyclingExperiment.AI
 
         private static readonly Vector3[] Route2SeedPoints =
         {
-            new Vector3(723f, 1f, 90f),
-            new Vector3(723f, 1f, 110f),
-            new Vector3(723f, 1f, 128f),
-            new Vector3(723f, 1f, 150f),
-            new Vector3(723f, 1f, 170f)
+            new Vector3(723f, 1f, 70f),
+            new Vector3(723f, 1f, 80f),
+            new Vector3(723f, 1f, 88f),
+            new Vector3(723f, 1f, 95f)
         };
 
         private readonly List<GameObject> _spawnedVehicles = new List<GameObject>();
@@ -206,6 +205,8 @@ namespace CyclingExperiment.AI
                 }
 
                 if (!NavMesh.SamplePosition(seed, out NavMeshHit hit, 20f, NavMesh.AllAreas)) continue;
+
+                if (useRoute2 && !NavMeshVehicleAI.IsRoute2Corridor(hit.position)) continue;
 
                 rotation = NavMeshVehicleAI.HeadingAlongRoad(hit.position);
                 position = hit.position;

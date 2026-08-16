@@ -49,6 +49,10 @@ namespace CyclingExperiment.AI
             float bestAny = float.PositiveInfinity;
             Transform bestAnyPoint = null;
 
+            bool onRoute2 = NavMeshVehicleAI.IsRoute2Corridor(from);
+            float bestCorridor = float.NegativeInfinity;
+            Transform bestCorridorPoint = null;
+
             for (int i = 0; i < points.Length; i++)
             {
                 Transform point = points[i];
@@ -58,6 +62,12 @@ namespace CyclingExperiment.AI
                 to.y = 0f;
                 float dist = to.magnitude;
                 if (dist < 4f) continue;
+
+                if (onRoute2 && NavMeshVehicleAI.IsRoute2Corridor(point.position) &&
+                    point.position.z < from.z - 2f)
+                {
+                    continue;
+                }
 
                 if (dist < bestAny)
                 {
@@ -71,9 +81,18 @@ namespace CyclingExperiment.AI
                     bestAhead = ahead * dist;
                     bestAheadPoint = point;
                 }
+
+                if (onRoute2 && NavMeshVehicleAI.IsRoute2Corridor(point.position) &&
+                    ahead > 0.15f && point.position.z >= from.z - 1f && ahead * dist > bestCorridor)
+                {
+                    bestCorridor = ahead * dist;
+                    bestCorridorPoint = point;
+                }
             }
 
-            next = bestAheadPoint != null ? bestAheadPoint : bestAnyPoint;
+            next = bestCorridorPoint != null ? bestCorridorPoint
+                : bestAheadPoint != null ? bestAheadPoint
+                : bestAnyPoint;
             return next != null;
         }
 
