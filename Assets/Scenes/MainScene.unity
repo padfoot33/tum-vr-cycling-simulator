@@ -34409,6 +34409,11 @@ MonoBehaviour:
   playerTransform: {fileID: 641229301}
   sceneRefs: {fileID: 2024471565}
   intersectionTraffic: {fileID: 1492515012}
+  busEngineLoop: {fileID: 0}
+  busBrake: {fileID: 0}
+  busIdleStop: {fileID: 0}
+  busDeparture: {fileID: 0}
+  busStationAmbient: {fileID: 0}
 --- !u!1 &947192276 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7685563544005100272, guid: 9617d4ea46d0be64bab0509212afe5da, type: 3}
@@ -51849,7 +51854,7 @@ Transform:
   m_GameObject: {fileID: 1431983340}
   serializedVersion: 2
   m_LocalRotation: {x: -0.032231156, y: 0.8139802, z: 0.017451039, w: 0.5797352}
-  m_LocalPosition: {x: 403.1, y: 0.2, z: -12.9}
+  m_LocalPosition: {x: 403.72, y: 0.26, z: -11.11}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

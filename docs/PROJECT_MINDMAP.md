@@ -154,6 +154,7 @@ RCCP / `Assets/CarModel/` is third-party and omitted here.
 | `AI/PhysicsBusController.cs` | `PhysicsBusController` | Accel/brake bus along waypoints; unused by combined controller |
 | `AI/BusAIController.cs` | `BusAIController` | Dwell at stop + overtake boost |
 | `AI/ScenarioBusAudio.cs` | `ScenarioBusAudio` | Route 1 Bogdan 3D engine / brake / idle |
+| `AI/TrafficIdentity.cs` | `TrafficIdentity` | Shared cyclist / vehicle checks for yield |
 | `AI/GlobalCityTrafficManager.cs` | `GlobalCityTrafficManager` | Ambient 9-prefab traffic; `T` toggle |
 | `AI/TrafficSpawner.cs` | `TrafficSpawner` | Generic multi-path spawner |
 | `AI/IntersectionTrafficFlowManager.cs` | `IntersectionTrafficFlowManager` | Scenario 2 continuous intersection flow |

@@ -24,7 +24,7 @@ namespace CyclingExperiment.AI
         private BikeURP.BicyclePhysicsController _physicsController;
         private Rigidbody _rigidbody;
         private Collider _bikeCollider;
-        private readonly Collider[] _overlapHits = new Collider[16];
+        private readonly Collider[] _overlapHits = new Collider[24];
 
         private void Awake()
         {
@@ -33,6 +33,17 @@ namespace CyclingExperiment.AI
             _bikeCollider = GetComponent<Collider>();
             maxLateralOffset = Mathf.Max(0.85f, maxLateralOffset);
             criticalBrakeDistance = Mathf.Max(8f, criticalBrakeDistance);
+            EnsureNavMeshObstacle();
+        }
+
+        private void EnsureNavMeshObstacle()
+        {
+            var obstacle = GetComponent<UnityEngine.AI.NavMeshObstacle>();
+            if (obstacle == null) obstacle = gameObject.AddComponent<UnityEngine.AI.NavMeshObstacle>();
+            obstacle.carving = false;
+            obstacle.shape = UnityEngine.AI.NavMeshObstacleShape.Box;
+            obstacle.size = new Vector3(0.9f, 1.6f, 1.8f);
+            obstacle.center = new Vector3(0f, 0.8f, 0f);
         }
 
         private void FixedUpdate()
@@ -49,7 +60,7 @@ namespace CyclingExperiment.AI
                 }
                 else
                 {
-                    brake = ComputeForwardBrake();
+                    brake = Mathf.Max(ComputeForwardBrake(), ComputeApproachingVehicleBrake());
                 }
             }
 
@@ -72,7 +83,7 @@ namespace CyclingExperiment.AI
             for (int i = 0; i < count; i++)
             {
                 Collider other = _overlapHits[i];
-                if (other == null || other.transform.IsChildOf(transform) || !IsVehicleCollider(other)) continue;
+                if (other == null || other.transform.IsChildOf(transform) || !TrafficIdentity.IsVehicle(other)) continue;
 
                 overlapping = true;
                 SeparateFrom(other);
@@ -121,7 +132,7 @@ namespace CyclingExperiment.AI
             for (int i = 0; i < hits.Length; i++)
             {
                 if (hits[i].transform.IsChildOf(transform)) continue;
-                if (!IsVehicleCollider(hits[i].collider)) continue;
+                if (!TrafficIdentity.IsVehicle(hits[i].collider)) continue;
                 nearest = Mathf.Min(nearest, hits[i].distance);
             }
 
@@ -131,18 +142,54 @@ namespace CyclingExperiment.AI
             return Mathf.Clamp01(t * 1.5f);
         }
 
+        private float ComputeApproachingVehicleBrake()
+        {
+            int count = Physics.OverlapSphereNonAlloc(transform.position, 8f, _overlapHits, obstacleLayers,
+                QueryTriggerInteraction.Ignore);
+
+            float brake = 0f;
+            for (int i = 0; i < count; i++)
+            {
+                Collider other = _overlapHits[i];
+                if (other == null || other.transform.IsChildOf(transform) || !TrafficIdentity.IsVehicle(other)) continue;
+
+                Vector3 toBike = transform.position - other.transform.position;
+                toBike.y = 0f;
+                float distance = toBike.magnitude;
+                if (distance < 0.05f)
+                {
+                    brake = 1f;
+                    continue;
+                }
+
+                Vector3 carForward = other.transform.forward;
+                carForward.y = 0f;
+                if (carForward.sqrMagnitude < 0.01f) continue;
+                carForward.Normalize();
+
+                float closing = Vector3.Dot(carForward, toBike / distance);
+                float lateral = Mathf.Abs(Vector3.Dot(toBike, Vector3.Cross(Vector3.up, carForward)));
+                if (closing < 0.45f || lateral > 1.8f) continue;
+
+                float t = 1f - Mathf.Clamp01(distance / 8f);
+                brake = Mathf.Max(brake, Mathf.Clamp01(t * 1.4f));
+            }
+
+            return brake;
+        }
+
         private void CheckLateralProximityNudge()
         {
             Vector3 origin = transform.position + Vector3.up * 0.8f;
 
             if (Physics.Raycast(origin, -transform.right, out RaycastHit leftHit, criticalLateralDistance, obstacleLayers)
-                && !leftHit.transform.IsChildOf(transform) && IsVehicleCollider(leftHit.collider))
+                && !leftHit.transform.IsChildOf(transform) && TrafficIdentity.IsVehicle(leftHit.collider))
             {
                 ApplyNudge(transform.right, leftHit.distance);
             }
 
             if (Physics.Raycast(origin, transform.right, out RaycastHit rightHit, criticalLateralDistance, obstacleLayers)
-                && !rightHit.transform.IsChildOf(transform) && IsVehicleCollider(rightHit.collider))
+                && !rightHit.transform.IsChildOf(transform) && TrafficIdentity.IsVehicle(rightHit.collider))
             {
                 ApplyNudge(-transform.right, rightHit.distance);
             }
@@ -163,17 +210,5 @@ namespace CyclingExperiment.AI
             }
         }
 
-        private static bool IsVehicleCollider(Collider collider)
-        {
-            if (collider == null) return false;
-
-            string name = collider.transform.root.name;
-            return name.StartsWith("CityTraffic_") ||
-                   name.StartsWith("TrafficFlow_") ||
-                   name.StartsWith("Scenario1_") ||
-                   name.IndexOf("car", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   name.IndexOf("bus", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   name.IndexOf("taxi", System.StringComparison.OrdinalIgnoreCase) >= 0;
-        }
     }
 }

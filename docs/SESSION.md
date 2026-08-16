@@ -2,6 +2,10 @@
 
 Working notes for current development. The project map lives in [PROJECT_MINDMAP.md](PROJECT_MINDMAP.md).
 
+## 17 Aug 2026 — Cars stop for the cyclist
+
+City / intersection cars now yield: they track the bike from `ExperimentSceneRefs`, box-cast the lane, and halt the NavMesh agent instead of driving through. The bike also auto-brakes for a car closing from the front or side. Scripted Route 1 stress vehicles (bus / right-turn car) still complete their manoeuvre.
+
 ## 17 Aug 2026 — Don't ride through the Route 1 bus
 
 The bike is kinematic, so Unity never physically blocks the Bogdan. Auto-brake was also skipping it: 0.5 s checks, a 0.1 m probe, ignore-if-closer-than-1.2 m, and a 5.2 m-wide bus box. Safety assist now box-casts the bike's lane every physics tick, hard-stops and pushes out on overlap. Bus collider is ~2.55 × 3.15 × 11.2 m.

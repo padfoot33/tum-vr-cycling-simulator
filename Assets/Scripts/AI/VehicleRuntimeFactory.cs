@@ -107,9 +107,9 @@ namespace CyclingExperiment.AI
                 rb.isKinematic = true;
                 rb.useGravity = false;
                 rb.linearVelocity = Vector3.zero;
+                rb.detectCollisions = true;
                 if (disableRigidbody)
                 {
-                    rb.detectCollisions = false;
                     rb.interpolation = RigidbodyInterpolation.None;
                 }
             }

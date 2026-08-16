@@ -274,26 +274,41 @@ namespace CyclingExperiment.AI
 
         private float CheckForwardVehicleSpeed()
         {
-            Vector3 origin = transform.position + Vector3.up * 0.7f + transform.forward * 1.5f;
+            float target = speed;
+            Vector3 origin = transform.position + Vector3.up * 0.7f + transform.forward * 0.4f;
             Vector3 fwd = transform.forward;
-            RaycastHit[] hits = Physics.SphereCastAll(origin, forwardDetectionRadius, fwd, forwardLookaheadDistance, ~0,
-                QueryTriggerInteraction.Ignore);
-            float nearestVehicleDistance = float.PositiveInfinity;
+            fwd.y = 0f;
+            if (fwd.sqrMagnitude < 0.01f) return speed;
+            fwd.Normalize();
 
+            if (!isExperimentStressVehicle)
+            {
+                Transform bike = TrafficIdentity.Cyclist;
+                if (bike != null)
+                {
+                    target = Mathf.Min(target, TrafficIdentity.SpeedForPointAhead(
+                        transform.position, fwd, bike.position, 1.7f,
+                        forwardLookaheadDistance + 2f, stoppingBuffer, speed));
+                }
+            }
+
+            RaycastHit[] hits = Physics.BoxCastAll(origin, new Vector3(1.15f, 0.7f, 0.5f), fwd, transform.rotation,
+                forwardLookaheadDistance, ~0, QueryTriggerInteraction.Ignore);
+
+            float nearestVehicleDistance = float.PositiveInfinity;
             foreach (RaycastHit hit in hits)
             {
                 if (hit.transform.IsChildOf(transform)) continue;
 
-                bool isCyclist = hit.collider.CompareTag("Player") || hit.collider.name.Contains("bicyle");
-
-                if (isCyclist)
+                bool cyclist = TrafficIdentity.IsCyclist(hit.collider);
+                if (cyclist)
                 {
                     if (isExperimentStressVehicle) continue;
                     nearestVehicleDistance = Mathf.Min(nearestVehicleDistance, hit.distance);
                     continue;
                 }
 
-                if (IsVehicleCollider(hit.collider))
+                if (TrafficIdentity.IsVehicle(hit.collider))
                 {
                     nearestVehicleDistance = Mathf.Min(nearestVehicleDistance, hit.distance);
                 }
@@ -304,10 +319,10 @@ namespace CyclingExperiment.AI
             {
                 float availableDistance = Mathf.Max(0.01f, forwardLookaheadDistance - stoppingBuffer);
                 float factor = (nearestVehicleDistance - stoppingBuffer) / availableDistance;
-                return speed * Mathf.Clamp01(factor);
+                target = Mathf.Min(target, speed * Mathf.Clamp01(factor));
             }
 
-            return speed;
+            return target;
         }
 
         private float GetCornerSlowdownFactor()
@@ -345,20 +360,6 @@ namespace CyclingExperiment.AI
             }
 
             return distance;
-        }
-
-        private static bool IsVehicleCollider(Collider collider)
-        {
-            if (collider == null) return false;
-
-            Transform root = collider.transform.root;
-            string name = root.name;
-            return name.StartsWith("CityTraffic_") ||
-                   name.StartsWith("TrafficFlow_") ||
-                   name.StartsWith("Scenario1_") ||
-                   name.IndexOf("car", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   name.IndexOf("bus", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   name.IndexOf("taxi", System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
     }
 }

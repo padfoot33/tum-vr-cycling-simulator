@@ -50,7 +50,8 @@ namespace CyclingExperiment.AI
             _agent.autoBraking = true;
             _agent.updatePosition = true;
             _agent.updateRotation = true;
-            _agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
+            _agent.obstacleAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
+            _agent.avoidancePriority = 40;
             _cachedPath = new NavMeshPath();
             _currentTargetSpeed = cruiseSpeed;
         }
@@ -141,11 +142,14 @@ namespace CyclingExperiment.AI
             }
 
             _followTimer += Time.deltaTime;
-            if (_followTimer >= followCheckInterval)
+            if (_followTimer >= 0.08f)
             {
                 _followTimer = 0f;
                 _currentTargetSpeed = CheckForwardVehicleSpeed();
                 _agent.speed = _currentTargetSpeed;
+                bool mustStop = _currentTargetSpeed < 0.05f;
+                if (_agent.isStopped != mustStop) _agent.isStopped = mustStop;
+                if (mustStop) _agent.velocity = Vector3.zero;
             }
 
             if (_repathCooldown > 0f) _repathCooldown -= Time.deltaTime;
@@ -196,26 +200,43 @@ namespace CyclingExperiment.AI
 
         private float CheckForwardVehicleSpeed()
         {
-            Vector3 origin = transform.position + Vector3.up * 0.7f + transform.forward * 1.5f;
-            if (!Physics.SphereCast(origin, forwardDetectionRadius, transform.forward, out RaycastHit hit,
-                    forwardLookaheadDistance, ~0, QueryTriggerInteraction.Ignore))
+            float speed = cruiseSpeed;
+            Vector3 origin = transform.position + Vector3.up * 0.7f + transform.forward * 0.4f;
+            Vector3 forward = transform.forward;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 0.01f) return cruiseSpeed;
+            forward.Normalize();
+
+            if (!_isExperimentStressVehicle)
             {
-                return cruiseSpeed;
+                Transform bike = TrafficIdentity.Cyclist;
+                if (bike != null)
+                {
+                    speed = Mathf.Min(speed, TrafficIdentity.SpeedForPointAhead(
+                        transform.position, forward, bike.position, 1.7f,
+                        forwardLookaheadDistance + 2f, stoppingBuffer, cruiseSpeed));
+                }
             }
 
-            if (hit.transform.IsChildOf(transform)) return cruiseSpeed;
+            Vector3 halfExtents = new Vector3(1.15f, 0.7f, 0.5f);
+            RaycastHit[] hits = Physics.BoxCastAll(origin, halfExtents, forward, transform.rotation,
+                forwardLookaheadDistance, ~0, QueryTriggerInteraction.Ignore);
 
-            bool isCyclist = hit.collider.CompareTag("Player") || hit.collider.name.Contains("bicyle");
-            if (isCyclist && _isExperimentStressVehicle) return cruiseSpeed;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                Collider col = hits[i].collider;
+                if (col == null || hits[i].transform.IsChildOf(transform)) continue;
 
-            bool isTraffic = hit.collider.CompareTag("Vehicle") ||
-                             hit.transform.root.name.StartsWith("CityTraffic_") ||
-                             hit.transform.root.name.StartsWith("TrafficFlow_");
-            if (!isCyclist && !isTraffic) return cruiseSpeed;
+                bool cyclist = TrafficIdentity.IsCyclist(col);
+                if (cyclist && _isExperimentStressVehicle) continue;
+                if (!cyclist && !TrafficIdentity.IsVehicle(col)) continue;
 
-            if (hit.distance < stoppingBuffer) return 0f;
-            float available = Mathf.Max(0.01f, forwardLookaheadDistance - stoppingBuffer);
-            return cruiseSpeed * Mathf.Clamp01((hit.distance - stoppingBuffer) / available);
+                if (hits[i].distance <= stoppingBuffer) return 0f;
+                float available = Mathf.Max(0.01f, forwardLookaheadDistance - stoppingBuffer);
+                speed = Mathf.Min(speed, cruiseSpeed * Mathf.Clamp01((hits[i].distance - stoppingBuffer) / available));
+            }
+
+            return speed;
         }
     }
 }
