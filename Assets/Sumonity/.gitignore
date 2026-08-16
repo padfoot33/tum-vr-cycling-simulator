@@ -1,0 +1,11 @@
+*.xodr
+*.xml
+*.geojson
+*.sumocfg
+*.neteditcfg
+__pycache__
+*.rou.xml
+venv/
+.venv/
+SumoTraCI/sumoProject/
+__pycache__.meta
