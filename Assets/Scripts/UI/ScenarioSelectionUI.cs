@@ -321,7 +321,16 @@ namespace CyclingExperiment.UI
                     break;
 
                 case 2:
-                    TeleportBike(Refs.bicyclePhysics, bike.transform, Scenario3_ConstructionNarrowing.ApproachPosition, Scenario3_ConstructionNarrowing.ApproachHeading);
+                    if (Refs.route2CyclistSpawn != null)
+                    {
+                        TeleportBike(Refs.bicyclePhysics, bike.transform,
+                            Refs.route2CyclistSpawn.position, Refs.route2CyclistSpawn.eulerAngles.y);
+                    }
+                    else
+                    {
+                        TeleportBike(Refs.bicyclePhysics, bike.transform,
+                            Scenario3_ConstructionNarrowing.ApproachPosition, Scenario3_ConstructionNarrowing.ApproachHeading);
+                    }
                     if (Refs.hud != null) Refs.hud.ShowMessage("Route 2: Construction Road Narrowing Sequence", 5f);
                     if (EventMarkerLogger.Instance != null) EventMarkerLogger.Instance.LogEvent("ROUTE2_START");
                     break;

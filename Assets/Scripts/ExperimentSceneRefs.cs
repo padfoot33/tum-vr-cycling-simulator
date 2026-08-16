@@ -34,6 +34,9 @@ namespace CyclingExperiment
         public GameObject cityTrafficPaths;
         public TrafficDestinationSet trafficDestinations;
 
+        [Header("Route 2")]
+        public Transform route2CyclistSpawn;
+
         public static ExperimentSceneRefs EnsureExists()
         {
             if (Instance != null) return Instance;
@@ -92,6 +95,21 @@ namespace CyclingExperiment
                     if (route1 != null) spawn.transform.SetParent(route1.transform);
                 }
                 route1CyclistSpawn = spawn.transform;
+            }
+
+            if (route2CyclistSpawn == null)
+            {
+                var spawn = GameObject.Find("Cyclist_Spawn_Route2");
+                if (spawn == null)
+                {
+                    spawn = new GameObject("Cyclist_Spawn_Route2");
+                    spawn.AddComponent<CyclistSpawnMarker>();
+                    spawn.transform.position = Scenario3_ConstructionNarrowing.ApproachPosition;
+                    spawn.transform.rotation = Quaternion.Euler(0f, Scenario3_ConstructionNarrowing.ApproachHeading, 0f);
+                    var scenario2 = GameObject.Find("Scenario_2");
+                    if (scenario2 != null) spawn.transform.SetParent(scenario2.transform);
+                }
+                route2CyclistSpawn = spawn.transform;
             }
 
             if (cityTrafficPaths == null) cityTrafficPaths = GameObject.Find("City_Traffic_Paths");

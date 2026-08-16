@@ -2,6 +2,18 @@
 
 Working notes for current development. The project map lives in [PROJECT_MINDMAP.md](PROJECT_MINDMAP.md).
 
+## 17 Aug 2026 — Route 2 cyclist spawn
+
+`Cyclist_Spawn_Route2` (same cyan gizmo as Route 1). `[2]` teleports to that empty. Move it in the Scene view; default is `(721.5, 70)` heading north.
+
+## 17 Aug 2026 — Traffic spawn redesign
+
+No burst pile: Play starts 3 spaced cars, then one per interval. Spawn refuses a spot within 14 m of another car. Route 2 uses 16 m northbound slots (south-most empty). Cars hold ~11 m behind the leader; only the rear car unsticks. Inspector max is a cap, not a stack size.
+
+## 17 Aug 2026 — Inspector traffic caps
+
+`GlobalCityTrafficManager.Awake` no longer forces `maxVehicles` to 12 or `spawnInterval` to 3. Route 2 now seeds along the northbound street (not only a tight south cluster that often failed the corridor check).
+
 ## 17 Aug 2026 — Route 2 one-way, lanes, reverse
 
 Skybridge street (`x ≈ 723`) is northbound only: cars spawn at the south end facing `+Z`. Turns use a right-lane via so they do not cut onto the cyclist lane. Deadlocked cars reverse, check right, then repath. Auto-brake no longer blocks `S` reverse.

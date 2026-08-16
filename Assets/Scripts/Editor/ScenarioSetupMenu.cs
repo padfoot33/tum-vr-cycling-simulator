@@ -240,6 +240,7 @@ namespace CyclingExperiment.Editor
             var trigger = GameObject.Find("Trigger_Scenario1_BusStop");
             if (trigger != null) refs.busStopTrigger = trigger.transform;
             refs.route1CyclistSpawn = EnsureCyclistSpawnRoute1();
+            refs.route2CyclistSpawn = EnsureCyclistSpawnRoute2();
             refs.cityTrafficPaths = GameObject.Find("City_Traffic_Paths");
             refs.trafficDestinations = EnsureTrafficDestinations();
             AssignSerializedRef(refs.cityTraffic, "destinations", refs.trafficDestinations);
@@ -290,6 +291,47 @@ namespace CyclingExperiment.Editor
 
                 spawnObj.transform.position = new Vector3(436.1f, 0.2f, -80.0f);
                 spawnObj.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+            }
+            else if (spawnObj.GetComponent<CyclistSpawnMarker>() == null)
+            {
+                spawnObj.AddComponent<CyclistSpawnMarker>();
+            }
+
+            EditorUtility.SetDirty(spawnObj);
+            return spawnObj.transform;
+        }
+
+        [MenuItem("Cycling Experiment/Add Cyclist Spawn Route 2 Only", false, 9)]
+        public static void AddCyclistSpawnRoute2Only()
+        {
+            Transform spawn = EnsureCyclistSpawnRoute2();
+            var refs = Object.FindFirstObjectByType<ExperimentRefs>();
+            if (refs != null)
+            {
+                refs.route2CyclistSpawn = spawn;
+                EditorUtility.SetDirty(refs);
+            }
+
+            Selection.activeTransform = spawn;
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            EditorUtility.DisplayDialog("Cycling Experiment",
+                "Added Cyclist_Spawn_Route2 only.\n\nNothing else in the scene was changed.\nMove the cyan marker, then save the scene.",
+                "OK");
+        }
+
+        private static Transform EnsureCyclistSpawnRoute2()
+        {
+            GameObject spawnObj = GameObject.Find("Cyclist_Spawn_Route2");
+            if (spawnObj == null)
+            {
+                spawnObj = new GameObject("Cyclist_Spawn_Route2");
+                spawnObj.AddComponent<CyclistSpawnMarker>();
+
+                GameObject scenario2 = GameObject.Find("Scenario_2");
+                if (scenario2 != null) spawnObj.transform.SetParent(scenario2.transform);
+
+                spawnObj.transform.position = Scenario3_ConstructionNarrowing.ApproachPosition;
+                spawnObj.transform.rotation = Quaternion.Euler(0f, Scenario3_ConstructionNarrowing.ApproachHeading, 0f);
             }
             else if (spawnObj.GetComponent<CyclistSpawnMarker>() == null)
             {

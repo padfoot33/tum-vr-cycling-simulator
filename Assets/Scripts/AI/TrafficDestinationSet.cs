@@ -36,6 +36,11 @@ namespace CyclingExperiment.AI
 
         public bool TryPickNext(Vector3 from, Vector3 forward, Transform current, out Transform next)
         {
+            return TryPickNext(from, forward, current, null, out next);
+        }
+
+        public bool TryPickNext(Vector3 from, Vector3 forward, Transform current, Transform avoid, out Transform next)
+        {
             next = null;
             if (points == null || points.Length == 0) RefreshFromChildren();
             if (points == null || points.Length == 0) return false;
@@ -46,6 +51,8 @@ namespace CyclingExperiment.AI
 
             float bestAhead = float.NegativeInfinity;
             Transform bestAheadPoint = null;
+            float bestFreeAhead = float.NegativeInfinity;
+            Transform bestFreeAheadPoint = null;
             float bestAny = float.PositiveInfinity;
             Transform bestAnyPoint = null;
 
@@ -82,6 +89,12 @@ namespace CyclingExperiment.AI
                     bestAheadPoint = point;
                 }
 
+                if (point != avoid && ahead > 0.15f && ahead * dist > bestFreeAhead)
+                {
+                    bestFreeAhead = ahead * dist;
+                    bestFreeAheadPoint = point;
+                }
+
                 if (onRoute2 && NavMeshVehicleAI.IsRoute2Corridor(point.position) &&
                     ahead > 0.15f && point.position.z >= from.z - 1f && ahead * dist > bestCorridor)
                 {
@@ -90,7 +103,13 @@ namespace CyclingExperiment.AI
                 }
             }
 
-            next = bestCorridorPoint != null ? bestCorridorPoint
+            if (bestCorridorPoint != null && bestCorridorPoint != avoid)
+            {
+                next = bestCorridorPoint;
+                return true;
+            }
+
+            next = bestFreeAheadPoint != null ? bestFreeAheadPoint
                 : bestAheadPoint != null ? bestAheadPoint
                 : bestAnyPoint;
             return next != null;

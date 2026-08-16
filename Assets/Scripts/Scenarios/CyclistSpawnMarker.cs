@@ -3,7 +3,7 @@ using UnityEngine;
 namespace CyclingExperiment.Scenarios
 {
     /// <summary>
-    /// Scene marker for the Route 1 cyclist spawn. Move this empty in the Scene view.
+    /// Scene marker for a cyclist spawn. Move this empty in the Scene view.
     /// </summary>
     public class CyclistSpawnMarker : MonoBehaviour
     {

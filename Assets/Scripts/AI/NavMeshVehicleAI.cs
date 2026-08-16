@@ -16,8 +16,8 @@ namespace CyclingExperiment.AI
         [SerializeField] private float cruiseSpeed = 9.5f;
         [SerializeField] private float rightLaneOffset = 1.6f;
         [SerializeField] private float followCheckInterval = 0.25f;
-        [SerializeField] private float forwardLookaheadDistance = 12f;
-        [SerializeField] private float stoppingBuffer = 3.5f;
+        [SerializeField] private float forwardLookaheadDistance = 18f;
+        [SerializeField] private float stoppingBuffer = 10f;
         [SerializeField] private float forwardDetectionRadius = 0.65f;
         [SerializeField] private float groundBias = 0.16f;
 
@@ -40,6 +40,11 @@ namespace CyclingExperiment.AI
         private RecoverPhase _recoverPhase;
         private float _recoverTime;
 
+        private static readonly System.Collections.Generic.List<NavMeshVehicleAI> Active =
+            new System.Collections.Generic.List<NavMeshVehicleAI>(48);
+
+        public Transform ClaimedDestination => _currentDestination;
+
         public float CruiseSpeed
         {
             get => cruiseSpeed;
@@ -55,8 +60,8 @@ namespace CyclingExperiment.AI
         public static bool IsRoute2Corridor(Vector3 position)
         {
             return Mathf.Abs(position.x - Route2CenterX) < Route2HalfWidth
-                   && position.z > Route2MinZ
-                   && position.z < Route2MaxZ;
+                   && position.z >= Route2MinZ
+                   && position.z <= Route2MaxZ;
         }
 
         public void BindAgent(NavMeshAgent agent)
@@ -79,13 +84,24 @@ namespace CyclingExperiment.AI
             _currentTargetSpeed = cruiseSpeed;
         }
 
+        private void OnEnable()
+        {
+            if (!Active.Contains(this)) Active.Add(this);
+        }
+
+        private void OnDisable()
+        {
+            Active.Remove(this);
+        }
+
         public void AssignRoadCorridorRoute()
         {
             EnsureOnMesh();
             if (_agent == null || !_agent.isOnNavMesh) return;
 
+            Transform avoid = FindClaimedDestinationAhead();
             if (TrafficDestinationSet.Instance != null &&
-                TrafficDestinationSet.Instance.TryPickNext(transform.position, transform.forward, _currentDestination, out Transform next)
+                TrafficDestinationSet.Instance.TryPickNext(transform.position, transform.forward, _currentDestination, avoid, out Transform next)
                 && !IsSouthboundOnRoute2(transform.position, next.position))
             {
                 _currentDestination = next;
@@ -209,7 +225,7 @@ namespace CyclingExperiment.AI
                 {
                     _agent.velocity = Vector3.zero;
                     _stoppedTime += 0.08f;
-                    if (!_isExperimentStressVehicle && _stoppedTime >= 1.5f)
+                    if (!_isExperimentStressVehicle && _stoppedTime >= 1.5f && ShouldRearCarRecover())
                     {
                         BeginRecover();
                     }
@@ -373,7 +389,6 @@ namespace CyclingExperiment.AI
         private float CheckForwardVehicleSpeed()
         {
             float speed = cruiseSpeed;
-            Vector3 origin = transform.position + Vector3.up * 0.7f + transform.forward * 0.4f;
             Vector3 forward = FlatForward();
 
             if (!_isExperimentStressVehicle)
@@ -387,7 +402,16 @@ namespace CyclingExperiment.AI
                 }
             }
 
-            Vector3 halfExtents = new Vector3(1.15f, 0.7f, 0.5f);
+            if (TryFindLaneLeader(out NavMeshVehicleAI leader, out float leaderAhead))
+            {
+                const float holdGap = 11f;
+                if (leaderAhead <= holdGap) return 0f;
+                float available = Mathf.Max(0.01f, forwardLookaheadDistance - holdGap);
+                speed = Mathf.Min(speed, cruiseSpeed * Mathf.Clamp01((leaderAhead - holdGap) / available));
+            }
+
+            Vector3 origin = transform.position + Vector3.up * 0.7f + transform.forward * 0.4f;
+            Vector3 halfExtents = new Vector3(1.1f, 0.7f, 0.5f);
             RaycastHit[] hits = Physics.BoxCastAll(origin, halfExtents, forward, transform.rotation,
                 forwardLookaheadDistance, ~0, QueryTriggerInteraction.Ignore);
 
@@ -406,6 +430,94 @@ namespace CyclingExperiment.AI
             }
 
             return speed;
+        }
+
+        private bool TryFindLaneLeader(out NavMeshVehicleAI leader, out float aheadDistance)
+        {
+            leader = null;
+            aheadDistance = float.PositiveInfinity;
+            Vector3 forward = FlatForward();
+            Vector3 right = Vector3.Cross(Vector3.up, forward);
+
+            for (int i = 0; i < Active.Count; i++)
+            {
+                NavMeshVehicleAI other = Active[i];
+                if (other == null || other == this || other._isExperimentStressVehicle) continue;
+
+                Vector3 to = other.transform.position - transform.position;
+                to.y = 0f;
+                float ahead = Vector3.Dot(to, forward);
+                float lateral = Mathf.Abs(Vector3.Dot(to, right));
+                if (ahead < 1.5f || ahead > 28f || lateral > 2.2f) continue;
+                if (Vector3.Dot(other.FlatForward(), forward) < 0.15f) continue;
+
+                if (ahead < aheadDistance)
+                {
+                    aheadDistance = ahead;
+                    leader = other;
+                }
+            }
+
+            return leader != null;
+        }
+
+        private bool TryFindLaneTrailer(out NavMeshVehicleAI trailer)
+        {
+            trailer = null;
+            float best = float.PositiveInfinity;
+            Vector3 forward = FlatForward();
+            Vector3 right = Vector3.Cross(Vector3.up, forward);
+
+            for (int i = 0; i < Active.Count; i++)
+            {
+                NavMeshVehicleAI other = Active[i];
+                if (other == null || other == this) continue;
+
+                Vector3 to = other.transform.position - transform.position;
+                to.y = 0f;
+                float behind = -Vector3.Dot(to, forward);
+                float lateral = Mathf.Abs(Vector3.Dot(to, right));
+                if (behind < 1.5f || behind > 20f || lateral > 2.2f) continue;
+
+                if (behind < best)
+                {
+                    best = behind;
+                    trailer = other;
+                }
+            }
+
+            return trailer != null;
+        }
+
+        private bool ShouldRearCarRecover()
+        {
+            bool hasLeader = TryFindLaneLeader(out _, out _);
+            bool hasTrailer = TryFindLaneTrailer(out _);
+            if (hasLeader) return true;
+            if (hasTrailer) return false;
+
+            for (int i = 0; i < Active.Count; i++)
+            {
+                NavMeshVehicleAI other = Active[i];
+                if (other == null || other == this) continue;
+                Vector3 delta = other.transform.position - transform.position;
+                delta.y = 0f;
+                if (delta.sqrMagnitude > 16f * 16f) continue;
+                if (other.GetInstanceID() < GetInstanceID()) return true;
+                return false;
+            }
+
+            return true;
+        }
+
+        private Transform FindClaimedDestinationAhead()
+        {
+            if (TryFindLaneLeader(out NavMeshVehicleAI leader, out _) && leader.ClaimedDestination != null)
+            {
+                return leader.ClaimedDestination;
+            }
+
+            return null;
         }
     }
 }
