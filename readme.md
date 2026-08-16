@@ -7,7 +7,7 @@
 - Windows 10/11
 - Python 3.11 
 - Git Bash
-- Unity 6.3 LTS
+- Unity 6000.4.2f1 (the version recorded in `ProjectSettings/ProjectVersion.txt`)
 
 ## Automatic installation
 
@@ -95,7 +95,7 @@ Note:
 
 ## Running the Simulation
 
-Open the project in Unity and run the scene "Main Campus"
+Open the project in Unity and run `Assets/Scenes/MainScene.unity`.
 
 ## Troubleshooting
 

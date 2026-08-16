@@ -1,0 +1,24 @@
+---
+description: Prefer serialized references over Find/GetComponent
+alwaysApply: true
+---
+
+# No scene search
+
+Do not use `FindObjectOfType`, `FindObjectsOfType`, or `GameObject.Find` in runtime gameplay code. Do not call `GetComponent` / `GetComponentInChildren` every frame or to look up scene objects.
+
+Wire references in the Inspector (or through [ExperimentSceneRefs](Assets/Scripts/ExperimentSceneRefs.cs)). Cache a component only at spawn time, when you just added it.
+
+```csharp
+// BAD
+var hud = FindObjectOfType<HUDController>();
+var bike = GameObject.Find("bicyle_animated_human");
+void Update() { GetComponent<NavMeshAgent>().speed = 8f; }
+
+// GOOD
+[SerializeField] HUDController hud;
+[SerializeField] Transform bicycle;
+void Awake() { _agent = agentAssignedAtSpawn; }
+```
+
+Allowed exceptions: Editor menus, one-time bind of empty Inspector fields on `ExperimentSceneRefs`, `AddComponent` immediately after `Instantiate`.

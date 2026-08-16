@@ -1,0 +1,28 @@
+---
+description: Sumonity project map — always load before adding systems
+alwaysApply: true
+---
+
+# Sumonity Unity Base
+
+VR cycling research simulator (Unity 6000.4.2f1, TUM): SUMO + TUM campus + bicycle for stress-response experiments. Primary scene: `Assets/Scenes/MainScene.unity`.
+
+Read [docs/PROJECT_MINDMAP.md](docs/PROJECT_MINDMAP.md) before adding systems. Current work notes: [docs/SESSION.md](docs/SESSION.md).
+
+## Two ScenarioManagers — do not mix
+
+- Root `Assets/ScenarioManager.cs` — CSV permutation / HMI (`CommandLineHandler`, `DataLog`)
+- `CyclingExperiment.Scenarios.ScenarioManager` — active scenario + Baseline/Stress
+
+## Where to extend
+
+- VR scenarios, AI, HUD: `Assets/Scripts/` (`CyclingExperiment.*`)
+- Scene object lookups: serialize on `ExperimentSceneRefs` — do not `Find` / `GetComponent` in gameplay
+- Hardware / SUMO bike: `Assets/BicycleSimulatorModel/`, `Assets/Sumonity/`
+- Do not edit RCCP / `Assets/CarModel/` unless asked
+
+## Landmines
+
+- Empty submodules: `SumoProject`, `Sim-BusStop`, `Sumonity-Navigation`, `Sumonity-MapInterpreter`
+- Build settings reference missing `MainScene_GroupB.unity`
+- Root CSV path `Assets/random_seed.csv` is editor-only; some loggers use hardcoded Windows paths
