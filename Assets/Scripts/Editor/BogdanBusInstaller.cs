@@ -117,6 +117,12 @@ namespace CyclingExperiment.Editor
             Vector3 localCenter = root.transform.InverseTransformPoint(bounds.center);
             Vector3 localSize = root.transform.InverseTransformVector(bounds.size);
             localSize = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
+            localSize.x = Mathf.Clamp(localSize.x, 2.2f, 2.6f);
+            localSize.y = Mathf.Clamp(localSize.y, 2.8f, 3.3f);
+            localSize.z = Mathf.Clamp(localSize.z, 10.5f, 12f);
+            localCenter.x = 0f;
+            localCenter.z = 0f;
+            localCenter.y = localSize.y * 0.5f;
             box.center = localCenter;
             box.size = localSize;
 

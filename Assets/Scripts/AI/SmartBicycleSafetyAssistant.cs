@@ -3,7 +3,8 @@ using UnityEngine;
 namespace CyclingExperiment.AI
 {
     /// <summary>
-    /// VR safety assist: auto-brake when a vehicle is ahead, plus a small lateral nudge.
+    /// VR safety assist: auto-brake when a vehicle is in the bike's lane, plus a hard stop if already overlapping.
+    /// The bike is kinematic, so this is the only thing that prevents riding through a bus.
     /// </summary>
     public class SmartBicycleSafetyAssistant : MonoBehaviour
     {
@@ -11,10 +12,8 @@ namespace CyclingExperiment.AI
         [SerializeField] private bool enableAutoBrake = true;
         [SerializeField, Tooltip("Distance at which auto-braking begins")]
         private float criticalBrakeDistance = 12f;
-        [SerializeField] private float forwardCastRadius = 0.35f;
-        [SerializeField, Tooltip("Ignore vehicles farther left/right than this (m). Stops a passing bus from braking the bike.")]
-        private float maxLateralOffset = 0.9f;
-        [SerializeField] private float checkInterval = 0.15f;
+        [SerializeField, Tooltip("Half-width of the forward lane check (m). Passing traffic outside this is ignored.")]
+        private float maxLateralOffset = 1.1f;
         [SerializeField] private LayerMask obstacleLayers = ~0;
 
         [Header("Lateral Nudge Settings")]
@@ -24,44 +23,98 @@ namespace CyclingExperiment.AI
 
         private BikeURP.BicyclePhysicsController _physicsController;
         private Rigidbody _rigidbody;
-        private float _checkTimer;
-        private float _cachedSafetyBrake;
+        private Collider _bikeCollider;
+        private readonly Collider[] _overlapHits = new Collider[16];
 
         private void Awake()
         {
             _physicsController = GetComponent<BikeURP.BicyclePhysicsController>();
             _rigidbody = GetComponent<Rigidbody>();
+            _bikeCollider = GetComponent<Collider>();
+            maxLateralOffset = Mathf.Max(0.85f, maxLateralOffset);
+            criticalBrakeDistance = Mathf.Max(8f, criticalBrakeDistance);
         }
 
         private void FixedUpdate()
         {
             if (_physicsController == null) return;
 
-            _checkTimer += Time.fixedDeltaTime;
-            if (_checkTimer >= checkInterval)
+            float brake = 0f;
+            if (enableAutoBrake)
             {
-                _checkTimer = 0f;
-                _cachedSafetyBrake = enableAutoBrake ? ComputeForwardBrake() : 0f;
+                if (TryResolveOverlap())
+                {
+                    brake = 1f;
+                    _physicsController.HaltForwardMotion();
+                }
+                else
+                {
+                    brake = ComputeForwardBrake();
+                }
             }
 
-            _physicsController.SetSafetyBrake(_cachedSafetyBrake);
+            _physicsController.SetSafetyBrake(brake);
 
-            if (enableLateralNudge)
+            if (enableLateralNudge && brake < 0.99f)
             {
                 CheckLateralProximityNudge();
             }
         }
 
+        private bool TryResolveOverlap()
+        {
+            Vector3 center = transform.position + Vector3.up * 0.75f;
+            Vector3 halfExtents = new Vector3(0.4f, 0.7f, 0.85f);
+            int count = Physics.OverlapBoxNonAlloc(center, halfExtents, _overlapHits, transform.rotation,
+                obstacleLayers, QueryTriggerInteraction.Ignore);
+
+            bool overlapping = false;
+            for (int i = 0; i < count; i++)
+            {
+                Collider other = _overlapHits[i];
+                if (other == null || other.transform.IsChildOf(transform) || !IsVehicleCollider(other)) continue;
+
+                overlapping = true;
+                SeparateFrom(other);
+            }
+
+            return overlapping;
+        }
+
+        private void SeparateFrom(Collider other)
+        {
+            Vector3 push;
+            if (_bikeCollider != null &&
+                Physics.ComputePenetration(_bikeCollider, transform.position, transform.rotation,
+                    other, other.transform.position, other.transform.rotation, out Vector3 dir, out float dist)
+                && dist > 0.001f)
+            {
+                push = dir * (dist + 0.08f);
+            }
+            else
+            {
+                Vector3 away = transform.position - other.ClosestPoint(transform.position);
+                away.y = 0f;
+                push = (away.sqrMagnitude > 0.0001f ? away.normalized : -transform.forward) * 0.2f;
+            }
+
+            push.y = 0f;
+            Vector3 next = transform.position + push;
+            if (_rigidbody != null) _rigidbody.MovePosition(next);
+            else transform.position = next;
+        }
+
         private float ComputeForwardBrake()
         {
-            Vector3 origin = transform.position + Vector3.up * 0.6f;
+            Vector3 origin = transform.position + Vector3.up * 0.7f;
             Vector3 forward = transform.forward;
             forward.y = 0f;
             if (forward.sqrMagnitude < 0.01f) return 0f;
             forward.Normalize();
-            Vector3 right = Vector3.Cross(Vector3.up, forward);
 
-            RaycastHit[] hits = Physics.SphereCastAll(origin, Mathf.Max(0.15f, forwardCastRadius), forward,
+            float halfWidth = Mathf.Max(0.85f, maxLateralOffset);
+            Vector3 halfExtents = new Vector3(halfWidth, 0.8f, 0.4f);
+            RaycastHit[] hits = Physics.BoxCastAll(origin, halfExtents, forward, transform.rotation,
                 criticalBrakeDistance, obstacleLayers, QueryTriggerInteraction.Ignore);
 
             float nearest = float.PositiveInfinity;
@@ -69,20 +122,13 @@ namespace CyclingExperiment.AI
             {
                 if (hits[i].transform.IsChildOf(transform)) continue;
                 if (!IsVehicleCollider(hits[i].collider)) continue;
-
-                Vector3 toHit = hits[i].point - origin;
-                toHit.y = 0f;
-                float ahead = Vector3.Dot(toHit, forward);
-                float lateral = Mathf.Abs(Vector3.Dot(toHit, right));
-                if (ahead < 1.2f || lateral > maxLateralOffset) continue;
-
                 nearest = Mathf.Min(nearest, hits[i].distance);
             }
 
             if (nearest >= criticalBrakeDistance) return 0f;
 
             float t = 1f - Mathf.Clamp01(nearest / criticalBrakeDistance);
-            return Mathf.Clamp01(t * 1.35f);
+            return Mathf.Clamp01(t * 1.5f);
         }
 
         private void CheckLateralProximityNudge()

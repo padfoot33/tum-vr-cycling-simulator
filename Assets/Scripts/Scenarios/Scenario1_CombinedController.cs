@@ -41,6 +41,13 @@ namespace CyclingExperiment.Scenarios
         [SerializeField] private ExperimentRefs sceneRefs;
         [SerializeField] private IntersectionTrafficFlowManager intersectionTraffic;
 
+        [Header("Bus Audio")]
+        [SerializeField] private AudioClip busEngineLoop;
+        [SerializeField] private AudioClip busBrake;
+        [SerializeField] private AudioClip busIdleStop;
+        [SerializeField] private AudioClip busDeparture;
+        [SerializeField] private AudioClip busStationAmbient;
+
         // Internal state
         private GameObject _spawnedBus;
         private WaypointFollower _spawnedBusFollower;
@@ -56,6 +63,7 @@ namespace CyclingExperiment.Scenarios
             AutoAssignReferences();
             if (busSpeed > 12f) busSpeed = 10f;
             if (overtakingCarSpeed > 14f) overtakingCarSpeed = 11f;
+            StartStationAmbient();
         }
 
         public void AutoAssignReferences()
@@ -90,6 +98,12 @@ namespace CyclingExperiment.Scenarios
                 overtakingCarPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Sumonity-PassengerCars/prefabs/sedanCar.prefab")
                                   ?? UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/TaxiModel/Prefabs/TaxiOpenSource.prefab");
             }
+
+            if (busEngineLoop == null) busEngineLoop = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Bus/bus_engine_loop.mp3");
+            if (busBrake == null) busBrake = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Bus/bus_brake.mp3");
+            if (busIdleStop == null) busIdleStop = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Bus/bus_idle_stop.mp3");
+            if (busDeparture == null) busDeparture = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Bus/bus_departure.wav");
+            if (busStationAmbient == null) busStationAmbient = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/Bus/bus_station_ambient.wav");
 #endif
         }
 
@@ -147,6 +161,7 @@ namespace CyclingExperiment.Scenarios
             }
 
             Debug.Log($"[Scenario1] Spawned {_spawnedBus.name} from {busPrefab.name} at {spawnPos}");
+            BindBusAudio();
         }
 
         /// <summary>
@@ -266,6 +281,32 @@ namespace CyclingExperiment.Scenarios
         private void OnDestroy()
         {
             ResetScenario();
+        }
+
+        private void BindBusAudio()
+        {
+            var busAudio = _spawnedBus.GetComponent<ScenarioBusAudio>();
+            if (busAudio == null) busAudio = _spawnedBus.AddComponent<ScenarioBusAudio>();
+            busAudio.Bind(_spawnedBusFollower, busEngineLoop, busBrake, busIdleStop, busDeparture);
+        }
+
+        private void StartStationAmbient()
+        {
+            Transform trigger = sceneRefs != null ? sceneRefs.busStopTrigger : null;
+            if (trigger == null || busStationAmbient == null) return;
+
+            var source = trigger.GetComponent<AudioSource>();
+            if (source == null) source = trigger.gameObject.AddComponent<AudioSource>();
+            source.clip = busStationAmbient;
+            source.loop = true;
+            source.playOnAwake = false;
+            source.spatialBlend = 1f;
+            source.dopplerLevel = 0f;
+            source.volume = 0.22f;
+            source.minDistance = 6f;
+            source.maxDistance = 36f;
+            source.rolloffMode = AudioRolloffMode.Linear;
+            if (!source.isPlaying) source.Play();
         }
 
         private void CompleteBusStageIfCleared(bool allowRouteTriggerFallback)

@@ -24238,14 +24238,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.AI.SmartBicycleSafetyAssistant
   enableAutoBrake: 1
-  criticalBrakeDistance: 10
-  forwardCastRadius: 0.1
-  maxLateralOffset: 0.9
-  checkInterval: 0.5
+  criticalBrakeDistance: 12
+  maxLateralOffset: 1.1
   obstacleLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  enableLateralNudge: 0
+  enableLateralNudge: 1
   criticalLateralDistance: 1.2
   nudgeStrength: 1.2
 --- !u!208 &641965229
