@@ -34562,7 +34562,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.AI.GlobalCityTrafficManager
   isTrafficEnabled: 1
   spawnInterval: 3
-  maxVehicles: 30
+  maxVehicles: 70
   defaultTrafficSpeed: 9
   vehiclePrefabs:
   - {fileID: 4933583111240688830, guid: acf1b64a1fbe1d74d93024e62413459d, type: 3}

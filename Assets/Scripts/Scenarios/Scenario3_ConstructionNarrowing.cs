@@ -1,6 +1,3 @@
-using System;
-using System.Globalization;
-using System.IO;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -28,7 +25,7 @@ namespace CyclingExperiment.Scenarios
             RemoveDemoBusMarker();
             HideLegacyRoute2WaypointPaths();
             EnsureConstructionProps();
-            AddObstaclesToCampusConstructionProps();
+            StripConstructionNavMeshObstacles();
         }
 
         public static void RemoveDemoBusMarker()
@@ -119,7 +116,6 @@ namespace CyclingExperiment.Scenarios
             cone.transform.position = position;
             cone.transform.localScale = new Vector3(0.35f, 0.45f, 0.35f);
             TintRenderer(cone, new Color(1f, 0.45f, 0.08f));
-            AddCarveObstacle(cone, new Vector3(0.5f, 1f, 0.5f));
         }
 
         private static void CreateBarrier(Transform parent, string name, Vector3 position)
@@ -130,22 +126,42 @@ namespace CyclingExperiment.Scenarios
             barrier.transform.position = position;
             barrier.transform.localScale = new Vector3(0.4f, 0.9f, 1.6f);
             TintRenderer(barrier, new Color(0.95f, 0.95f, 0.92f));
-            AddCarveObstacle(barrier, new Vector3(0.8f, 1.2f, 2.0f));
+        }
+
+        public static int StripConstructionNavMeshObstacles()
+        {
+            int removed = 0;
+            var obstacles = Resources.FindObjectsOfTypeAll<NavMeshObstacle>();
+            for (int i = 0; i < obstacles.Length; i++)
+            {
+                NavMeshObstacle obstacle = obstacles[i];
+                if (obstacle == null || !obstacle.gameObject.scene.IsValid() || !obstacle.gameObject.scene.isLoaded)
+                    continue;
+                if (!ShouldStripObstacle(obstacle.transform)) continue;
+                if (Application.isPlaying) UnityEngine.Object.Destroy(obstacle);
+                else UnityEngine.Object.DestroyImmediate(obstacle);
+                removed++;
+            }
+
+            return removed;
         }
 
         public static int AddObstaclesToCampusConstructionProps()
         {
-            int added = 0;
-            var transforms = Resources.FindObjectsOfTypeAll<Transform>();
-            for (int i = 0; i < transforms.Length; i++)
+            return StripConstructionNavMeshObstacles();
+        }
+
+        private static bool ShouldStripObstacle(Transform t)
+        {
+            Transform cur = t;
+            while (cur != null)
             {
-                Transform t = transforms[i];
-                if (t == null || !t.gameObject.scene.IsValid() || !t.gameObject.scene.isLoaded) continue;
-                if (!IsConstructionPropName(t.name)) continue;
-                if (AddCarveFromRenderer(t.gameObject)) added++;
+                if (cur.name == PropsRootName || cur.name == "Scenario_2") return true;
+                cur = cur.parent;
             }
 
-            return added;
+            return IsConstructionPropName(t.name)
+                   && CyclingExperiment.AI.NavMeshVehicleAI.IsRoute2Corridor(t.position);
         }
 
         private static bool IsConstructionPropName(string objectName)
@@ -186,17 +202,10 @@ namespace CyclingExperiment.Scenarios
             {
                 var existing = obj.GetComponent<NavMeshObstacle>();
                 if (existing != null) existing.carving = false;
-                // #region agent log
-                LogCarve(obj, size, "skip_right_lane");
-                // #endregion
                 return false;
             }
 
-            bool added = AddCarveObstacle(obj, size, center);
-            // #region agent log
-            LogCarve(obj, size, added ? "carve" : "exists");
-            // #endregion
-            return added;
+            return AddCarveObstacle(obj, size, center);
         }
 
         private static bool AddCarveObstacle(GameObject obj, Vector3 size)
@@ -224,34 +233,7 @@ namespace CyclingExperiment.Scenarios
 
             var mat = renderer.material;
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
-            else if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+            else             if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
         }
-
-        // #region agent log
-        private static void LogCarve(GameObject obj, Vector3 localSize, string via)
-        {
-            if (obj == null) return;
-            Vector3 pos = obj.transform.position;
-            if (!CyclingExperiment.AI.NavMeshVehicleAI.IsRoute2Corridor(pos) &&
-                obj.name.IndexOf("ChevronSign", StringComparison.OrdinalIgnoreCase) < 0)
-                return;
-            try
-            {
-                long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                File.AppendAllText("/Users/admin/Documents/GitHub/Sumonity-UnityBaseProject/.cursor/debug-051389.log",
-                    "{\"sessionId\":\"051389\",\"hypothesisId\":\"F\",\"location\":\"Scenario3_ConstructionNarrowing.cs\",\"message\":\"carve\",\"data\":{" +
-                    "\"name\":\"" + obj.name +
-                    "\",\"via\":\"" + via +
-                    "\",\"x\":" + pos.x.ToString("F1", CultureInfo.InvariantCulture) +
-                    ",\"z\":" + pos.z.ToString("F1", CultureInfo.InvariantCulture) +
-                    ",\"lane\":" + CyclingExperiment.AI.NavMeshVehicleAI.Route2LaneOffset(pos).ToString("F1", CultureInfo.InvariantCulture) +
-                    ",\"sx\":" + localSize.x.ToString("F1", CultureInfo.InvariantCulture) +
-                    "},\"timestamp\":" + ts + "}\n");
-            }
-            catch
-            {
-            }
-        }
-        // #endregion
     }
 }

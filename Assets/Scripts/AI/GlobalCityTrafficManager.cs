@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -189,36 +186,7 @@ namespace CyclingExperiment.AI
                 $"CityTraffic_{prefab.name}_{_spawnedVehicles.Count}");
 
             if (vehicle != null) _spawnedVehicles.Add(vehicle);
-            // #region agent log
-            Vector3 fwd = rot * Vector3.forward;
-            Dbg("A", "spawn",
-                "{\"name\":\"" + (vehicle != null ? vehicle.name : "null") +
-                "\",\"preferR2\":" + (preferRoute2 ? "true" : "false") +
-                ",\"inCorr\":" + (NavMeshVehicleAI.IsRoute2Corridor(pos) ? "true" : "false") +
-                ",\"x\":" + pos.x.ToString("F1", CultureInfo.InvariantCulture) +
-                ",\"z\":" + pos.z.ToString("F1", CultureInfo.InvariantCulture) +
-                ",\"lane\":" + NavMeshVehicleAI.Route2LaneOffset(pos).ToString("F1", CultureInfo.InvariantCulture) +
-                ",\"near67\":" + (Vector3.Distance(new Vector3(pos.x, 0f, pos.z), new Vector3(804.2f, 0f, 91.3f)) < 25f ? "true" : "false") +
-                ",\"fwdZ\":" + fwd.z.ToString("F2", CultureInfo.InvariantCulture) + "}");
-            // #endregion
         }
-
-        // #region agent log
-        internal static void Dbg(string hid, string msg, string data)
-        {
-            try
-            {
-                long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                File.AppendAllText("/Users/admin/Documents/GitHub/Sumonity-UnityBaseProject/.cursor/debug-051389.log",
-                    "{\"sessionId\":\"051389\",\"hypothesisId\":\"" + hid +
-                    "\",\"location\":\"GlobalCityTrafficManager.cs\",\"message\":\"" + msg +
-                    "\",\"data\":" + data + ",\"timestamp\":" + ts + "}\n");
-            }
-            catch
-            {
-            }
-        }
-        // #endregion
 
         public bool IsSpawnClear(Vector3 position, GameObject ignore = null)
         {
@@ -274,7 +242,7 @@ namespace CyclingExperiment.AI
             if (destinations == null) destinations = TrafficDestinationSet.Instance;
             if (destinations == null) return false;
 
-            string[] names = { "Dest_67", "Dest_66", "Dest_64", "Dest_62" };
+            string[] names = { "Dest_67", "Dest_62", "Dest_61" };
             Vector3 right = Vector3.Cross(Vector3.up, NavMeshVehicleAI.Route2Heading);
             for (int i = 0; i < names.Length; i++)
             {

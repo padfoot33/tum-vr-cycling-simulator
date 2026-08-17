@@ -13,7 +13,7 @@ namespace CyclingExperiment.AI
 
         public static readonly string[] OneWayLane =
         {
-            "Dest_67", "Dest_66", "Dest_64", "Dest_62", "Dest_61", "Dest_60"
+            "Dest_67", "Dest_62", "Dest_61", "Dest_60"
         };
 
         [SerializeField] private Transform[] points;
@@ -25,9 +25,6 @@ namespace CyclingExperiment.AI
             RemoveGeneratedNorthPoints();
             NavMeshVehicleAI.ResetRoute2Heading();
             NavMeshVehicleAI.EnsureRoute2Heading();
-            // #region agent log
-            LogChainHeading();
-            // #endregion
         }
 
         public Transform FindByName(string destName)
@@ -108,27 +105,6 @@ namespace CyclingExperiment.AI
             }
 
             if (removed) RefreshFromChildren();
-        }
-
-        private void LogChainHeading()
-        {
-            try
-            {
-                Vector3 h = NavMeshVehicleAI.Route2Heading;
-                Transform a = FindByName("Dest_67");
-                Transform b = FindByName("Dest_66");
-                long ts = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                System.IO.File.AppendAllText("/Users/admin/Documents/GitHub/Sumonity-UnityBaseProject/.cursor/debug-051389.log",
-                    "{\"sessionId\":\"051389\",\"hypothesisId\":\"G\",\"location\":\"TrafficDestinationSet.cs\",\"message\":\"chain\",\"data\":{" +
-                    "\"hx\":" + h.x.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) +
-                    ",\"hz\":" + h.z.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) +
-                    ",\"from\":\"" + (a != null ? a.name : "none") +
-                    "\",\"to\":\"" + (b != null ? b.name : "none") +
-                    "\"},\"timestamp\":" + ts + "}\n");
-            }
-            catch
-            {
-            }
         }
 
         private void OnDestroy()

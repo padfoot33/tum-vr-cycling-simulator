@@ -1,6 +1,3 @@
-using System;
-using System.Globalization;
-using System.IO;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -54,7 +51,6 @@ namespace CyclingExperiment.AI
         private float _stoppedTime;
         private RecoverPhase _recoverPhase;
         private float _recoverTime;
-        private float _dbgWayAt;
 
         private static readonly System.Collections.Generic.List<NavMeshVehicleAI> Active =
             new System.Collections.Generic.List<NavMeshVehicleAI>(48);
@@ -87,8 +83,8 @@ namespace CyclingExperiment.AI
             if (TrafficDestinationSet.Instance != null)
             {
                 Transform start = TrafficDestinationSet.Instance.FindByName("Dest_67");
-                Transform next = TrafficDestinationSet.Instance.FindByName("Dest_66");
-                if (next == null) next = TrafficDestinationSet.Instance.FindByName("Dest_62");
+                Transform next = TrafficDestinationSet.Instance.FindByName("Dest_62");
+                if (next == null) next = TrafficDestinationSet.Instance.FindByName("Dest_61");
                 if (start != null) origin = start.position;
                 if (next != null) target = next.position;
             }
@@ -259,20 +255,12 @@ namespace CyclingExperiment.AI
                 Vector3 dest = next.position;
                 if (NavMesh.SamplePosition(dest, out NavMeshHit hit, 2.5f, NavMesh.AllAreas))
                     dest = hit.position;
-                // #region agent log
-                LogRouteAssign("dest", dest, next.name, false);
-                // #endregion
                 AssignSpawnRoute(dest);
                 return;
             }
 
-            bool rejectedSouth = next != null && IsSouthboundOnRoute2(transform.position, next.position);
             _currentDestination = null;
-            Vector3 corridor = PickRoadCorridorDestination();
-            // #region agent log
-            LogRouteAssign(rejectedSouth ? "reject_south" : "corridor", corridor, next != null ? next.name : "none", rejectedSouth);
-            // #endregion
-            AssignSpawnRoute(corridor);
+            AssignSpawnRoute(PickRoadCorridorDestination());
         }
 
         public void AssignSpawnRoute(Vector3 destination)
@@ -390,23 +378,6 @@ namespace CyclingExperiment.AI
                 {
                     _stoppedTime = 0f;
                 }
-
-                // #region agent log
-                if (IsRoute2Corridor(transform.position) && Time.time >= _dbgWayAt)
-                {
-                    _dbgWayAt = Time.time + 1f;
-                    Vector3 f = FlatForward();
-                    float alongFwd = Vector3.Dot(f, Route2Heading);
-                    Dbg(alongFwd < -0.25f ? "B" : "C", alongFwd < -0.25f ? "wrong_way" : "on_corridor",
-                        "{\"name\":\"" + name +
-                        "\",\"x\":" + F(transform.position.x) +
-                        ",\"z\":" + F(transform.position.z) +
-                        ",\"fwdZ\":" + F(f.z) +
-                        ",\"along\":" + F(alongFwd) +
-                        ",\"lane\":" + F(Route2LaneOffset(transform.position)) +
-                        ",\"dest\":\"" + (_currentDestination != null ? _currentDestination.name : "corridor") + "\"}");
-                }
-                // #endregion
             }
 
             if (_repathCooldown > 0f) _repathCooldown -= Time.deltaTime;
@@ -581,28 +552,11 @@ namespace CyclingExperiment.AI
             if (!_agent.CalculatePath(destination, _cachedPath) ||
                 _cachedPath.status == NavMeshPathStatus.PathInvalid)
             {
-                // #region agent log
-                Dbg("E", "path_fail",
-                    "{\"name\":\"" + name +
-                    "\",\"fromZ\":" + F(transform.position.z) +
-                    ",\"destZ\":" + F(destination.z) +
-                    ",\"destX\":" + F(destination.x) +
-                    ",\"st\":\"invalid\"}");
-                // #endregion
                 return false;
             }
 
             if (PathGoesSouthOnRoute2(_cachedPath))
             {
-                // #region agent log
-                Dbg("E", "path_reject",
-                    "{\"name\":\"" + name +
-                    "\",\"fromZ\":" + F(transform.position.z) +
-                    ",\"destZ\":" + F(destination.z) +
-                    ",\"destX\":" + F(destination.x) +
-                    ",\"lane\":" + F(Route2LaneOffset(transform.position)) +
-                    ",\"dest\":\"" + (_currentDestination != null ? _currentDestination.name : "corridor") + "\"}");
-                // #endregion
                 return false;
             }
 
@@ -781,44 +735,5 @@ namespace CyclingExperiment.AI
 
             return null;
         }
-
-        // #region agent log
-        private void LogRouteAssign(string via, Vector3 dest, string destName, bool rejectedSouth)
-        {
-            if (!IsRoute2Corridor(transform.position) && !IsRoute2Corridor(dest)) return;
-            Dbg("D", "assign",
-                "{\"name\":\"" + name +
-                "\",\"via\":\"" + via +
-                "\",\"fromZ\":" + F(transform.position.z) +
-                ",\"destZ\":" + F(dest.z) +
-                ",\"dZ\":" + F(dest.z - transform.position.z) +
-                ",\"fwdZ\":" + F(FlatForward().z) +
-                ",\"lane\":" + F(Route2LaneOffset(transform.position)) +
-                ",\"dest\":\"" + destName +
-                "\",\"rejS\":" + (rejectedSouth ? "true" : "false") +
-                ",\"fromIn\":" + (IsRoute2Corridor(transform.position) ? "true" : "false") +
-                ",\"destIn\":" + (IsRoute2Corridor(dest) ? "true" : "false") + "}");
-        }
-
-        private static void Dbg(string hid, string msg, string data)
-        {
-            try
-            {
-                long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                File.AppendAllText("/Users/admin/Documents/GitHub/Sumonity-UnityBaseProject/.cursor/debug-051389.log",
-                    "{\"sessionId\":\"051389\",\"hypothesisId\":\"" + hid +
-                    "\",\"location\":\"NavMeshVehicleAI.cs\",\"message\":\"" + msg +
-                    "\",\"data\":" + data + ",\"timestamp\":" + ts + "}\n");
-            }
-            catch
-            {
-            }
-        }
-
-        private static string F(float v)
-        {
-            return v.ToString("F1", CultureInfo.InvariantCulture);
-        }
-        // #endregion
     }
 }
