@@ -21,8 +21,8 @@ namespace CyclingExperiment.Scenarios
         [SerializeField, Tooltip("Bus prefab to spawn")]
         private GameObject busPrefab;
 
-        [SerializeField, Tooltip("Speed of overtaking bus in m/s (10 ≈ 36 km/h)")]
-        private float busSpeed = 10f;
+        [SerializeField, Range(4f, 12f), Tooltip("Overtaking bus speed in m/s (12 ≈ 43 km/h). Tune on Scenario_1.")]
+        private float busSpeed = 12f;
 
         [Header("Stage 3: Right Turn Overtaking Car Setup")]
         [SerializeField, Tooltip("Path the aggressive car follows during the right turn")]
@@ -74,7 +74,14 @@ namespace CyclingExperiment.Scenarios
         private void Start()
         {
             AutoAssignReferences();
+            ClampScenarioSpeeds();
             StartStationAmbient();
+        }
+
+        private void ClampScenarioSpeeds()
+        {
+            busSpeed = Mathf.Clamp(busSpeed, 4f, 12f);
+            if (overtakingCarSpeed > 14f) overtakingCarSpeed = 11f;
         }
 
         public void AutoAssignReferences()
@@ -139,6 +146,7 @@ namespace CyclingExperiment.Scenarios
                 return;
             }
 
+            ClampScenarioSpeeds();
             _busOvertakeTriggered = true;
             Debug.Log("[Scenario1] Stage 1: Bus Overtake Triggered!");
 
@@ -193,6 +201,8 @@ namespace CyclingExperiment.Scenarios
                 Debug.LogWarning("[Scenario1] Missing right turn car path or prefab.");
                 return;
             }
+
+            ClampScenarioSpeeds();
 
             // The route trigger is deliberately after the bus bay.  Completing this stage
             // here is a safe fallback if the cyclist cleared the bus between Update frames.

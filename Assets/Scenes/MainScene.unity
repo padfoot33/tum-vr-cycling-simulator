@@ -698,7 +698,7 @@ Transform:
   m_GameObject: {fileID: 16013907}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.7, y: 0, z: -40}
+  m_LocalPosition: {x: -2.03, y: 0, z: -36.95}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5031,7 +5031,7 @@ Transform:
   m_GameObject: {fileID: 149540444}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.5, y: 0, z: -14.3}
+  m_LocalPosition: {x: 1.23, y: 0, z: -31.81}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -31655,7 +31655,7 @@ Transform:
   m_GameObject: {fileID: 891295611}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.6, y: 0, z: 9.1}
+  m_LocalPosition: {x: -2.5, y: 0, z: 26.93}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -33707,10 +33707,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.Scenarios.Scenario1_CombinedController
   busOvertakePath: {fileID: 926250823}
   busPrefab: {fileID: 6097283062772588808, guid: 27334295a198940e1a678a9784074c64, type: 3}
-  busSpeed: 60
+  busSpeed: 12
   rightTurnCarPath: {fileID: 1098182118}
   overtakingCarPrefab: {fileID: 4933583111240688830, guid: acf1b64a1fbe1d74d93024e62413459d, type: 3}
-  overtakingCarSpeed: 55
+  overtakingCarSpeed: 11
   busPassedAheadDistance: 4
   cyclistClearedBusDistance: 4
   carPassedAheadDistance: 3
@@ -52579,7 +52579,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.AI.IntersectionTrafficFlowManager
   intersectionCenter: {x: 430, y: 0, z: 174}
-  autoStart: 1
+  autoStart: 0
   spawnInterval: 3.5
   maxVehiclesInScene: 12
   vehicleSpeed: 9
@@ -52906,7 +52906,7 @@ Transform:
   m_GameObject: {fileID: 1505264079}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.7, y: 0, z: -7.9}
+  m_LocalPosition: {x: 2.75, y: 0, z: -3.26}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

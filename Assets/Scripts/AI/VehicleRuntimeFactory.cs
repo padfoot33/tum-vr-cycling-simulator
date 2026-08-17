@@ -104,13 +104,19 @@ namespace CyclingExperiment.AI
             var rb = vehicle.GetComponent<Rigidbody>();
             if (rb != null)
             {
-                rb.isKinematic = true;
-                rb.useGravity = false;
-                rb.linearVelocity = Vector3.zero;
-                rb.detectCollisions = true;
                 if (disableRigidbody)
                 {
-                    rb.interpolation = RigidbodyInterpolation.None;
+                    Object.Destroy(rb);
+                }
+                else
+                {
+                    if (!rb.isKinematic)
+                    {
+                        rb.linearVelocity = Vector3.zero;
+                    }
+                    rb.isKinematic = true;
+                    rb.useGravity = false;
+                    rb.detectCollisions = true;
                 }
             }
 

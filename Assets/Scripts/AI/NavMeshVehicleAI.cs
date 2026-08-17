@@ -16,8 +16,8 @@ namespace CyclingExperiment.AI
         [SerializeField] private float cruiseSpeed = 9.5f;
         [SerializeField] private float rightLaneOffset = 1.6f;
         [SerializeField] private float followCheckInterval = 0.25f;
-        [SerializeField] private float forwardLookaheadDistance = 18f;
-        [SerializeField] private float stoppingBuffer = 10f;
+        [SerializeField] private float forwardLookaheadDistance = 12f;
+        [SerializeField] private float stoppingBuffer = 3.5f;
         [SerializeField] private float forwardDetectionRadius = 0.65f;
         [SerializeField] private float groundBias = 0.16f;
 
@@ -223,7 +223,6 @@ namespace CyclingExperiment.AI
                 if (_agent.isStopped != mustStop) _agent.isStopped = mustStop;
                 if (mustStop)
                 {
-                    _agent.velocity = Vector3.zero;
                     _stoppedTime += 0.08f;
                     if (!_isExperimentStressVehicle && _stoppedTime >= 1.5f && ShouldRearCarRecover())
                     {
@@ -264,7 +263,6 @@ namespace CyclingExperiment.AI
             {
                 _agent.isStopped = false;
                 _agent.updateRotation = false;
-                _agent.velocity = Vector3.zero;
             }
         }
 
@@ -386,6 +384,15 @@ namespace CyclingExperiment.AI
             return forward.normalized;
         }
 
+        private static bool IsSameDirection(Transform other, Vector3 forward)
+        {
+            if (other == null) return false;
+            Vector3 otherForward = other.forward;
+            otherForward.y = 0f;
+            if (otherForward.sqrMagnitude < 0.01f) return true;
+            return Vector3.Dot(otherForward.normalized, forward) >= 0.15f;
+        }
+
         private float CheckForwardVehicleSpeed()
         {
             float speed = cruiseSpeed;
@@ -423,6 +430,7 @@ namespace CyclingExperiment.AI
                 bool cyclist = TrafficIdentity.IsCyclist(col);
                 if (cyclist && _isExperimentStressVehicle) continue;
                 if (!cyclist && !TrafficIdentity.IsVehicle(col)) continue;
+                if (!cyclist && !IsSameDirection(col.transform.root, forward)) continue;
 
                 if (hits[i].distance <= stoppingBuffer) return 0f;
                 float available = Mathf.Max(0.01f, forwardLookaheadDistance - stoppingBuffer);

@@ -120,6 +120,7 @@ namespace CyclingExperiment.AI
 
             Vector3 guess = intersectionCenter + ApproachOffsets[approachIndex];
             if (!NavMesh.SamplePosition(guess, out NavMeshHit hit, 18f, NavMesh.AllAreas)) return;
+            if (!IsApproachClear(hit.position)) return;
 
             Vector3 toward = intersectionCenter - hit.position;
             toward.y = 0f;
@@ -135,6 +136,27 @@ namespace CyclingExperiment.AI
                 $"TrafficFlow_Intersection_{_activeVehicles.Count}");
 
             if (vehicle != null) _activeVehicles.Add(vehicle);
+        }
+
+        private bool IsApproachClear(Vector3 position)
+        {
+            if (GlobalCityTrafficManager.Instance != null &&
+                !GlobalCityTrafficManager.Instance.IsSpawnClear(position))
+            {
+                return false;
+            }
+
+            const float clearRadius = GlobalCityTrafficManager.SpawnClearRadius;
+            for (int i = 0; i < _activeVehicles.Count; i++)
+            {
+                GameObject other = _activeVehicles[i];
+                if (other == null) continue;
+                Vector3 delta = other.transform.position - position;
+                delta.y = 0f;
+                if (delta.sqrMagnitude < clearRadius * clearRadius) return false;
+            }
+
+            return true;
         }
 
         public void ClearAllVehicles()
