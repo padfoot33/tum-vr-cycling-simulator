@@ -12,10 +12,6 @@ namespace CyclingExperiment.AI
         public static GlobalCityTrafficManager Instance { get; private set; }
 
         public const float SpawnClearRadius = 14f;
-        public const float Route2SlotSpacing = 16f;
-        public const float Route2SlotStartZ = 91.3f;
-        public const float Route2SlotEndZ = 230f;
-        public const float Route2RightLaneX = 807.4f;
 
         [Header("Traffic Master Toggle")]
         [SerializeField] private bool isTrafficEnabled = true;
@@ -48,7 +44,6 @@ namespace CyclingExperiment.AI
 
         private readonly List<GameObject> _spawnedVehicles = new List<GameObject>();
         private float _spawnTimer;
-        private bool _preferRoute2Next = true;
 
         public bool IsTrafficEnabled => isTrafficEnabled;
         public IReadOnlyList<GameObject> ActiveVehicles => _spawnedVehicles;
@@ -139,10 +134,7 @@ namespace CyclingExperiment.AI
             {
                 _spawnTimer = 0f;
                 if (_spawnedVehicles.Count < maxVehicles)
-                {
-                    SpawnVehicleOnNavMesh(_preferRoute2Next);
-                    _preferRoute2Next = !_preferRoute2Next;
-                }
+                    SpawnVehicleOnNavMesh(preferRoute2: true);
             }
         }
 
@@ -161,7 +153,7 @@ namespace CyclingExperiment.AI
 
         public void SpawnVehicleOnNavMesh()
         {
-            SpawnVehicleOnNavMesh(preferRoute2: _preferRoute2Next);
+            SpawnVehicleOnNavMesh(preferRoute2: true);
         }
 
         public void SpawnVehicleOnNavMesh(bool preferRoute2)
@@ -213,12 +205,6 @@ namespace CyclingExperiment.AI
                 return true;
             }
 
-            if (preferRoute2 && TryFindSouthmostRoute2Slot(out position))
-            {
-                rotation = Quaternion.LookRotation(NavMeshVehicleAI.Route2Heading);
-                return true;
-            }
-
             for (int i = 0; i < 16; i++)
             {
                 Vector3 seed = SeedPoints[UnityEngine.Random.Range(0, SeedPoints.Length)];
@@ -242,45 +228,21 @@ namespace CyclingExperiment.AI
             if (destinations == null) destinations = TrafficDestinationSet.Instance;
             if (destinations == null) return false;
 
-            string[] names = { "Dest_67", "Dest_62", "Dest_61" };
+            Transform start = destinations.FindByName("Dest_67");
+            if (start == null) return false;
+
             Vector3 right = Vector3.Cross(Vector3.up, NavMeshVehicleAI.Route2Heading);
-            for (int i = 0; i < names.Length; i++)
+            Vector3 guess = start.position + right * 3.2f;
+            if (!NavMeshVehicleAI.TrySampleRightLane(guess, out Vector3 hit))
             {
-                Transform start = destinations.FindByName(names[i]);
-                if (start == null) continue;
-
-                Vector3 guess = start.position + right * 3.2f;
-                if (!NavMeshVehicleAI.TrySampleRightLane(guess, out Vector3 hit))
-                {
-                    if (!NavMesh.SamplePosition(start.position, out NavMeshHit mesh, 4f, NavMesh.AllAreas))
-                        continue;
-                    hit = mesh.position;
-                }
-
-                if (!IsSpawnClear(hit)) continue;
-                position = hit;
-                return true;
+                if (!NavMesh.SamplePosition(start.position, out NavMeshHit mesh, 4f, NavMesh.AllAreas))
+                    return false;
+                hit = mesh.position;
             }
 
-            return false;
-        }
-
-        private bool TryFindSouthmostRoute2Slot(out Vector3 position)
-        {
-            position = Vector3.zero;
-            for (float along = 0f; along <= 160f; along += Route2SlotSpacing)
-            {
-                Vector3 guess = NavMeshVehicleAI.Route2RightLaneAt(along);
-                if (!NavMeshVehicleAI.TrySampleRightLane(guess, out Vector3 hit)) continue;
-                if (!NavMeshVehicleAI.IsRoute2Corridor(hit)) continue;
-                if (NavMeshVehicleAI.Route2LaneOffset(hit) < 0.8f) continue;
-                if (!IsSpawnClear(hit)) continue;
-
-                position = hit;
-                return true;
-            }
-
-            return false;
+            if (!IsSpawnClear(hit)) return false;
+            position = hit;
+            return true;
         }
 
         public void ToggleTraffic()

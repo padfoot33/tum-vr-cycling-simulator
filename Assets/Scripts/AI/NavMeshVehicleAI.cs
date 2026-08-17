@@ -243,6 +243,7 @@ namespace CyclingExperiment.AI
         {
             EnsureOnMesh();
             if (_agent == null || !_agent.isOnNavMesh) return;
+            if (TryDespawnFinishedOneWay()) return;
 
             Transform avoid = FindClaimedDestinationAhead();
             Transform next = null;
@@ -261,6 +262,17 @@ namespace CyclingExperiment.AI
 
             _currentDestination = null;
             AssignSpawnRoute(PickRoadCorridorDestination());
+        }
+
+        private bool TryDespawnFinishedOneWay()
+        {
+            if (_isExperimentStressVehicle) return false;
+            var dests = TrafficDestinationSet.Instance;
+            if (dests == null || !dests.IsAtOneWayEnd(transform.position, _currentDestination))
+                return false;
+
+            Destroy(gameObject);
+            return true;
         }
 
         public void AssignSpawnRoute(Vector3 destination)

@@ -60,6 +60,23 @@ namespace CyclingExperiment.AI
             return false;
         }
 
+        public bool IsAtOneWayEnd(Vector3 from, Transform current)
+        {
+            Transform last = null;
+            for (int i = OneWayLane.Length - 1; i >= 0; i--)
+            {
+                last = FindByName(OneWayLane[i]);
+                if (last != null) break;
+            }
+
+            if (last == null) return false;
+            if (current != null && current.name == last.name) return true;
+
+            Vector3 delta = last.position - from;
+            delta.y = 0f;
+            return delta.sqrMagnitude <= 10f * 10f;
+        }
+
         public int ClosestChainIndex(Vector3 from)
         {
             int best = -1;
