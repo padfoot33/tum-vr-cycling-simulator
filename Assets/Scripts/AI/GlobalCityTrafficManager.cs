@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -13,9 +16,9 @@ namespace CyclingExperiment.AI
 
         public const float SpawnClearRadius = 14f;
         public const float Route2SlotSpacing = 16f;
-        public const float Route2SlotStartZ = 65f;
-        public const float Route2SlotEndZ = 190f;
-        public const float Route2RightLaneX = 724.6f;
+        public const float Route2SlotStartZ = 91.3f;
+        public const float Route2SlotEndZ = 230f;
+        public const float Route2RightLaneX = 807.4f;
 
         [Header("Traffic Master Toggle")]
         [SerializeField] private bool isTrafficEnabled = true;
@@ -169,7 +172,7 @@ namespace CyclingExperiment.AI
             if (vehiclePrefabs == null || vehiclePrefabs.Count == 0) return;
             if (_spawnedVehicles.Count >= maxVehicles) return;
 
-            GameObject prefab = vehiclePrefabs[Random.Range(0, vehiclePrefabs.Count)];
+            GameObject prefab = vehiclePrefabs[UnityEngine.Random.Range(0, vehiclePrefabs.Count)];
             if (prefab == null) return;
 
             if (!TryFindSpawnPose(preferRoute2, out Vector3 pos, out Quaternion rot))
@@ -182,11 +185,40 @@ namespace CyclingExperiment.AI
                 prefab,
                 pos,
                 rot,
-                defaultTrafficSpeed + Random.Range(-1.5f, 2.0f),
+                defaultTrafficSpeed + UnityEngine.Random.Range(-1.5f, 2.0f),
                 $"CityTraffic_{prefab.name}_{_spawnedVehicles.Count}");
 
             if (vehicle != null) _spawnedVehicles.Add(vehicle);
+            // #region agent log
+            Vector3 fwd = rot * Vector3.forward;
+            Dbg("A", "spawn",
+                "{\"name\":\"" + (vehicle != null ? vehicle.name : "null") +
+                "\",\"preferR2\":" + (preferRoute2 ? "true" : "false") +
+                ",\"inCorr\":" + (NavMeshVehicleAI.IsRoute2Corridor(pos) ? "true" : "false") +
+                ",\"x\":" + pos.x.ToString("F1", CultureInfo.InvariantCulture) +
+                ",\"z\":" + pos.z.ToString("F1", CultureInfo.InvariantCulture) +
+                ",\"lane\":" + NavMeshVehicleAI.Route2LaneOffset(pos).ToString("F1", CultureInfo.InvariantCulture) +
+                ",\"near67\":" + (Vector3.Distance(new Vector3(pos.x, 0f, pos.z), new Vector3(804.2f, 0f, 91.3f)) < 25f ? "true" : "false") +
+                ",\"fwdZ\":" + fwd.z.ToString("F2", CultureInfo.InvariantCulture) + "}");
+            // #endregion
         }
+
+        // #region agent log
+        internal static void Dbg(string hid, string msg, string data)
+        {
+            try
+            {
+                long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                File.AppendAllText("/Users/admin/Documents/GitHub/Sumonity-UnityBaseProject/.cursor/debug-051389.log",
+                    "{\"sessionId\":\"051389\",\"hypothesisId\":\"" + hid +
+                    "\",\"location\":\"GlobalCityTrafficManager.cs\",\"message\":\"" + msg +
+                    "\",\"data\":" + data + ",\"timestamp\":" + ts + "}\n");
+            }
+            catch
+            {
+            }
+        }
+        // #endregion
 
         public bool IsSpawnClear(Vector3 position, GameObject ignore = null)
         {
@@ -207,16 +239,22 @@ namespace CyclingExperiment.AI
             position = Vector3.zero;
             rotation = Quaternion.identity;
 
+            if (preferRoute2 && TryFindDest67Spawn(out position))
+            {
+                rotation = Quaternion.LookRotation(NavMeshVehicleAI.Route2Heading);
+                return true;
+            }
+
             if (preferRoute2 && TryFindSouthmostRoute2Slot(out position))
             {
-                rotation = Quaternion.LookRotation(Vector3.forward);
+                rotation = Quaternion.LookRotation(NavMeshVehicleAI.Route2Heading);
                 return true;
             }
 
             for (int i = 0; i < 16; i++)
             {
-                Vector3 seed = SeedPoints[Random.Range(0, SeedPoints.Length)];
-                seed += new Vector3(Random.Range(-18f, 18f), 0f, Random.Range(-18f, 18f));
+                Vector3 seed = SeedPoints[UnityEngine.Random.Range(0, SeedPoints.Length)];
+                seed += new Vector3(UnityEngine.Random.Range(-18f, 18f), 0f, UnityEngine.Random.Range(-18f, 18f));
                 if (NavMeshVehicleAI.IsRoute2Corridor(seed)) continue;
                 if (!NavMesh.SamplePosition(seed, out NavMeshHit hit, 20f, NavMesh.AllAreas)) continue;
                 if (NavMeshVehicleAI.IsRoute2Corridor(hit.position)) continue;
@@ -230,17 +268,47 @@ namespace CyclingExperiment.AI
             return false;
         }
 
+        private bool TryFindDest67Spawn(out Vector3 position)
+        {
+            position = Vector3.zero;
+            if (destinations == null) destinations = TrafficDestinationSet.Instance;
+            if (destinations == null) return false;
+
+            string[] names = { "Dest_67", "Dest_66", "Dest_64", "Dest_62" };
+            Vector3 right = Vector3.Cross(Vector3.up, NavMeshVehicleAI.Route2Heading);
+            for (int i = 0; i < names.Length; i++)
+            {
+                Transform start = destinations.FindByName(names[i]);
+                if (start == null) continue;
+
+                Vector3 guess = start.position + right * 3.2f;
+                if (!NavMeshVehicleAI.TrySampleRightLane(guess, out Vector3 hit))
+                {
+                    if (!NavMesh.SamplePosition(start.position, out NavMeshHit mesh, 4f, NavMesh.AllAreas))
+                        continue;
+                    hit = mesh.position;
+                }
+
+                if (!IsSpawnClear(hit)) continue;
+                position = hit;
+                return true;
+            }
+
+            return false;
+        }
+
         private bool TryFindSouthmostRoute2Slot(out Vector3 position)
         {
             position = Vector3.zero;
-            for (float z = Route2SlotStartZ; z <= Route2SlotEndZ; z += Route2SlotSpacing)
+            for (float along = 0f; along <= 160f; along += Route2SlotSpacing)
             {
-                Vector3 guess = new Vector3(Route2RightLaneX, 1f, z);
-                if (!NavMesh.SamplePosition(guess, out NavMeshHit hit, 8f, NavMesh.AllAreas)) continue;
-                if (!NavMeshVehicleAI.IsRoute2Corridor(hit.position)) continue;
-                if (!IsSpawnClear(hit.position)) continue;
+                Vector3 guess = NavMeshVehicleAI.Route2RightLaneAt(along);
+                if (!NavMeshVehicleAI.TrySampleRightLane(guess, out Vector3 hit)) continue;
+                if (!NavMeshVehicleAI.IsRoute2Corridor(hit)) continue;
+                if (NavMeshVehicleAI.Route2LaneOffset(hit) < 0.8f) continue;
+                if (!IsSpawnClear(hit)) continue;
 
-                position = hit.position;
+                position = hit;
                 return true;
             }
 

@@ -63,7 +63,12 @@ namespace CyclingExperiment.AI
         {
             if (prefab == null) return null;
 
-            if (NavMesh.SamplePosition(position, out NavMeshHit hit, 8f, NavMesh.AllAreas))
+            if (NavMeshVehicleAI.IsRoute2Corridor(position))
+            {
+                if (NavMeshVehicleAI.TrySampleRightLane(position, out Vector3 rightPos))
+                    position = rightPos;
+            }
+            else if (NavMesh.SamplePosition(position, out NavMeshHit hit, 2.5f, NavMesh.AllAreas))
             {
                 position = hit.position;
             }
@@ -84,9 +89,15 @@ namespace CyclingExperiment.AI
             ai.IsExperimentStressVehicle = false;
             ai.BindAgent(agent);
 
-            if (NavMesh.SamplePosition(position, out hit, 16f, NavMesh.AllAreas))
+            if (NavMeshVehicleAI.IsRoute2Corridor(position) &&
+                NavMeshVehicleAI.TrySampleRightLane(position, out Vector3 warp))
             {
-                agent.Warp(hit.position);
+                agent.Warp(warp);
+            }
+            else if (!agent.isOnNavMesh &&
+                     NavMesh.SamplePosition(position, out NavMeshHit meshHit, 2.5f, NavMesh.AllAreas))
+            {
+                agent.Warp(meshHit.position);
             }
 
             ai.AssignRoadCorridorRoute();

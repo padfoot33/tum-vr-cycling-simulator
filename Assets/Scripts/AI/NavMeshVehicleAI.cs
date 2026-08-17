@@ -1,3 +1,6 @@
+using System;
+using System.Globalization;
+using System.IO;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -8,13 +11,25 @@ namespace CyclingExperiment.AI
     /// </summary>
     public class NavMeshVehicleAI : MonoBehaviour
     {
-        public const float Route2CenterX = 723f;
-        public const float Route2HalfWidth = 18f;
-        public const float Route2MinZ = 60f;
-        public const float Route2MaxZ = 200f;
+        public const float Route2CenterX = 804.2f;
+        public const float Route2HalfWidth = 24f;
+        public const float Route2MinZ = 55f;
+        public const float Route2MaxZ = 250f;
+        public const float Route2RightLaneMeters = 3.2f;
+        private static Vector3 s_route2Heading = Vector3.forward;
+        private static bool s_route2HeadingReady;
+
+        public static Vector3 Route2Heading
+        {
+            get
+            {
+                EnsureRoute2Heading();
+                return s_route2Heading;
+            }
+        }
 
         [SerializeField] private float cruiseSpeed = 9.5f;
-        [SerializeField] private float rightLaneOffset = 1.6f;
+        [SerializeField] private float rightLaneOffset = 3.2f;
         [SerializeField] private float followCheckInterval = 0.25f;
         [SerializeField] private float forwardLookaheadDistance = 12f;
         [SerializeField] private float stoppingBuffer = 3.5f;
@@ -39,6 +54,7 @@ namespace CyclingExperiment.AI
         private float _stoppedTime;
         private RecoverPhase _recoverPhase;
         private float _recoverTime;
+        private float _dbgWayAt;
 
         private static readonly System.Collections.Generic.List<NavMeshVehicleAI> Active =
             new System.Collections.Generic.List<NavMeshVehicleAI>(48);
@@ -57,11 +73,143 @@ namespace CyclingExperiment.AI
             set => _isExperimentStressVehicle = value;
         }
 
+        public static void ResetRoute2Heading()
+        {
+            s_route2HeadingReady = false;
+            s_route2Heading = Vector3.forward;
+        }
+
+        public static void EnsureRoute2Heading()
+        {
+            if (s_route2HeadingReady) return;
+            Vector3 origin = new Vector3(Route2CenterX, 0.2f, 91.3f);
+            Vector3 target = origin + Vector3.left * 80f;
+            if (TrafficDestinationSet.Instance != null)
+            {
+                Transform start = TrafficDestinationSet.Instance.FindByName("Dest_67");
+                Transform next = TrafficDestinationSet.Instance.FindByName("Dest_66");
+                if (next == null) next = TrafficDestinationSet.Instance.FindByName("Dest_62");
+                if (start != null) origin = start.position;
+                if (next != null) target = next.position;
+            }
+
+            Vector3 heading = target - origin;
+            heading.y = 0f;
+            s_route2Heading = heading.sqrMagnitude > 0.01f ? heading.normalized : Vector3.left;
+            s_route2HeadingReady = true;
+        }
+
+        public static Vector3 PickWalkableStreetHeading(Vector3 origin)
+        {
+            float north = MeasureWalkable(origin, Vector3.forward, 80f);
+            if (north >= 12f) return Vector3.forward;
+
+            Vector3[] dirs =
+            {
+                Vector3.right,
+                Vector3.left,
+                new Vector3(0.7f, 0f, 0.7f).normalized,
+                new Vector3(-0.7f, 0f, 0.7f).normalized,
+                new Vector3(0.7f, 0f, -0.3f).normalized,
+                new Vector3(-0.7f, 0f, -0.3f).normalized
+            };
+            float best = north;
+            Vector3 bestDir = Vector3.forward;
+            for (int i = 0; i < dirs.Length; i++)
+            {
+                float walk = MeasureWalkable(origin, dirs[i], 80f);
+                if (walk > best)
+                {
+                    best = walk;
+                    bestDir = dirs[i];
+                }
+            }
+
+            return bestDir;
+        }
+
+        public static bool TryWalkAlongMesh(Vector3 from, Vector3 heading, float distance, out Vector3 dest)
+        {
+            dest = from;
+            heading.y = 0f;
+            if (heading.sqrMagnitude < 0.01f) return false;
+            heading.Normalize();
+            if (!NavMesh.SamplePosition(from, out NavMeshHit start, 4f, NavMesh.AllAreas)) return false;
+
+            Vector3 pos = start.position;
+            float stepped = 0f;
+            const float step = 3.5f;
+            while (stepped + 0.5f < distance)
+            {
+                Vector3 next = pos + heading * step;
+                if (NavMesh.Raycast(pos, next, out NavMeshHit blocked, NavMesh.AllAreas))
+                {
+                    dest = blocked.position;
+                    return stepped > 8f;
+                }
+
+                if (!NavMesh.SamplePosition(next, out NavMeshHit hit, 2.5f, NavMesh.AllAreas))
+                {
+                    dest = pos;
+                    return stepped > 8f;
+                }
+
+                pos = hit.position;
+                stepped += step;
+            }
+
+            dest = pos;
+            return true;
+        }
+
+        public static Vector3 Route2CenterAt(float z)
+        {
+            Vector3 heading = Route2Heading;
+            return new Vector3(Route2CenterX, 0f, 91.3f) + heading * (z - 91.3f);
+        }
+
+        public static Vector3 Route2RightLaneAt(float along)
+        {
+            Vector3 right = Vector3.Cross(Vector3.up, Route2Heading);
+            Vector3 point = new Vector3(Route2CenterX, 0f, 91.3f) + Route2Heading * along + right * Route2RightLaneMeters;
+            point.y = 1f;
+            return point;
+        }
+
+        public static float Route2LaneOffset(Vector3 position)
+        {
+            Vector3 origin = new Vector3(Route2CenterX, 0f, 91.3f);
+            Vector3 right = Vector3.Cross(Vector3.up, Route2Heading);
+            return Vector3.Dot(position - origin, right);
+        }
+
         public static bool IsRoute2Corridor(Vector3 position)
         {
-            return Mathf.Abs(position.x - Route2CenterX) < Route2HalfWidth
-                   && position.z >= Route2MinZ
-                   && position.z <= Route2MaxZ;
+            Vector3 origin = new Vector3(Route2CenterX, 0f, 91.3f);
+            Vector3 delta = position - origin;
+            delta.y = 0f;
+            float along = Vector3.Dot(delta, Route2Heading);
+            float lateral = Vector3.Dot(delta, Vector3.Cross(Vector3.up, Route2Heading));
+            if (along >= -12f && along <= 650f && Mathf.Abs(lateral) < Route2HalfWidth)
+                return true;
+            return TrafficDestinationSet.Instance != null
+                   && TrafficDestinationSet.Instance.ClosestChainIndex(position) >= 0;
+        }
+
+        public static bool TrySampleRightLane(Vector3 guess, out Vector3 position)
+        {
+            Vector3 right = Vector3.Cross(Vector3.up, Route2Heading);
+            for (float extra = 0.4f; extra >= -1.6f; extra -= 0.8f)
+            {
+                Vector3 probe = guess + right * extra;
+                if (!NavMesh.SamplePosition(probe, out NavMeshHit hit, 2.0f, NavMesh.AllAreas)) continue;
+                if (Route2LaneOffset(hit.position) < 0.35f) continue;
+                position = hit.position;
+                return true;
+            }
+
+            position = guess;
+            return false;
         }
 
         public void BindAgent(NavMeshAgent agent)
@@ -69,13 +217,14 @@ namespace CyclingExperiment.AI
             _agent = agent;
             if (_agent == null) return;
 
+            rightLaneOffset = Mathf.Max(rightLaneOffset, Route2RightLaneMeters);
             _agent.speed = cruiseSpeed;
             _agent.acceleration = 8f;
             _agent.angularSpeed = 90f;
             _agent.radius = 1.1f;
             _agent.height = 1.0f;
             _agent.baseOffset = Mathf.Max(0f, _agent.baseOffset - groundBias);
-            _agent.autoBraking = true;
+            _agent.autoBraking = false;
             _agent.updatePosition = true;
             _agent.updateRotation = true;
             _agent.obstacleAvoidanceType = ObstacleAvoidanceType.HighQualityObstacleAvoidance;
@@ -100,69 +249,77 @@ namespace CyclingExperiment.AI
             if (_agent == null || !_agent.isOnNavMesh) return;
 
             Transform avoid = FindClaimedDestinationAhead();
+            Transform next = null;
+            Vector3 pickForward = IsRoute2Corridor(transform.position) ? Route2Heading : transform.forward;
             if (TrafficDestinationSet.Instance != null &&
-                TrafficDestinationSet.Instance.TryPickNext(transform.position, transform.forward, _currentDestination, avoid, out Transform next)
+                TrafficDestinationSet.Instance.TryPickNext(transform.position, pickForward, _currentDestination, avoid, out next)
                 && !IsSouthboundOnRoute2(transform.position, next.position))
             {
                 _currentDestination = next;
                 Vector3 dest = next.position;
-                if (NavMesh.SamplePosition(dest, out NavMeshHit hit, 12f, NavMesh.AllAreas))
+                if (NavMesh.SamplePosition(dest, out NavMeshHit hit, 2.5f, NavMesh.AllAreas))
                     dest = hit.position;
+                // #region agent log
+                LogRouteAssign("dest", dest, next.name, false);
+                // #endregion
                 AssignSpawnRoute(dest);
                 return;
             }
 
-            AssignSpawnRoute(PickRoadCorridorDestination());
+            bool rejectedSouth = next != null && IsSouthboundOnRoute2(transform.position, next.position);
+            _currentDestination = null;
+            Vector3 corridor = PickRoadCorridorDestination();
+            // #region agent log
+            LogRouteAssign(rejectedSouth ? "reject_south" : "corridor", corridor, next != null ? next.name : "none", rejectedSouth);
+            // #endregion
+            AssignSpawnRoute(corridor);
         }
 
         public void AssignSpawnRoute(Vector3 destination)
         {
             if (_agent == null || !_agent.isOnNavMesh) return;
 
-            if (IsSouthboundOnRoute2(transform.position, destination))
+            Vector3 from = transform.position;
+            if (IsSouthboundOnRoute2(from, destination) ||
+                (IsRoute2Corridor(from) && Vector3.Dot(destination - from, Route2Heading) < 4f))
             {
                 destination = PickRoadCorridorDestination();
             }
 
-            Vector3 from = transform.position;
             Vector3 toDest = destination - from;
             toDest.y = 0f;
-            Vector3 forward = FlatForward();
+            Vector3 forward = IsRoute2Corridor(from) ? Route2Heading : FlatForward();
             Vector3 approach = toDest.sqrMagnitude > 0.01f ? toDest.normalized : forward;
             destination = OffsetToRightLane(destination, approach);
 
             float turnAngle = toDest.sqrMagnitude > 0.01f ? Vector3.Angle(forward, toDest) : 0f;
             if (turnAngle > 35f && _queuedDest == null)
             {
-                Vector3 via = from + forward * 12f + Vector3.Cross(Vector3.up, forward) * rightLaneOffset;
-                if (NavMesh.SamplePosition(via, out NavMeshHit viaHit, 8f, NavMesh.AllAreas)
-                    && !IsSouthboundOnRoute2(from, viaHit.position))
+                Vector3 via = from + forward * 22f + Vector3.Cross(Vector3.up, forward) * rightLaneOffset;
+                if (TrySampleKeepRight(via, forward, out Vector3 viaPos)
+                    && !IsSouthboundOnRoute2(from, viaPos)
+                    && !IsSouthboundOnRoute2(viaPos, destination))
                 {
                     _queuedDest = destination;
-                    destination = viaHit.position;
+                    destination = viaPos;
                 }
             }
 
-            if (_cachedPath == null) _cachedPath = new NavMeshPath();
+            if (TryApplyPath(destination)) return;
 
-            if (_agent.CalculatePath(destination, _cachedPath) &&
-                _cachedPath.status != NavMeshPathStatus.PathInvalid)
-            {
-                _agent.SetPath(_cachedPath);
-                return;
-            }
-
-            _agent.SetDestination(destination);
+            Vector3 north = PickRoadCorridorDestination();
+            if (TryApplyPath(north)) return;
         }
 
         public static Quaternion HeadingAlongRoad(Vector3 position)
         {
+            if (IsRoute2Corridor(position)) return Quaternion.LookRotation(Route2Heading);
             return Quaternion.LookRotation(PickLongestRoadHeading(position));
         }
 
         public static Vector3 PickLongestRoadHeading(Vector3 position)
         {
-            if (IsRoute2Corridor(position)) return Vector3.forward;
+            if (IsRoute2Corridor(position)) return Route2Heading;
 
             Vector3[] candidates = { Vector3.forward, Vector3.back, Vector3.left, Vector3.right };
             float best = 0f;
@@ -233,14 +390,42 @@ namespace CyclingExperiment.AI
                 {
                     _stoppedTime = 0f;
                 }
+
+                // #region agent log
+                if (IsRoute2Corridor(transform.position) && Time.time >= _dbgWayAt)
+                {
+                    _dbgWayAt = Time.time + 1f;
+                    Vector3 f = FlatForward();
+                    float alongFwd = Vector3.Dot(f, Route2Heading);
+                    Dbg(alongFwd < -0.25f ? "B" : "C", alongFwd < -0.25f ? "wrong_way" : "on_corridor",
+                        "{\"name\":\"" + name +
+                        "\",\"x\":" + F(transform.position.x) +
+                        ",\"z\":" + F(transform.position.z) +
+                        ",\"fwdZ\":" + F(f.z) +
+                        ",\"along\":" + F(alongFwd) +
+                        ",\"lane\":" + F(Route2LaneOffset(transform.position)) +
+                        ",\"dest\":\"" + (_currentDestination != null ? _currentDestination.name : "corridor") + "\"}");
+                }
+                // #endregion
             }
 
             if (_repathCooldown > 0f) _repathCooldown -= Time.deltaTime;
 
-            bool needsPath = !_agent.pathPending && (!_agent.hasPath || _agent.remainingDistance <= 2f);
+            if (IsRoute2Corridor(transform.position) &&
+                Vector3.Dot(FlatForward(), Route2Heading) < -0.25f &&
+                _repathCooldown <= 0f)
+            {
+                _currentDestination = null;
+                _queuedDest = null;
+                _repathCooldown = 0.45f;
+                AssignRoadCorridorRoute();
+                return;
+            }
+
+            bool needsPath = !_agent.pathPending && (!_agent.hasPath || _agent.remainingDistance <= 8f);
             if (needsPath && _repathCooldown <= 0f)
             {
-                _repathCooldown = 1.5f;
+                _repathCooldown = 0.25f;
                 if (_queuedDest.HasValue)
                 {
                     Vector3 queued = _queuedDest.Value;
@@ -329,7 +514,12 @@ namespace CyclingExperiment.AI
         {
             if (_agent == null) return;
             if (_agent.isOnNavMesh) return;
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 16f, NavMesh.AllAreas))
+            if (IsRoute2Corridor(transform.position) && TrySampleRightLane(transform.position, out Vector3 right))
+            {
+                _agent.Warp(right);
+                return;
+            }
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 4f, NavMesh.AllAreas))
             {
                 _agent.Warp(hit.position);
             }
@@ -339,7 +529,7 @@ namespace CyclingExperiment.AI
         {
             Vector3 origin = transform.position;
             Vector3 forward = FlatForward();
-            if (IsRoute2Corridor(origin)) forward = Vector3.forward;
+            if (IsRoute2Corridor(origin)) forward = Route2Heading;
 
             float walkable = MeasureWalkable(origin, forward, 90f);
             if (walkable < 10f && !IsRoute2Corridor(origin))
@@ -348,13 +538,14 @@ namespace CyclingExperiment.AI
                 walkable = MeasureWalkable(origin, forward, 90f);
             }
 
-            float along = Mathf.Clamp(walkable * 0.85f, 12f, 90f);
+            float along = Mathf.Clamp(walkable * 0.85f, 16f, 70f);
+            if (IsRoute2Corridor(origin) && TryWalkAlongMesh(origin, forward, along, out Vector3 walked))
+                return walked;
             Vector3 right = Vector3.Cross(Vector3.up, forward);
             Vector3 guess = origin + forward * along + right * rightLaneOffset;
-
-            if (NavMesh.SamplePosition(guess, out NavMeshHit hit, 12f, NavMesh.AllAreas))
-                return hit.position;
-            if (NavMesh.SamplePosition(origin + forward * along, out hit, 16f, NavMesh.AllAreas))
+            if (TrySampleKeepRight(guess, forward, out Vector3 sampled))
+                return sampled;
+            if (NavMesh.SamplePosition(origin + forward * along + right * 1.2f, out NavMeshHit hit, 4f, NavMesh.AllAreas))
                 return hit.position;
             return origin + forward * along;
         }
@@ -365,15 +556,78 @@ namespace CyclingExperiment.AI
             if (approach.sqrMagnitude < 0.01f) return destination;
             Vector3 right = Vector3.Cross(Vector3.up, approach.normalized);
             Vector3 guess = destination + right * rightLaneOffset;
-            if (NavMesh.SamplePosition(guess, out NavMeshHit hit, 6f, NavMesh.AllAreas))
-                return hit.position;
+            if (TrySampleKeepRight(guess, approach, out Vector3 sampled))
+                return sampled;
             return destination;
+        }
+
+        private static bool TrySampleKeepRight(Vector3 guess, Vector3 approach, out Vector3 position)
+        {
+            Vector3 right = Vector3.Cross(Vector3.up, approach.normalized);
+            if (NavMesh.SamplePosition(guess, out NavMeshHit hit, 2.2f, NavMesh.AllAreas)
+                && Vector3.Dot(hit.position - guess, right) >= -0.7f)
+            {
+                position = hit.position;
+                return true;
+            }
+
+            position = guess;
+            return false;
+        }
+
+        private bool TryApplyPath(Vector3 destination)
+        {
+            if (_cachedPath == null) _cachedPath = new NavMeshPath();
+            if (!_agent.CalculatePath(destination, _cachedPath) ||
+                _cachedPath.status == NavMeshPathStatus.PathInvalid)
+            {
+                // #region agent log
+                Dbg("E", "path_fail",
+                    "{\"name\":\"" + name +
+                    "\",\"fromZ\":" + F(transform.position.z) +
+                    ",\"destZ\":" + F(destination.z) +
+                    ",\"destX\":" + F(destination.x) +
+                    ",\"st\":\"invalid\"}");
+                // #endregion
+                return false;
+            }
+
+            if (PathGoesSouthOnRoute2(_cachedPath))
+            {
+                // #region agent log
+                Dbg("E", "path_reject",
+                    "{\"name\":\"" + name +
+                    "\",\"fromZ\":" + F(transform.position.z) +
+                    ",\"destZ\":" + F(destination.z) +
+                    ",\"destX\":" + F(destination.x) +
+                    ",\"lane\":" + F(Route2LaneOffset(transform.position)) +
+                    ",\"dest\":\"" + (_currentDestination != null ? _currentDestination.name : "corridor") + "\"}");
+                // #endregion
+                return false;
+            }
+
+            _agent.SetPath(_cachedPath);
+            return true;
+        }
+
+        private static bool PathGoesSouthOnRoute2(NavMeshPath path)
+        {
+            if (path == null || path.corners == null || path.corners.Length < 2) return false;
+            for (int i = 0; i < path.corners.Length - 1; i++)
+            {
+                Vector3 a = path.corners[i];
+                Vector3 b = path.corners[i + 1];
+                if (!IsRoute2Corridor(a) && !IsRoute2Corridor(b)) continue;
+                if (Vector3.Dot(b - a, Route2Heading) < -2f) return true;
+            }
+
+            return false;
         }
 
         private static bool IsSouthboundOnRoute2(Vector3 from, Vector3 to)
         {
-            if (!IsRoute2Corridor(from) || !IsRoute2Corridor(to)) return false;
-            return to.z < from.z - 2f;
+            if (!IsRoute2Corridor(from) && !IsRoute2Corridor(to)) return false;
+            return Vector3.Dot(to - from, Route2Heading) < -2f;
         }
 
         private Vector3 FlatForward()
@@ -527,5 +781,44 @@ namespace CyclingExperiment.AI
 
             return null;
         }
+
+        // #region agent log
+        private void LogRouteAssign(string via, Vector3 dest, string destName, bool rejectedSouth)
+        {
+            if (!IsRoute2Corridor(transform.position) && !IsRoute2Corridor(dest)) return;
+            Dbg("D", "assign",
+                "{\"name\":\"" + name +
+                "\",\"via\":\"" + via +
+                "\",\"fromZ\":" + F(transform.position.z) +
+                ",\"destZ\":" + F(dest.z) +
+                ",\"dZ\":" + F(dest.z - transform.position.z) +
+                ",\"fwdZ\":" + F(FlatForward().z) +
+                ",\"lane\":" + F(Route2LaneOffset(transform.position)) +
+                ",\"dest\":\"" + destName +
+                "\",\"rejS\":" + (rejectedSouth ? "true" : "false") +
+                ",\"fromIn\":" + (IsRoute2Corridor(transform.position) ? "true" : "false") +
+                ",\"destIn\":" + (IsRoute2Corridor(dest) ? "true" : "false") + "}");
+        }
+
+        private static void Dbg(string hid, string msg, string data)
+        {
+            try
+            {
+                long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                File.AppendAllText("/Users/admin/Documents/GitHub/Sumonity-UnityBaseProject/.cursor/debug-051389.log",
+                    "{\"sessionId\":\"051389\",\"hypothesisId\":\"" + hid +
+                    "\",\"location\":\"NavMeshVehicleAI.cs\",\"message\":\"" + msg +
+                    "\",\"data\":" + data + ",\"timestamp\":" + ts + "}\n");
+            }
+            catch
+            {
+            }
+        }
+
+        private static string F(float v)
+        {
+            return v.ToString("F1", CultureInfo.InvariantCulture);
+        }
+        // #endregion
     }
 }

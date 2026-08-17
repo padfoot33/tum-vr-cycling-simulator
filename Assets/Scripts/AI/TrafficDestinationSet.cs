@@ -11,12 +11,124 @@ namespace CyclingExperiment.AI
     {
         public static TrafficDestinationSet Instance { get; private set; }
 
+        public static readonly string[] OneWayLane =
+        {
+            "Dest_67", "Dest_66", "Dest_64", "Dest_62", "Dest_61", "Dest_60"
+        };
+
         [SerializeField] private Transform[] points;
 
         private void Awake()
         {
             Instance = this;
             RefreshFromChildren();
+            RemoveGeneratedNorthPoints();
+            NavMeshVehicleAI.ResetRoute2Heading();
+            NavMeshVehicleAI.EnsureRoute2Heading();
+            // #region agent log
+            LogChainHeading();
+            // #endregion
+        }
+
+        public Transform FindByName(string destName)
+        {
+            if (points == null || points.Length == 0) RefreshFromChildren();
+            if (points == null) return null;
+            for (int i = 0; i < points.Length; i++)
+            {
+                if (points[i] != null && points[i].name == destName) return points[i];
+            }
+
+            return null;
+        }
+
+        public bool TryPickOneWayNext(Vector3 from, Transform current, out Transform next)
+        {
+            next = null;
+            int fromIndex = ChainIndex(current);
+            if (fromIndex < 0) fromIndex = ClosestChainIndex(from);
+            if (fromIndex < 0) return false;
+
+            for (int i = fromIndex + 1; i < OneWayLane.Length; i++)
+            {
+                Transform point = FindByName(OneWayLane[i]);
+                if (point == null) continue;
+                Vector3 delta = point.position - from;
+                delta.y = 0f;
+                if (delta.sqrMagnitude < 8f * 8f) continue;
+                next = point;
+                return true;
+            }
+
+            return false;
+        }
+
+        public int ClosestChainIndex(Vector3 from)
+        {
+            int best = -1;
+            float bestDist = 28f;
+            for (int i = 0; i < OneWayLane.Length; i++)
+            {
+                Transform point = FindByName(OneWayLane[i]);
+                if (point == null) continue;
+                Vector3 delta = point.position - from;
+                delta.y = 0f;
+                float dist = delta.magnitude;
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    best = i;
+                }
+            }
+
+            return best;
+        }
+
+        private int ChainIndex(Transform dest)
+        {
+            if (dest == null) return -1;
+            for (int i = 0; i < OneWayLane.Length; i++)
+            {
+                if (dest.name == OneWayLane[i]) return i;
+            }
+
+            return -1;
+        }
+
+        private void RemoveGeneratedNorthPoints()
+        {
+            bool removed = false;
+            for (int i = transform.childCount - 1; i >= 0; i--)
+            {
+                Transform child = transform.GetChild(i);
+                if (child == null || !child.name.StartsWith("Dest_67_N")) continue;
+                if (Application.isPlaying) Destroy(child.gameObject);
+                else DestroyImmediate(child.gameObject);
+                removed = true;
+            }
+
+            if (removed) RefreshFromChildren();
+        }
+
+        private void LogChainHeading()
+        {
+            try
+            {
+                Vector3 h = NavMeshVehicleAI.Route2Heading;
+                Transform a = FindByName("Dest_67");
+                Transform b = FindByName("Dest_66");
+                long ts = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                System.IO.File.AppendAllText("/Users/admin/Documents/GitHub/Sumonity-UnityBaseProject/.cursor/debug-051389.log",
+                    "{\"sessionId\":\"051389\",\"hypothesisId\":\"G\",\"location\":\"TrafficDestinationSet.cs\",\"message\":\"chain\",\"data\":{" +
+                    "\"hx\":" + h.x.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) +
+                    ",\"hz\":" + h.z.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) +
+                    ",\"from\":\"" + (a != null ? a.name : "none") +
+                    "\",\"to\":\"" + (b != null ? b.name : "none") +
+                    "\"},\"timestamp\":" + ts + "}\n");
+            }
+            catch
+            {
+            }
         }
 
         private void OnDestroy()
@@ -49,16 +161,16 @@ namespace CyclingExperiment.AI
             if (forward.sqrMagnitude < 0.01f) forward = Vector3.forward;
             forward.Normalize();
 
-            float bestAhead = float.NegativeInfinity;
+            bool onRoute2 = NavMeshVehicleAI.IsRoute2Corridor(from);
+            if (onRoute2 && TryPickOneWayNext(from, current, out next))
+                return true;
+
+            float bestAhead = float.PositiveInfinity;
             Transform bestAheadPoint = null;
-            float bestFreeAhead = float.NegativeInfinity;
+            float bestFreeAhead = float.PositiveInfinity;
             Transform bestFreeAheadPoint = null;
             float bestAny = float.PositiveInfinity;
             Transform bestAnyPoint = null;
-
-            bool onRoute2 = NavMeshVehicleAI.IsRoute2Corridor(from);
-            float bestCorridor = float.NegativeInfinity;
-            Transform bestCorridorPoint = null;
 
             for (int i = 0; i < points.Length; i++)
             {
@@ -68,13 +180,8 @@ namespace CyclingExperiment.AI
                 Vector3 to = point.position - from;
                 to.y = 0f;
                 float dist = to.magnitude;
-                if (dist < 4f) continue;
-
-                if (onRoute2 && NavMeshVehicleAI.IsRoute2Corridor(point.position) &&
-                    point.position.z < from.z - 2f)
-                {
-                    continue;
-                }
+                if (dist < 16f) continue;
+                if (onRoute2 && Vector3.Dot(to, NavMeshVehicleAI.Route2Heading) < 8f) continue;
 
                 if (dist < bestAny)
                 {
@@ -83,30 +190,17 @@ namespace CyclingExperiment.AI
                 }
 
                 float ahead = Vector3.Dot(to.normalized, forward);
-                if (ahead > 0.15f && ahead * dist > bestAhead)
+                if (ahead > 0.15f && dist < 140f && dist < bestAhead)
                 {
-                    bestAhead = ahead * dist;
+                    bestAhead = dist;
                     bestAheadPoint = point;
                 }
 
-                if (point != avoid && ahead > 0.15f && ahead * dist > bestFreeAhead)
+                if (point != avoid && ahead > 0.15f && dist < 140f && dist < bestFreeAhead)
                 {
-                    bestFreeAhead = ahead * dist;
+                    bestFreeAhead = dist;
                     bestFreeAheadPoint = point;
                 }
-
-                if (onRoute2 && NavMeshVehicleAI.IsRoute2Corridor(point.position) &&
-                    ahead > 0.15f && point.position.z >= from.z - 1f && ahead * dist > bestCorridor)
-                {
-                    bestCorridor = ahead * dist;
-                    bestCorridorPoint = point;
-                }
-            }
-
-            if (bestCorridorPoint != null && bestCorridorPoint != avoid)
-            {
-                next = bestCorridorPoint;
-                return true;
             }
 
             next = bestFreeAheadPoint != null ? bestFreeAheadPoint

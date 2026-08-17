@@ -1,3 +1,6 @@
+using System;
+using System.Globalization;
+using System.IO;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -40,8 +43,8 @@ namespace CyclingExperiment.Scenarios
             if (delta.sqrMagnitude < 20f * 20f)
             {
                 Debug.Log("[Scenario2] Removing demo BusOpenSource marker at Route 2 chute.");
-                if (Application.isPlaying) Object.Destroy(marker);
-                else Object.DestroyImmediate(marker);
+                if (Application.isPlaying) UnityEngine.Object.Destroy(marker);
+                else UnityEngine.Object.DestroyImmediate(marker);
             }
         }
 
@@ -77,11 +80,29 @@ namespace CyclingExperiment.Scenarios
             int coneIndex = 0;
             for (float z = 108f; z <= 152f; z += 7f)
             {
-                CreateCone(props.transform, $"Cone_{coneIndex++}", new Vector3(727.2f, 0.05f, z));
+                CreateCone(props.transform, $"Cone_{coneIndex++}", LeftLaneWorld(z, 0.05f));
             }
 
-            CreateBarrier(props.transform, "Barrier_South", new Vector3(727.6f, 0.45f, 106f));
-            CreateBarrier(props.transform, "Barrier_North", new Vector3(727.6f, 0.45f, 154f));
+            CreateBarrier(props.transform, "Barrier_South", LeftLaneWorld(106f, 0.45f));
+            CreateBarrier(props.transform, "Barrier_North", LeftLaneWorld(154f, 0.45f));
+        }
+
+        public static void MoveRoute2PropsToLeftLane()
+        {
+            if (s_propsRoot == null) return;
+            foreach (Transform child in s_propsRoot)
+            {
+                if (child == null) continue;
+                child.position = LeftLaneWorld(child.position.z, child.position.y);
+            }
+        }
+
+        private static Vector3 LeftLaneWorld(float z, float y)
+        {
+            Vector3 left = -Vector3.Cross(Vector3.up, CyclingExperiment.AI.NavMeshVehicleAI.Route2Heading);
+            Vector3 pos = CyclingExperiment.AI.NavMeshVehicleAI.Route2CenterAt(z) + left * 3.6f;
+            pos.y = y;
+            return pos;
         }
 
         private static void HideByName(string objectName)
@@ -147,18 +168,35 @@ namespace CyclingExperiment.Scenarios
 
             Vector3 size = new Vector3(0.6f, 1.2f, 0.6f);
             Vector3 center = Vector3.zero;
+            bool isSign = obj.name.IndexOf("ChevronSign", System.StringComparison.OrdinalIgnoreCase) >= 0;
             if (renderer != null)
             {
                 Bounds world = renderer.bounds;
                 Vector3 lossy = obj.transform.lossyScale;
+                float maxWorld = isSign ? 0.8f : 2.4f;
                 size = new Vector3(
-                    Mathf.Max(0.4f, world.size.x / Mathf.Max(0.001f, Mathf.Abs(lossy.x))),
+                    Mathf.Max(0.4f, Mathf.Min(maxWorld, world.size.x) / Mathf.Max(0.001f, Mathf.Abs(lossy.x))),
                     Mathf.Max(1f, world.size.y / Mathf.Max(0.001f, Mathf.Abs(lossy.y))),
-                    Mathf.Max(0.4f, world.size.z / Mathf.Max(0.001f, Mathf.Abs(lossy.z))));
+                    Mathf.Max(0.4f, Mathf.Min(maxWorld, world.size.z) / Mathf.Max(0.001f, Mathf.Abs(lossy.z))));
                 center = obj.transform.InverseTransformPoint(world.center);
             }
 
-            return AddCarveObstacle(obj, size, center);
+            if (CyclingExperiment.AI.NavMeshVehicleAI.IsRoute2Corridor(obj.transform.position) &&
+                CyclingExperiment.AI.NavMeshVehicleAI.Route2LaneOffset(obj.transform.position) > 0.5f)
+            {
+                var existing = obj.GetComponent<NavMeshObstacle>();
+                if (existing != null) existing.carving = false;
+                // #region agent log
+                LogCarve(obj, size, "skip_right_lane");
+                // #endregion
+                return false;
+            }
+
+            bool added = AddCarveObstacle(obj, size, center);
+            // #region agent log
+            LogCarve(obj, size, added ? "carve" : "exists");
+            // #endregion
+            return added;
         }
 
         private static bool AddCarveObstacle(GameObject obj, Vector3 size)
@@ -188,5 +226,32 @@ namespace CyclingExperiment.Scenarios
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
             else if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
         }
+
+        // #region agent log
+        private static void LogCarve(GameObject obj, Vector3 localSize, string via)
+        {
+            if (obj == null) return;
+            Vector3 pos = obj.transform.position;
+            if (!CyclingExperiment.AI.NavMeshVehicleAI.IsRoute2Corridor(pos) &&
+                obj.name.IndexOf("ChevronSign", StringComparison.OrdinalIgnoreCase) < 0)
+                return;
+            try
+            {
+                long ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                File.AppendAllText("/Users/admin/Documents/GitHub/Sumonity-UnityBaseProject/.cursor/debug-051389.log",
+                    "{\"sessionId\":\"051389\",\"hypothesisId\":\"F\",\"location\":\"Scenario3_ConstructionNarrowing.cs\",\"message\":\"carve\",\"data\":{" +
+                    "\"name\":\"" + obj.name +
+                    "\",\"via\":\"" + via +
+                    "\",\"x\":" + pos.x.ToString("F1", CultureInfo.InvariantCulture) +
+                    ",\"z\":" + pos.z.ToString("F1", CultureInfo.InvariantCulture) +
+                    ",\"lane\":" + CyclingExperiment.AI.NavMeshVehicleAI.Route2LaneOffset(pos).ToString("F1", CultureInfo.InvariantCulture) +
+                    ",\"sx\":" + localSize.x.ToString("F1", CultureInfo.InvariantCulture) +
+                    "},\"timestamp\":" + ts + "}\n");
+            }
+            catch
+            {
+            }
+        }
+        // #endregion
     }
 }
