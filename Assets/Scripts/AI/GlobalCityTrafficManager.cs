@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
+using ExperimentRefs = CyclingExperiment.ExperimentSceneRefs;
 
 namespace CyclingExperiment.AI
 {
     /// <summary>
-    /// Spawns spaced campus traffic onto the baked road NavMesh.
+    /// Spawns spaced campus traffic onto authored WaypointPath routes.
     /// </summary>
     public class GlobalCityTrafficManager : MonoBehaviour
     {
@@ -24,29 +24,24 @@ namespace CyclingExperiment.AI
         [Header("Vehicle Prefab Pool")]
         [SerializeField] public List<GameObject> vehiclePrefabs = new List<GameObject>();
 
-        [Header("Legacy waypoint list (unused for ambient traffic)")]
+        [Header("Campus traffic paths")]
         [SerializeField] public List<WaypointPath> trafficPaths = new List<WaypointPath>();
-
+        [SerializeField] private GameObject campusTrafficPathsRoot;
         [SerializeField] private GameObject cityTrafficPathsRoot;
-        [SerializeField] private TrafficDestinationSet destinations;
-
-        private static readonly Vector3[] SeedPoints =
-        {
-            new Vector3(436f, 1f, -40f),
-            new Vector3(430f, 1f, 174f),
-            new Vector3(580f, 1f, 80f),
-            new Vector3(436f, 1f, 80f),
-            new Vector3(580f, 1f, 170f),
-            new Vector3(300f, 1f, 172f),
-            new Vector3(910f, 1f, -200f),
-            new Vector3(520f, 1f, 380f)
-        };
 
         private readonly List<GameObject> _spawnedVehicles = new List<GameObject>();
         private float _spawnTimer;
 
         public bool IsTrafficEnabled => isTrafficEnabled;
         public IReadOnlyList<GameObject> ActiveVehicles => _spawnedVehicles;
+        public IReadOnlyList<WaypointPath> TrafficPaths
+        {
+            get
+            {
+                RefreshPathList();
+                return trafficPaths;
+            }
+        }
 
         private void Awake()
         {
@@ -57,7 +52,7 @@ namespace CyclingExperiment.AI
             LoadAllVehiclePrefabsIfEmpty();
             SanitizePrefabPool();
             HideLegacyWaypointCityPaths();
-            if (destinations == null) destinations = TrafficDestinationSet.Instance;
+            BindPaths();
         }
 
         private void OnDestroy()
@@ -66,14 +61,51 @@ namespace CyclingExperiment.AI
             ClearAllTraffic();
         }
 
+        private void BindPaths()
+        {
+            var refs = ExperimentRefs.Instance;
+            if (campusTrafficPathsRoot == null && refs != null) campusTrafficPathsRoot = refs.campusTrafficPaths;
+            if (cityTrafficPathsRoot == null && refs != null) cityTrafficPathsRoot = refs.cityTrafficPaths;
+            RefreshPathList();
+        }
+
+        public void RefreshPathList()
+        {
+            if (trafficPaths == null) trafficPaths = new List<WaypointPath>();
+            trafficPaths.RemoveAll(p => p == null
+                                        || WaypointPath.IsReservedScenarioPath(p)
+                                        || !p.gameObject.activeInHierarchy);
+
+            if (campusTrafficPathsRoot == null)
+            {
+                var refs = ExperimentRefs.Instance;
+                if (refs != null) campusTrafficPathsRoot = refs.campusTrafficPaths;
+            }
+
+            if (campusTrafficPathsRoot == null) return;
+
+            var found = campusTrafficPathsRoot.GetComponentsInChildren<WaypointPath>(true);
+            for (int i = 0; i < found.Length; i++)
+            {
+                WaypointPath path = found[i];
+                if (path == null || WaypointPath.IsReservedScenarioPath(path)) continue;
+                if (!path.gameObject.activeInHierarchy) continue;
+                if (!trafficPaths.Contains(path)) trafficPaths.Add(path);
+            }
+        }
+
         private void HideLegacyWaypointCityPaths()
         {
-            if (cityTrafficPathsRoot != null) cityTrafficPathsRoot.SetActive(false);
+            if (cityTrafficPathsRoot != null && cityTrafficPathsRoot.name != WaypointPath.CampusRootName)
+            {
+                cityTrafficPathsRoot.SetActive(false);
+            }
         }
 
         private void Start()
         {
             LoadAllVehiclePrefabsIfEmpty();
+            BindPaths();
 
             if (isTrafficEnabled)
             {
@@ -116,6 +148,9 @@ namespace CyclingExperiment.AI
 
         public void RegisterPath(WaypointPath path)
         {
+            if (path == null || WaypointPath.IsReservedScenarioPath(path)) return;
+            if (trafficPaths == null) trafficPaths = new List<WaypointPath>();
+            if (!trafficPaths.Contains(path)) trafficPaths.Add(path);
         }
 
         private void Update()
@@ -134,50 +169,99 @@ namespace CyclingExperiment.AI
             {
                 _spawnTimer = 0f;
                 if (_spawnedVehicles.Count < maxVehicles)
-                    SpawnVehicleOnNavMesh(preferRoute2: true);
+                    SpawnVehicleOnPath();
             }
         }
 
         private void SpawnInitialVehicles()
         {
-            if (!NavMesh.SamplePosition(SeedPoints[0], out _, 25f, NavMesh.AllAreas))
+            BindPaths();
+            if (trafficPaths == null || trafficPaths.Count == 0)
             {
-                Debug.LogWarning("[GlobalCityTraffic] No road NavMesh found. Use Cycling Experiment > Bake Road NavMesh.");
+                Debug.LogWarning("[GlobalCityTraffic] No campus traffic paths. Use Cycling Experiment > Create Campus Traffic Path.");
                 return;
             }
 
-            SpawnVehicleOnNavMesh(preferRoute2: true);
-            SpawnVehicleOnNavMesh(preferRoute2: false);
-            SpawnVehicleOnNavMesh(preferRoute2: true);
+            SpawnVehicleOnPath();
+            SpawnVehicleOnPath();
+            SpawnVehicleOnPath();
         }
 
-        public void SpawnVehicleOnNavMesh()
+        public void SpawnVehicleOnGraph()
         {
-            SpawnVehicleOnNavMesh(preferRoute2: true);
+            SpawnVehicleOnPath();
         }
 
-        public void SpawnVehicleOnNavMesh(bool preferRoute2)
+        public void SpawnVehicleOnPath()
         {
             if (vehiclePrefabs == null || vehiclePrefabs.Count == 0) return;
             if (_spawnedVehicles.Count >= maxVehicles) return;
+            BindPaths();
+            if (trafficPaths == null || trafficPaths.Count == 0) return;
 
-            GameObject prefab = vehiclePrefabs[UnityEngine.Random.Range(0, vehiclePrefabs.Count)];
+            GameObject prefab = vehiclePrefabs[Random.Range(0, vehiclePrefabs.Count)];
             if (prefab == null) return;
 
-            if (!TryFindSpawnPose(preferRoute2, out Vector3 pos, out Quaternion rot))
-            {
-                if (preferRoute2 && !TryFindSpawnPose(false, out pos, out rot)) return;
-                if (!preferRoute2) return;
-            }
+            if (!TryPickSpawn(out WaypointPath path, out Vector3 position, out Quaternion rotation, out int nextIndex))
+                return;
 
-            GameObject vehicle = VehicleRuntimeFactory.SpawnOnNavMesh(
+            GameObject vehicle = VehicleRuntimeFactory.SpawnAmbientOnWaypointPath(
                 prefab,
-                pos,
-                rot,
-                defaultTrafficSpeed + UnityEngine.Random.Range(-1.5f, 2.0f),
+                position,
+                rotation,
+                path,
+                nextIndex,
+                defaultTrafficSpeed + Random.Range(-1.5f, 2.0f),
                 $"CityTraffic_{prefab.name}_{_spawnedVehicles.Count}");
 
             if (vehicle != null) _spawnedVehicles.Add(vehicle);
+        }
+
+        private bool TryPickSpawn(out WaypointPath path, out Vector3 position, out Quaternion rotation, out int nextIndex)
+        {
+            path = null;
+            position = Vector3.zero;
+            rotation = Quaternion.identity;
+            nextIndex = 0;
+
+            int pathCount = trafficPaths.Count;
+            int pathOffset = Random.Range(0, pathCount);
+            for (int p = 0; p < pathCount; p++)
+            {
+                WaypointPath candidate = trafficPaths[(p + pathOffset) % pathCount];
+                if (candidate == null || candidate.WaypointCount == 0) continue;
+                candidate.SyncFromChildren();
+                if (TryPickPointOnPath(candidate, out position, out Vector3 forward, out nextIndex))
+                {
+                    path = candidate;
+                    rotation = forward.sqrMagnitude > 0.01f
+                        ? Quaternion.LookRotation(forward)
+                        : Quaternion.identity;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryPickPointOnPath(WaypointPath path, out Vector3 position, out Vector3 forward, out int nextIndex)
+        {
+            position = Vector3.zero;
+            forward = Vector3.forward;
+            nextIndex = 0;
+
+            float tMax = path.isLoop ? 1f : 0.65f;
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                float t = Random.Range(0f, tMax);
+                if (!path.TryGetPointAlongPath(t, out position, out forward, out nextIndex)) continue;
+                if (IsSpawnClear(position)) return true;
+            }
+
+            if (path.TryGetPointAlongPath(0f, out position, out forward, out nextIndex) && IsSpawnClear(position))
+                return true;
+
+            return false;
         }
 
         public bool IsSpawnClear(Vector3 position, GameObject ignore = null)
@@ -194,55 +278,9 @@ namespace CyclingExperiment.AI
             return true;
         }
 
-        private bool TryFindSpawnPose(bool preferRoute2, out Vector3 position, out Quaternion rotation)
+        private bool IsSpawnClear(Vector3 position)
         {
-            position = Vector3.zero;
-            rotation = Quaternion.identity;
-
-            if (preferRoute2 && TryFindDest67Spawn(out position))
-            {
-                rotation = Quaternion.LookRotation(NavMeshVehicleAI.Route2Heading);
-                return true;
-            }
-
-            for (int i = 0; i < 16; i++)
-            {
-                Vector3 seed = SeedPoints[UnityEngine.Random.Range(0, SeedPoints.Length)];
-                seed += new Vector3(UnityEngine.Random.Range(-18f, 18f), 0f, UnityEngine.Random.Range(-18f, 18f));
-                if (NavMeshVehicleAI.IsRoute2Corridor(seed)) continue;
-                if (!NavMesh.SamplePosition(seed, out NavMeshHit hit, 20f, NavMesh.AllAreas)) continue;
-                if (NavMeshVehicleAI.IsRoute2Corridor(hit.position)) continue;
-                if (!IsSpawnClear(hit.position)) continue;
-
-                rotation = NavMeshVehicleAI.HeadingAlongRoad(hit.position);
-                position = hit.position;
-                return true;
-            }
-
-            return false;
-        }
-
-        private bool TryFindDest67Spawn(out Vector3 position)
-        {
-            position = Vector3.zero;
-            if (destinations == null) destinations = TrafficDestinationSet.Instance;
-            if (destinations == null) return false;
-
-            Transform start = destinations.FindByName("Dest_67");
-            if (start == null) return false;
-
-            Vector3 right = Vector3.Cross(Vector3.up, NavMeshVehicleAI.Route2Heading);
-            Vector3 guess = start.position + right * 3.2f;
-            if (!NavMeshVehicleAI.TrySampleRightLane(guess, out Vector3 hit))
-            {
-                if (!NavMesh.SamplePosition(start.position, out NavMeshHit mesh, 4f, NavMesh.AllAreas))
-                    return false;
-                hit = mesh.position;
-            }
-
-            if (!IsSpawnClear(hit)) return false;
-            position = hit;
-            return true;
+            return IsSpawnClear(position, null);
         }
 
         public void ToggleTraffic()

@@ -33,17 +33,6 @@ namespace CyclingExperiment.AI
             _bikeCollider = GetComponent<Collider>();
             maxLateralOffset = Mathf.Max(0.85f, maxLateralOffset);
             criticalBrakeDistance = Mathf.Max(8f, criticalBrakeDistance);
-            EnsureNavMeshObstacle();
-        }
-
-        private void EnsureNavMeshObstacle()
-        {
-            var obstacle = GetComponent<UnityEngine.AI.NavMeshObstacle>();
-            if (obstacle == null) obstacle = gameObject.AddComponent<UnityEngine.AI.NavMeshObstacle>();
-            obstacle.carving = false;
-            obstacle.shape = UnityEngine.AI.NavMeshObstacleShape.Box;
-            obstacle.size = new Vector3(0.9f, 1.6f, 1.8f);
-            obstacle.center = new Vector3(0f, 0.8f, 0f);
         }
 
         private void FixedUpdate()

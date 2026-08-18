@@ -32,7 +32,9 @@ namespace CyclingExperiment
         public Transform busStopTrigger;
         public Transform route1CyclistSpawn;
         public GameObject cityTrafficPaths;
+        public GameObject campusTrafficPaths;
         public TrafficDestinationSet trafficDestinations;
+        public RoadNetwork campusRoadNetwork;
 
         [Header("Route 2")]
         public Transform route2CyclistSpawn;
@@ -115,11 +117,21 @@ namespace CyclingExperiment
             if (cityTrafficPaths == null) cityTrafficPaths = GameObject.Find("City_Traffic_Paths");
             if (cityTrafficPaths != null) cityTrafficPaths.SetActive(false);
 
+            if (campusTrafficPaths == null) campusTrafficPaths = GameObject.Find(WaypointPath.CampusRootName);
+
             if (trafficDestinations == null)
             {
                 var destObj = GameObject.Find("Traffic_Destinations");
                 if (destObj != null) trafficDestinations = destObj.GetComponent<TrafficDestinationSet>();
             }
+
+            if (campusRoadNetwork == null)
+            {
+                var networkObj = GameObject.Find(RoadNetwork.RootName);
+                if (networkObj != null) campusRoadNetwork = networkObj.GetComponent<RoadNetwork>();
+            }
+
+            Scenario3_ConstructionNarrowing.DisableCampusRoadNavMesh();
         }
     }
 }

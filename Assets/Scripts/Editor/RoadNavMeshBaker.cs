@@ -18,7 +18,7 @@ namespace CyclingExperiment.Editor
         public const string SurfaceObjectName = "Campus_Road_NavMesh";
         private const string NavMeshAssetPath = "Assets/Settings/Campus_Road_NavMesh.asset";
 
-        [MenuItem("Cycling Experiment/Bake Road NavMesh", false, 5)]
+        [MenuItem("Cycling Experiment/Bake Road NavMesh (obsolete)", false, 105)]
         public static void BakeRoadNavMesh()
         {
             GameObject campus = GameObject.Find("TUM_Campus_Container");
@@ -112,11 +112,10 @@ namespace CyclingExperiment.Editor
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
 
             Debug.Log($"[CyclingExperiment] Baked road NavMesh from {sources.Count} road meshes. Yellow city waypoint paths hidden.");
-            EditorUtility.DisplayDialog("Bake Road NavMesh",
-                $"Baked NavMesh from {sources.Count} road meshes under TUM_Campus_Container.\n\n" +
-                "Wrong yellow City_Traffic_Paths gizmos are now hidden.\n" +
-                "Route 1 Bus_Overtake_Path and RightTurn_Overtaking_Car_Path were left alone.\n\n" +
-                "Blue NavMesh overlay should sit on roads only. Then press Play.",
+            EditorUtility.DisplayDialog("Bake Road NavMesh (obsolete)",
+                "Ambient cars no longer use NavMesh. Use Cycling Experiment > Build Campus Road Graph.\n\n" +
+                "This bake is only kept for leftover pedestrian / SUMO NavMesh work.\n\n" +
+                $"Baked NavMesh from {sources.Count} road meshes under TUM_Campus_Container.",
                 "OK");
         }
 

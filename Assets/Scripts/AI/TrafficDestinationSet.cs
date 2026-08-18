@@ -1,10 +1,9 @@
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace CyclingExperiment.AI
 {
     /// <summary>
-    /// Scene-placed road destinations. Ambient cars path from one child empty to the next.
+    /// Dest_* empties used as snap targets when building Campus_Road_Network.
     /// </summary>
     [DefaultExecutionOrder(-150)]
     public class TrafficDestinationSet : MonoBehaviour
@@ -23,8 +22,8 @@ namespace CyclingExperiment.AI
             Instance = this;
             RefreshFromChildren();
             RemoveGeneratedNorthPoints();
-            NavMeshVehicleAI.ResetRoute2Heading();
-            NavMeshVehicleAI.EnsureRoute2Heading();
+            Route2Corridor.ResetHeading();
+            Route2Corridor.EnsureHeading();
         }
 
         public Transform FindByName(string destName)
@@ -154,7 +153,7 @@ namespace CyclingExperiment.AI
             if (forward.sqrMagnitude < 0.01f) forward = Vector3.forward;
             forward.Normalize();
 
-            bool onRoute2 = NavMeshVehicleAI.IsRoute2Corridor(from);
+            bool onRoute2 = Route2Corridor.Contains(from);
             if (onRoute2 && TryPickOneWayNext(from, current, out next))
                 return true;
 
@@ -174,7 +173,7 @@ namespace CyclingExperiment.AI
                 to.y = 0f;
                 float dist = to.magnitude;
                 if (dist < 16f) continue;
-                if (onRoute2 && Vector3.Dot(to, NavMeshVehicleAI.Route2Heading) < 8f) continue;
+                if (onRoute2 && Vector3.Dot(to, Route2Corridor.Heading) < 8f) continue;
 
                 if (dist < bestAny)
                 {
@@ -202,7 +201,7 @@ namespace CyclingExperiment.AI
             return next != null;
         }
 
-        private void OnDrawGizmos()
+        private void OnDrawGizmosSelected()
         {
             Gizmos.color = new Color(1f, 0.85f, 0.15f, 0.95f);
             for (int i = 0; i < transform.childCount; i++)

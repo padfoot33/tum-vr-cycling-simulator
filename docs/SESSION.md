@@ -2,6 +2,26 @@
 
 Working notes for current development. The project map lives in [PROJECT_MINDMAP.md](PROJECT_MINDMAP.md).
 
+## 19 Aug 2026 — Manual campus traffic paths (bus-style)
+
+Ambient cars follow authored `WaypointPath` lists under `Campus_Traffic_Paths`, the same way the Route 1 bus follows `Bus_Overtake_Path`. The auto-seeded `Campus_Road_Network` graph is no longer used for driving.
+
+- Editor: **Cycling Experiment → Create Campus Traffic Path**. Select the path, enable **Edit Path**, Shift-click the road to append `WP_n`. Hierarchy child order is travel order. **Create Path From Selection** copies selected `Node_*` positions into a new path without destroying the originals.
+- Two-way street = two paths with opposite waypoint order. Tick **Loop** only for a closed circuit. Default cars despawn at the end of a one-way path.
+- `GlobalCityTrafficManager` / `IntersectionTrafficFlowManager` spawn with `SmartVehicleAI` (`VehicleRuntimeFactory.SpawnAmbientOnWaypointPath`). `T` toggle, 14 m spawn-clear, follow gap, and cyclist yield stay. Route 1 bus / right-turn stay on `WaypointFollower`.
+- Play no longer rebuilds the campus graph. **Build Campus Road Graph** is obsolete.
+
+## 19 Aug 2026 — Node-edge ambient traffic
+
+Ambient and intersection cars no longer use NavMesh. They travel on `Campus_Road_Network`: junction `RoadNode`s and directed `RoadEdge`s, driven by `GraphVehicleAI`.
+
+- Editor: **Cycling Experiment → Build Campus Road Graph** seeds Gabelsberger, Arcis, Luisen, Theresien (two-way) and Route 2 (one-way, right lane). Vertices snap to nearby `Dest_*` and merge at junctions. Move nodes in the Scene view; re-run the menu to rebuild from seeds.
+- Play without a saved graph still builds one at runtime if the edge list is empty.
+- `GlobalCityTrafficManager` / `IntersectionTrafficFlowManager` spawn on edges (`VehicleRuntimeFactory.SpawnOnGraph`). `T` toggle, 14 m spawn-clear, ~11 m follow gap, and cyclist yield are unchanged.
+- Route 1 bus and right-turn car stay on waypoint paths.
+- Route 2 cones stay visual; cars use the right-lane graph edge instead of NavMesh carve. Bike `NavMeshObstacle` removed. Bake Road NavMesh / Auto Place Traffic Destinations menus are obsolete for cars.
+- `Campus_Road_NavMesh` is deactivated. Chevron/dumpster/cone `NavMeshObstacle` components are stripped campus-wide on Play or via **Cycling Experiment → Strip Construction NavMesh Obstacles**. Pedestrian / SUMO / bus-boarding NavMesh is untouched.
+
 ## 17 Aug 2026 — Route 2 cyclist spawn
 
 `Cyclist_Spawn_Route2` (same cyan gizmo as Route 1). `[2]` teleports to that empty. Move it in the Scene view; default is `(721.5, 70)` heading north.

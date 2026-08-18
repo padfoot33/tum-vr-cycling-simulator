@@ -1,11 +1,12 @@
 using UnityEngine;
 using UnityEngine.AI;
+using CyclingExperiment.AI;
 
 namespace CyclingExperiment.Scenarios
 {
     /// <summary>
     /// Route 2 construction chute at the skybridge street (~723, 128).
-    /// No event trigger and no waypoint lines: cones carve the road NavMesh so city cars share the remaining lane.
+    /// Cones stay visual; graph cars use the remaining right-lane edge.
     /// </summary>
     [DefaultExecutionOrder(-100)]
     public class Scenario3_ConstructionNarrowing : MonoBehaviour
@@ -14,6 +15,7 @@ namespace CyclingExperiment.Scenarios
         public static readonly Vector3 ApproachPosition = new Vector3(721.5f, 0.2f, 70f);
         public const float ApproachHeading = 0f;
 
+        public const string CampusRoadNavMeshName = "Campus_Road_NavMesh";
         private const string PropsRootName = "Route2_Construction_Props";
         private static Transform s_propsRoot;
 
@@ -25,6 +27,7 @@ namespace CyclingExperiment.Scenarios
             RemoveDemoBusMarker();
             HideLegacyRoute2WaypointPaths();
             EnsureConstructionProps();
+            DisableCampusRoadNavMesh();
             StripConstructionNavMeshObstacles();
         }
 
@@ -96,8 +99,8 @@ namespace CyclingExperiment.Scenarios
 
         private static Vector3 LeftLaneWorld(float z, float y)
         {
-            Vector3 left = -Vector3.Cross(Vector3.up, CyclingExperiment.AI.NavMeshVehicleAI.Route2Heading);
-            Vector3 pos = CyclingExperiment.AI.NavMeshVehicleAI.Route2CenterAt(z) + left * 3.6f;
+            Vector3 left = -Vector3.Cross(Vector3.up, Route2Corridor.Heading);
+            Vector3 pos = Route2Corridor.CenterAt(z) + left * 3.6f;
             pos.y = y;
             return pos;
         }
@@ -126,6 +129,24 @@ namespace CyclingExperiment.Scenarios
             barrier.transform.position = position;
             barrier.transform.localScale = new Vector3(0.4f, 0.9f, 1.6f);
             TintRenderer(barrier, new Color(0.95f, 0.95f, 0.92f));
+        }
+
+        public static int DisableCampusRoadNavMesh()
+        {
+            int disabled = 0;
+            var transforms = Resources.FindObjectsOfTypeAll<Transform>();
+            for (int i = 0; i < transforms.Length; i++)
+            {
+                Transform t = transforms[i];
+                if (t == null || t.name != CampusRoadNavMeshName) continue;
+                if (!t.gameObject.scene.IsValid() || !t.gameObject.scene.isLoaded) continue;
+                if (!t.gameObject.activeSelf) continue;
+
+                t.gameObject.SetActive(false);
+                disabled++;
+            }
+
+            return disabled;
         }
 
         public static int StripConstructionNavMeshObstacles()
@@ -157,11 +178,11 @@ namespace CyclingExperiment.Scenarios
             while (cur != null)
             {
                 if (cur.name == PropsRootName || cur.name == "Scenario_2") return true;
+                if (IsConstructionPropName(cur.name)) return true;
                 cur = cur.parent;
             }
 
-            return IsConstructionPropName(t.name)
-                   && CyclingExperiment.AI.NavMeshVehicleAI.IsRoute2Corridor(t.position);
+            return false;
         }
 
         private static bool IsConstructionPropName(string objectName)
@@ -173,57 +194,6 @@ namespace CyclingExperiment.Scenarios
                    || objectName.IndexOf("Waste", System.StringComparison.OrdinalIgnoreCase) >= 0
                    || objectName.StartsWith("Cone_", System.StringComparison.Ordinal)
                    || objectName.StartsWith("Barrier_", System.StringComparison.Ordinal);
-        }
-
-        public static bool AddCarveFromRenderer(GameObject obj)
-        {
-            if (obj == null) return false;
-
-            var renderer = obj.GetComponent<Renderer>();
-            if (renderer == null) renderer = obj.GetComponentInChildren<Renderer>();
-
-            Vector3 size = new Vector3(0.6f, 1.2f, 0.6f);
-            Vector3 center = Vector3.zero;
-            bool isSign = obj.name.IndexOf("ChevronSign", System.StringComparison.OrdinalIgnoreCase) >= 0;
-            if (renderer != null)
-            {
-                Bounds world = renderer.bounds;
-                Vector3 lossy = obj.transform.lossyScale;
-                float maxWorld = isSign ? 0.8f : 2.4f;
-                size = new Vector3(
-                    Mathf.Max(0.4f, Mathf.Min(maxWorld, world.size.x) / Mathf.Max(0.001f, Mathf.Abs(lossy.x))),
-                    Mathf.Max(1f, world.size.y / Mathf.Max(0.001f, Mathf.Abs(lossy.y))),
-                    Mathf.Max(0.4f, Mathf.Min(maxWorld, world.size.z) / Mathf.Max(0.001f, Mathf.Abs(lossy.z))));
-                center = obj.transform.InverseTransformPoint(world.center);
-            }
-
-            if (CyclingExperiment.AI.NavMeshVehicleAI.IsRoute2Corridor(obj.transform.position) &&
-                CyclingExperiment.AI.NavMeshVehicleAI.Route2LaneOffset(obj.transform.position) > 0.5f)
-            {
-                var existing = obj.GetComponent<NavMeshObstacle>();
-                if (existing != null) existing.carving = false;
-                return false;
-            }
-
-            return AddCarveObstacle(obj, size, center);
-        }
-
-        private static bool AddCarveObstacle(GameObject obj, Vector3 size)
-        {
-            return AddCarveObstacle(obj, size, Vector3.zero);
-        }
-
-        private static bool AddCarveObstacle(GameObject obj, Vector3 size, Vector3 center)
-        {
-            var obstacle = obj.GetComponent<NavMeshObstacle>();
-            bool created = obstacle == null;
-            if (created) obstacle = obj.AddComponent<NavMeshObstacle>();
-            obstacle.carving = true;
-            obstacle.carveOnlyStationary = true;
-            obstacle.shape = NavMeshObstacleShape.Box;
-            obstacle.size = size;
-            obstacle.center = center;
-            return created;
         }
 
         private static void TintRenderer(GameObject obj, Color color)

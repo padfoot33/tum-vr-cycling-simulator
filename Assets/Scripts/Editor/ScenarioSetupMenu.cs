@@ -147,8 +147,9 @@ namespace CyclingExperiment.Editor
             Scenario3_ConstructionNarrowing.HideLegacyRoute2WaypointPaths();
             Scenario3_ConstructionNarrowing.EnsureConstructionProps();
 
-            // 5. Ambient traffic uses the road NavMesh. Hide the wrong yellow waypoint lines.
+            // 5. Ambient traffic uses authored Campus_Traffic_Paths.
             EnsureCityTrafficManager();
+            CampusTrafficPathMenu.EnsureRoot();
             RoadNavMeshBaker.HideWrongCityWaypointPaths();
 
             // 6. Setup Scenario Selection UI & HUD
@@ -175,8 +176,8 @@ namespace CyclingExperiment.Editor
             EditorUtility.DisplayDialog("Cycling Experiment",
                 "Combined Scenario 1 & Smart City Traffic System Successfully Built!\n\n" +
                 "• MeshColliders added to all tiles of TUM_Campus_Container (ground collision active).\n" +
-                "• Ambient traffic uses the road NavMesh (Bake Road NavMesh if cars do not spawn).\n" +
-                "• 9 Vehicle Models (cars, vans, taxis, buses) populated.\n" +
+                "• Ambient traffic uses Campus_Road_Network (nodes + directed edges).\n" +
+                "• Vehicle prefabs (cars, vans, taxis) populated.\n" +
                 "• Smart Safety Assistant (Auto-Brake & Nudge) attached to bicycle.\n" +
                 "• All custom waypoints and coordinates 100% PRESERVED.\n\n" +
                 "Press Play ▶️ to test!", "OK");
@@ -242,15 +243,18 @@ namespace CyclingExperiment.Editor
             refs.route1CyclistSpawn = EnsureCyclistSpawnRoute1();
             refs.route2CyclistSpawn = EnsureCyclistSpawnRoute2();
             refs.cityTrafficPaths = GameObject.Find("City_Traffic_Paths");
+            refs.campusTrafficPaths = CampusTrafficPathMenu.EnsureRoot();
             refs.trafficDestinations = EnsureTrafficDestinations();
+            refs.campusRoadNetwork = Object.FindObjectOfType<RoadNetwork>();
             AssignSerializedRef(refs.cityTraffic, "destinations", refs.trafficDestinations);
+            AssignSerializedRef(refs.cityTraffic, "campusTrafficPathsRoot", refs.campusTrafficPaths);
+            AssignSerializedRef(refs.cityTraffic, "cityTrafficPathsRoot", refs.cityTrafficPaths);
 
             AssignSerializedRef(Object.FindObjectOfType<ScenarioSelectionUI>(), "sceneRefs", refs);
             AssignSerializedRef(refs.route1, "sceneRefs", refs);
             AssignSerializedRef(refs.route1, "playerTransform", refs.bicycleTransform);
             AssignSerializedRef(refs.route1, "intersectionTraffic", refs.intersectionTraffic);
             AssignSerializedRef(refs.followCamera, "target", refs.bicycleTransform);
-            AssignSerializedRef(refs.cityTraffic, "cityTrafficPathsRoot", refs.cityTrafficPaths);
             AssignSerializedRef(refs.intersectionTraffic, "cityTraffic", refs.cityTraffic);
 
             EditorUtility.SetDirty(refs);
@@ -519,14 +523,17 @@ namespace CyclingExperiment.Editor
             RenderSettings.ambientIntensity = 1.1f;
         }
 
-        [MenuItem("Cycling Experiment/Add Construction NavMesh Obstacles", false, 7)]
+        [MenuItem("Cycling Experiment/Strip Construction NavMesh Obstacles", false, 7)]
         public static void AddConstructionNavMeshObstacles()
         {
-            int added = Scenario3_ConstructionNarrowing.AddObstaclesToCampusConstructionProps();
+            int disabled = Scenario3_ConstructionNarrowing.DisableCampusRoadNavMesh();
+            int removed = Scenario3_ConstructionNarrowing.StripConstructionNavMeshObstacles();
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             EditorUtility.DisplayDialog("Cycling Experiment",
-                $"Added NavMeshObstacle carve to {added} construction prop(s) (ChevronSign, dumpsters, cones).\n\n" +
-                "City cars will go around those objects. Press Play to see the holes, or bake the road NavMesh if you want them in the static mesh.",
+                $"Deactivated {disabled} Campus_Road_NavMesh object(s).\n" +
+                $"Removed NavMeshObstacle from {removed} construction prop(s) (ChevronSign, dumpsters, cones, barriers).\n\n" +
+                "Ambient cars follow Campus_Traffic_Paths (bus-style waypoints). Pedestrian / SUMO / bus-boarding NavMesh was left alone.\n" +
+                "Save the scene to keep this.",
                 "OK");
         }
 
@@ -560,8 +567,8 @@ namespace CyclingExperiment.Editor
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             EditorUtility.DisplayDialog("Cycling Experiment",
                 $"Removed {removed} unused object(s).\n\n" +
-                "Kept TUM_Campus_Container, Campus_Road_NavMesh, Intersection_Traffic_System, and Scenario_Selection_UI.\n" +
-                "Ambient cars use the road NavMesh + Traffic_Destinations, not the old City_Traffic_Paths lines.",
+                "Kept TUM_Campus_Container, Intersection_Traffic_System, and Scenario_Selection_UI.\n" +
+                "Ambient cars use Campus_Traffic_Paths (ordered waypoints), not NavMesh or City_Traffic_Paths.",
                 "OK");
         }
 

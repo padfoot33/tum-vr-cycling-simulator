@@ -23,7 +23,7 @@ Everything needed to run the simulator in the Unity Editor is committed here, in
 4. Open `Assets/Scenes/MainScene.unity` and press Play.
 
 The only thing not included is the Python virtual environment for the SUMO bridge. Driving live SUMO traffic additionally needs SUMO 1.21 and Python 3.11, set up as described under Manual installation below. The scene itself opens and plays without them.
-
+x   
 ## Prerequistes
 - Sumo 1.21 (or later, important traci must be the same version)
 - Windows 10/11

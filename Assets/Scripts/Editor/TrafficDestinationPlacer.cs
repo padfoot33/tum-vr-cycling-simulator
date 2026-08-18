@@ -16,7 +16,7 @@ namespace CyclingExperiment.Editor
         private float spacingMeters = 48f;
         private int maxPoints = 72;
 
-        [MenuItem("Cycling Experiment/Auto Place Traffic Destinations", false, 6)]
+        [MenuItem("Cycling Experiment/Auto Place Traffic Destinations (obsolete)", false, 106)]
         public static void OpenWindow()
         {
             var window = GetWindow<TrafficDestinationPlacer>("Traffic Destinations");
@@ -29,9 +29,9 @@ namespace CyclingExperiment.Editor
             EditorGUILayout.Space(8f);
             EditorGUILayout.LabelField("Auto Place Traffic Destinations", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "Reads the baked road NavMesh (asphalt) and drops yellow Dest_* points along the roads. " +
-                "Cars then drive from one point to the next. Bake the road NavMesh first if this finds nothing.",
-                MessageType.Info);
+                "Obsolete. Ambient cars follow Campus_Road_Network, not Dest_* points. " +
+                "Use Cycling Experiment > Build Campus Road Graph. Dest_* are only snap targets for that builder.",
+                MessageType.Warning);
 
             spacingMeters = EditorGUILayout.Slider("Spacing (m)", spacingMeters, 20f, 120f);
             maxPoints = EditorGUILayout.IntSlider("Max points", maxPoints, 8, 150);

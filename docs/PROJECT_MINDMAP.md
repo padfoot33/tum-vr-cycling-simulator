@@ -27,6 +27,7 @@ mindmap
       SmoothFollowBicycleCamera
     Traffic
       SmartVehicleAI
+      WaypointPath
       GlobalCityTrafficManager
       WaypointPath Follower
       SUMO Socket TraCI
@@ -70,7 +71,9 @@ flowchart TB
 
     subgraph traffic [Traffic]
         SmartAI[SmartVehicleAI]
+        CampusPaths[Campus_Traffic_Paths]
         GlobalT[GlobalCityTrafficManager]
+        Waypoint[WaypointFollower]
         SUMO[SumoSocketClient Python TraCI]
     end
 
@@ -83,22 +86,21 @@ flowchart TB
     CLI --> RootSM
     UI --> CycleSM
     UI --> Combined
-    Combined --> SmartAI
+    Combined --> Waypoint
     Combined --> CycleSM
-    S3 --> SmartAI
-    PullOut --> SmartAI
     CycleSM --> Markers
     RootSM --> DataLog
     BikeURP --> Safety
     SimBike --> SUMO
     GlobalT --> SmartAI
+    SmartAI --> CampusPaths
 ```
 
 Three stacks must stay distinguished:
 
 | Stack | Namespace / location | Role |
 |---|---|---|
-| **VR cycling experiment** | `CyclingExperiment.*` under `Assets/Scripts/` | In-Unity scenarios, waypoint AI, HUD, `EventMarkerLogger` |
+| **VR cycling experiment** | `CyclingExperiment.*` under `Assets/Scripts/` | In-Unity scenarios, campus waypoint traffic, waypoint AI, HUD, `EventMarkerLogger` |
 | **SUMO / hardware study** | Root `Assets/ScenarioManager.cs`, `Assets/Sumonity/`, `BicycleSimulatorModel/` | CSV permutation, TraCI socket, Wahoo/Arduino/FFB |
 | **Export leftover** | `Assets/ExportForNewProject/` | `RunLogger`, close-pass / hook-car events |
 
@@ -148,17 +150,23 @@ RCCP / `Assets/CarModel/` is third-party and omitted here.
 
 | File | Class | Purpose |
 |---|---|---|
-| `AI/WaypointPath.cs` | `WaypointPath` | Ordered waypoint list + gizmos |
+| `AI/WaypointPath.cs` | `WaypointPath` | Ordered waypoint list + gizmos; child order is travel order |
 | `AI/WaypointFollower.cs` | `WaypointFollower` | Kinematic follow; `DestroyAtEnd`, pause/resume |
-| `AI/SmartVehicleAI.cs` | `SmartVehicleAI` | Waypoints + sphere-cast avoidance; stress mode can ignore cyclist |
+| `AI/RoadNetwork.cs` | `RoadNetwork` | Unused leftover graph (nodes/edges); not used for driving |
+| `AI/RoadNode.cs` | `RoadNode` | Unused leftover junction vertex |
+| `AI/RoadEdge.cs` | `RoadEdge` | Unused leftover directed polyline |
+| `AI/Route2Corridor.cs` | `Route2Corridor` | Skybridge one-way geometry (no NavMesh) |
+| `AI/SmartVehicleAI.cs` | `SmartVehicleAI` | Ambient cars on authored waypoint paths; gap + cyclist yield |
 | `AI/PhysicsBusController.cs` | `PhysicsBusController` | Accel/brake bus along waypoints; unused by combined controller |
 | `AI/BusAIController.cs` | `BusAIController` | Dwell at stop + overtake boost |
 | `AI/ScenarioBusAudio.cs` | `ScenarioBusAudio` | Route 1 Bogdan 3D engine / brake / idle |
 | `AI/TrafficIdentity.cs` | `TrafficIdentity` | Shared cyclist / vehicle checks for yield |
-| `AI/GlobalCityTrafficManager.cs` | `GlobalCityTrafficManager` | Ambient 9-prefab traffic; `T` toggle |
+| `AI/GlobalCityTrafficManager.cs` | `GlobalCityTrafficManager` | Ambient prefab traffic on `Campus_Traffic_Paths`; `T` toggle |
 | `AI/TrafficSpawner.cs` | `TrafficSpawner` | Generic multi-path spawner |
-| `AI/IntersectionTrafficFlowManager.cs` | `IntersectionTrafficFlowManager` | Scenario 2 continuous intersection flow |
+| `AI/IntersectionTrafficFlowManager.cs` | `IntersectionTrafficFlowManager` | Extra waypoint cars near the Route 1 right-turn junction |
+| `AI/TrafficDestinationSet.cs` | `TrafficDestinationSet` | Dest_* snap targets leftover from the graph builder |
 | `AI/SmartBicycleSafetyAssistant.cs` | `SmartBicycleSafetyAssistant` | Auto-brake + lateral nudge |
+| `AI/VehicleRuntimeFactory.cs` | `VehicleRuntimeFactory` | Spawn helper: waypoint follower (scenarios) or SmartVehicleAI (ambient). Also contains unused leftover `GraphVehicleAI`. |
 
 **Scenarios / UI / camera**
 
@@ -194,6 +202,9 @@ RCCP / `Assets/CarModel/` is third-party and omitted here.
 | `LowLodApplier.cs` | `RestoreLowFromHigh` | Copy materials City_HIGH → City_LOW |
 | `CITesting/performanceMonitoring.cs` | `performanceMonitoring` | SUMO vs Unity position CSV |
 | `Editor/ScenarioSetupMenu.cs` | `ScenarioSetupMenu` | One-click scene wiring |
+| `Editor/WaypointPathEditor.cs` | `WaypointPathEditor` | Inspector + Scene Shift-click to author `WaypointPath` |
+| `Editor/CampusTrafficPathMenu.cs` | `CampusTrafficPathMenu` | **Cycling Experiment → Create Campus Traffic Path** / **Create Path From Selection** |
+| `Editor/RoadNetworkBuilder.cs` | `RoadNetworkBuilder` | Obsolete **Build Campus Road Graph** (unused for cars) |
 
 ### Root `Assets/*.cs`
 
@@ -275,7 +286,6 @@ In-Unity bicycle (no hardware): `Assets/BicycleModel/` and `Assets/Sumonity-Bicy
 - **`CommandLineHandler`** aborts if `--Participantid` is missing even when `--id` is valid.
 - **Performance:** `DataLog.CheckForNewObjects` / `performanceMonitoring` can `FindObjectsOfType<GameObject>()` every tick.
 - **`tcp_client`** mutates state on the socket thread; handshake states 1–12 are fragile.
-- **`IntersectionTrafficFlowManager`** initial wave omits S-N path.
 - **`SmartBicycleSafetyAssistant`** depends on `BikeURP.BicyclePhysicsController` — hardware SimBike stack is a different controller.
 - Do not edit RCCP / `Assets/CarModel/` unless explicitly asked.
 

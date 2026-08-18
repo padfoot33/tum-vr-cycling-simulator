@@ -1,12 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
 using ExperimentRefs = CyclingExperiment.ExperimentSceneRefs;
 
 namespace CyclingExperiment.AI
 {
     /// <summary>
-    /// Extra NavMesh traffic around the Route 1 right-turn junction.
+    /// Extra waypoint traffic around the Route 1 right-turn junction.
     /// </summary>
     public class IntersectionTrafficFlowManager : MonoBehaviour
     {
@@ -18,6 +17,7 @@ namespace CyclingExperiment.AI
         [SerializeField] private float spawnInterval = 6f;
         [SerializeField] private int maxVehiclesInScene = 6;
         [SerializeField] private float vehicleSpeed = 9.0f;
+        [SerializeField] private float approachRadius = 55f;
 
         [Header("Vehicle Prefabs")]
         [SerializeField] private List<GameObject> vehiclePrefabs = new List<GameObject>();
@@ -25,22 +25,16 @@ namespace CyclingExperiment.AI
         [SerializeField] private GlobalCityTrafficManager cityTraffic;
 
         private readonly List<GameObject> _activeVehicles = new List<GameObject>();
+        private readonly List<WaypointPath> _nearbyPaths = new List<WaypointPath>(8);
         private float _timer;
         private bool _isTrafficActive;
-
-        private static readonly Vector3[] ApproachOffsets =
-        {
-            new Vector3(-40f, 0f, 0f),
-            new Vector3(40f, 0f, 0f),
-            new Vector3(0f, 0f, -40f),
-            new Vector3(0f, 0f, 40f)
-        };
 
         private void Start()
         {
             if (maxVehiclesInScene < 1) maxVehiclesInScene = 1;
             if (spawnInterval < 0.5f) spawnInterval = 0.5f;
             AutoFindPrefabsAndPaths();
+            BindCityTraffic();
             if (autoStart)
             {
                 StartTrafficFlow();
@@ -64,10 +58,7 @@ namespace CyclingExperiment.AI
 
             if (vehiclePrefabs == null || vehiclePrefabs.Count == 0)
             {
-                if (cityTraffic == null && ExperimentRefs.Instance != null)
-                {
-                    cityTraffic = ExperimentRefs.Instance.cityTraffic;
-                }
+                BindCityTraffic();
                 if (cityTraffic != null && cityTraffic.vehiclePrefabs != null && cityTraffic.vehiclePrefabs.Count > 0)
                 {
                     vehiclePrefabs = new List<GameObject>(cityTraffic.vehiclePrefabs);
@@ -77,11 +68,14 @@ namespace CyclingExperiment.AI
 
         public void StartTrafficFlow()
         {
+            BindCityTraffic();
             _isTrafficActive = true;
             _timer = 0f;
-            Debug.Log("[IntersectionTrafficFlow] NavMesh intersection traffic STARTED.");
+            Debug.Log("[IntersectionTrafficFlow] Waypoint intersection traffic STARTED.");
 
-            for (int i = 0; i < ApproachOffsets.Length; i++)
+            RefreshNearbyPaths();
+            int waves = Mathf.Max(1, _nearbyPaths.Count);
+            for (int i = 0; i < waves; i++)
             {
                 SpawnVehicleNearIntersection(i);
             }
@@ -91,7 +85,7 @@ namespace CyclingExperiment.AI
         {
             _isTrafficActive = false;
             ClearAllVehicles();
-            Debug.Log("[IntersectionTrafficFlow] NavMesh intersection traffic STOPPED.");
+            Debug.Log("[IntersectionTrafficFlow] Waypoint intersection traffic STOPPED.");
         }
 
         private void Update()
@@ -106,32 +100,80 @@ namespace CyclingExperiment.AI
                 _timer = 0f;
                 if (_activeVehicles.Count < maxVehiclesInScene)
                 {
-                    SpawnVehicleNearIntersection(Random.Range(0, ApproachOffsets.Length));
+                    SpawnVehicleNearIntersection(Random.Range(0, Mathf.Max(1, _nearbyPaths.Count)));
                 }
             }
+        }
+
+        private void BindCityTraffic()
+        {
+            var refs = ExperimentRefs.Instance;
+            if (cityTraffic == null && refs != null) cityTraffic = refs.cityTraffic;
+        }
+
+        private void RefreshNearbyPaths()
+        {
+            _nearbyPaths.Clear();
+            BindCityTraffic();
+            if (cityTraffic == null) return;
+
+            IReadOnlyList<WaypointPath> paths = cityTraffic.TrafficPaths;
+            if (paths == null) return;
+
+            float radiusSq = approachRadius * approachRadius;
+            for (int i = 0; i < paths.Count; i++)
+            {
+                WaypointPath path = paths[i];
+                if (path == null || path.WaypointCount == 0) continue;
+                path.SyncFromChildren();
+                if (PathPassesNearIntersection(path, radiusSq))
+                {
+                    _nearbyPaths.Add(path);
+                }
+            }
+        }
+
+        private bool PathPassesNearIntersection(WaypointPath path, float radiusSq)
+        {
+            for (int i = 0; i < path.WaypointCount; i++)
+            {
+                Vector3 delta = path.GetWaypoint(i) - intersectionCenter;
+                delta.y = 0f;
+                if (delta.sqrMagnitude <= radiusSq) return true;
+            }
+
+            return false;
         }
 
         private void SpawnVehicleNearIntersection(int approachIndex)
         {
             if (vehiclePrefabs == null || vehiclePrefabs.Count == 0) return;
+            BindCityTraffic();
+            if (_nearbyPaths.Count == 0) RefreshNearbyPaths();
+            if (_nearbyPaths.Count == 0) return;
 
             GameObject prefab = vehiclePrefabs[Random.Range(0, vehiclePrefabs.Count)];
             if (prefab == null) return;
 
-            Vector3 guess = intersectionCenter + ApproachOffsets[approachIndex];
-            if (!NavMesh.SamplePosition(guess, out NavMeshHit hit, 18f, NavMesh.AllAreas)) return;
-            if (!IsApproachClear(hit.position)) return;
+            WaypointPath path = _nearbyPaths[Mathf.Clamp(approachIndex, 0, _nearbyPaths.Count - 1)];
+            if (path == null || path.WaypointCount == 0) return;
+            path.SyncFromChildren();
 
-            Vector3 toward = intersectionCenter - hit.position;
-            toward.y = 0f;
-            Quaternion rot = toward.sqrMagnitude > 0.01f
-                ? Quaternion.LookRotation(toward.normalized)
+            float t = path.isLoop ? Random.Range(0f, 1f) : Random.Range(0.05f, 0.35f);
+            if (!path.TryGetPointAlongPath(t, out Vector3 position, out Vector3 forward, out int nextIndex))
+                return;
+            if (!IsApproachClear(position)) return;
+
+            Quaternion rotation = forward.sqrMagnitude > 0.01f
+                ? Quaternion.LookRotation(forward)
                 : Quaternion.identity;
 
-            GameObject vehicle = VehicleRuntimeFactory.SpawnOnNavMesh(
+            GameObject vehicle = VehicleRuntimeFactory.SpawnAmbientOnWaypointPath(
                 prefab,
-                hit.position,
-                rot,
+                position,
+                rotation,
+                path,
+                nextIndex,
                 vehicleSpeed + Random.Range(-1.5f, 2.0f),
                 $"TrafficFlow_Intersection_{_activeVehicles.Count}");
 

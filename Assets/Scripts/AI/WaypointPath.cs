@@ -5,9 +5,12 @@ namespace CyclingExperiment.AI
 {
     /// <summary>
     /// Holds an ordered list of waypoints and visualizes them in the editor.
+    /// Hierarchy child order is travel order (same as Bus_Overtake_Path).
     /// </summary>
     public class WaypointPath : MonoBehaviour
     {
+        public const string CampusRootName = "Campus_Traffic_Paths";
+
         [Header("Path Settings")]
         [Tooltip("The ordered list of waypoints.")]
         public List<Transform> waypoints = new List<Transform>();
@@ -19,6 +22,80 @@ namespace CyclingExperiment.AI
         /// The total number of waypoints.
         /// </summary>
         public int WaypointCount => waypoints != null ? waypoints.Count : 0;
+
+        private void Awake()
+        {
+            SyncFromChildren();
+        }
+
+        /// <summary>
+        /// Rebuild the waypoint list from sibling order under this transform.
+        /// </summary>
+        public void SyncFromChildren()
+        {
+            if (waypoints == null) waypoints = new List<Transform>();
+            waypoints.Clear();
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                Transform child = transform.GetChild(i);
+                if (child != null) waypoints.Add(child);
+            }
+        }
+
+        public void RenameChildrenSequential()
+        {
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                Transform child = transform.GetChild(i);
+                if (child != null) child.name = "WP_" + i;
+            }
+        }
+
+        public void ReverseChildOrder()
+        {
+            int count = transform.childCount;
+            var children = new List<Transform>(count);
+            for (int i = 0; i < count; i++) children.Add(transform.GetChild(i));
+            children.Reverse();
+            for (int i = 0; i < children.Count; i++)
+            {
+                children[i].SetSiblingIndex(i);
+            }
+
+            RenameChildrenSequential();
+            SyncFromChildren();
+        }
+
+        public Transform CreateChildWaypoint(Vector3 position)
+        {
+            var go = new GameObject("WP_" + transform.childCount);
+            go.transform.SetParent(transform, true);
+            go.transform.position = position;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one;
+            SyncFromChildren();
+            return go.transform;
+        }
+
+        public bool DeleteLastChild()
+        {
+            if (transform.childCount == 0) return false;
+            Transform last = transform.GetChild(transform.childCount - 1);
+            if (last == null) return false;
+            if (Application.isPlaying) Destroy(last.gameObject);
+            else DestroyImmediate(last.gameObject);
+            RenameChildrenSequential();
+            SyncFromChildren();
+            return true;
+        }
+
+        public static bool IsReservedScenarioPath(WaypointPath path)
+        {
+            if (path == null) return true;
+            string n = path.gameObject.name;
+            return n.IndexOf("Bus_Overtake", System.StringComparison.OrdinalIgnoreCase) >= 0
+                   || n.IndexOf("RightTurn_Overtaking", System.StringComparison.OrdinalIgnoreCase) >= 0;
+        }
 
         /// <summary>
         /// Gets the position of the waypoint at the specified index.
@@ -110,8 +187,47 @@ namespace CyclingExperiment.AI
             return true;
         }
 
+        private void OnValidate()
+        {
+            SyncFromChildren();
+        }
+
+        private void OnTransformChildrenChanged()
+        {
+            SyncFromChildren();
+        }
+
         private void OnDrawGizmos()
         {
+            int count = transform.childCount;
+            if (count > 0)
+            {
+                Gizmos.color = Color.yellow;
+                for (int i = 0; i < count; i++)
+                {
+                    Transform child = transform.GetChild(i);
+                    if (child == null) continue;
+                    Gizmos.DrawSphere(child.position, 0.5f);
+                    if (i < count - 1)
+                    {
+                        Transform next = transform.GetChild(i + 1);
+                        if (next != null) DrawPathLine(child.position, next.position);
+                    }
+                }
+
+                if (isLoop && count > 1)
+                {
+                    Transform last = transform.GetChild(count - 1);
+                    Transform first = transform.GetChild(0);
+                    if (last != null && first != null)
+                    {
+                        DrawPathLine(last.position, first.position);
+                    }
+                }
+
+                return;
+            }
+
             if (waypoints == null || waypoints.Count == 0) return;
 
             Gizmos.color = Color.yellow;
