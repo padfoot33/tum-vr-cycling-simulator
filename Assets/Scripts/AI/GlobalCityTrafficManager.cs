@@ -21,6 +21,15 @@ namespace CyclingExperiment.AI
         [SerializeField] private int maxVehicles = 36;
         [SerializeField] private float defaultTrafficSpeed = 9.5f;
 
+        [Header("Proximity spawn")]
+        [SerializeField, Tooltip("Do not spawn closer than this (metres, horizontal).")]
+        private float spawnMinDistance = 10f;
+        [SerializeField, Tooltip("Do not spawn farther than this (metres, horizontal).")]
+        private float spawnMaxDistance = 200f;
+        [SerializeField, Tooltip("Destroy cars this many metres beyond max so they do not flicker at the outer edge.")]
+        private float despawnPadding = 20f;
+        [SerializeField] private bool drawSpawnRadiusGizmo = true;
+
         [Header("Vehicle Prefab Pool")]
         [SerializeField] public List<GameObject> vehiclePrefabs = new List<GameObject>();
 
@@ -31,6 +40,7 @@ namespace CyclingExperiment.AI
 
         private readonly List<GameObject> _spawnedVehicles = new List<GameObject>();
         private float _spawnTimer;
+        private float _cullTimer;
 
         public bool IsTrafficEnabled => isTrafficEnabled;
         public IReadOnlyList<GameObject> ActiveVehicles => _spawnedVehicles;
@@ -53,6 +63,19 @@ namespace CyclingExperiment.AI
             SanitizePrefabPool();
             HideLegacyWaypointCityPaths();
             BindPaths();
+            ClampProximity();
+        }
+
+        private void OnValidate()
+        {
+            ClampProximity();
+        }
+
+        private void ClampProximity()
+        {
+            if (spawnMinDistance < 0f) spawnMinDistance = 0f;
+            if (spawnMaxDistance <= spawnMinDistance) spawnMaxDistance = spawnMinDistance + 1f;
+            if (despawnPadding < 0f) despawnPadding = 0f;
         }
 
         private void OnDestroy()
@@ -164,6 +187,13 @@ namespace CyclingExperiment.AI
 
             _spawnedVehicles.RemoveAll(v => v == null);
 
+            _cullTimer += Time.deltaTime;
+            if (_cullTimer >= 0.25f)
+            {
+                _cullTimer = 0f;
+                CullDistantVehicles();
+            }
+
             _spawnTimer += Time.deltaTime;
             if (_spawnTimer >= spawnInterval)
             {
@@ -251,17 +281,70 @@ namespace CyclingExperiment.AI
             nextIndex = 0;
 
             float tMax = path.isLoop ? 1f : 0.65f;
-            for (int attempt = 0; attempt < 8; attempt++)
+            for (int attempt = 0; attempt < 12; attempt++)
             {
                 float t = Random.Range(0f, tMax);
                 if (!path.TryGetPointAlongPath(t, out position, out forward, out nextIndex)) continue;
-                if (IsSpawnClear(position)) return true;
+                if (IsInsideSpawnRing(position) && IsSpawnClear(position)) return true;
             }
 
-            if (path.TryGetPointAlongPath(0f, out position, out forward, out nextIndex) && IsSpawnClear(position))
-                return true;
+            for (float t = 0f; t <= tMax; t += 0.05f)
+            {
+                if (!path.TryGetPointAlongPath(t, out position, out forward, out nextIndex)) continue;
+                if (IsInsideSpawnRing(position) && IsSpawnClear(position)) return true;
+            }
 
             return false;
+        }
+
+        public bool IsInsideSpawnRing(Vector3 position)
+        {
+            if (!TryGetCyclistPosition(out Vector3 origin)) return false;
+            float distance = HorizontalDistance(origin, position);
+            return distance >= spawnMinDistance && distance <= spawnMaxDistance;
+        }
+
+        public bool IsBeyondDespawnRadius(Vector3 position)
+        {
+            if (!TryGetCyclistPosition(out Vector3 origin)) return false;
+            return HorizontalDistance(origin, position) > spawnMaxDistance + despawnPadding;
+        }
+
+        private void CullDistantVehicles()
+        {
+            for (int i = _spawnedVehicles.Count - 1; i >= 0; i--)
+            {
+                GameObject vehicle = _spawnedVehicles[i];
+                if (vehicle == null)
+                {
+                    _spawnedVehicles.RemoveAt(i);
+                    continue;
+                }
+
+                if (!IsBeyondDespawnRadius(vehicle.transform.position)) continue;
+                Destroy(vehicle);
+                _spawnedVehicles.RemoveAt(i);
+            }
+        }
+
+        private static bool TryGetCyclistPosition(out Vector3 position)
+        {
+            Transform bike = TrafficIdentity.Cyclist;
+            if (bike == null)
+            {
+                position = Vector3.zero;
+                return false;
+            }
+
+            position = bike.position;
+            return true;
+        }
+
+        private static float HorizontalDistance(Vector3 a, Vector3 b)
+        {
+            float dx = a.x - b.x;
+            float dz = a.z - b.z;
+            return Mathf.Sqrt(dx * dx + dz * dz);
         }
 
         public bool IsSpawnClear(Vector3 position, GameObject ignore = null)
@@ -310,6 +393,33 @@ namespace CyclingExperiment.AI
                 if (v != null) Destroy(v);
             }
             _spawnedVehicles.Clear();
+        }
+
+        private void OnDrawGizmos()
+        {
+            if (!drawSpawnRadiusGizmo) return;
+
+            Vector3 origin = transform.position;
+            if (TryGetCyclistPosition(out Vector3 bikePos)) origin = bikePos;
+
+            DrawRadiusCircle(origin, spawnMinDistance, new Color(1f, 0.45f, 0.15f, 0.9f));
+            DrawRadiusCircle(origin, spawnMaxDistance, new Color(0.25f, 0.85f, 1f, 0.9f));
+        }
+
+        private static void DrawRadiusCircle(Vector3 center, float radius, Color color)
+        {
+            if (radius <= 0.01f) return;
+
+            Gizmos.color = color;
+            const int segments = 64;
+            Vector3 prev = center + new Vector3(radius, 0f, 0f);
+            for (int i = 1; i <= segments; i++)
+            {
+                float angle = (i / (float)segments) * Mathf.PI * 2f;
+                Vector3 next = center + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                Gizmos.DrawLine(prev, next);
+                prev = next;
+            }
         }
     }
 }

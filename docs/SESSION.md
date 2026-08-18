@@ -2,6 +2,10 @@
 
 Working notes for current development. The project map lives in [PROJECT_MINDMAP.md](PROJECT_MINDMAP.md).
 
+## 19 Aug 2026 — Spawn cars only near the cyclist
+
+Ambient cars spawn in a horizontal ring around the rider (default **10–200 m**) on `GlobalCityTrafficManager` (Proximity spawn). Cars farther than max + 20 m padding are destroyed. Scene gizmos: orange inner circle, cyan outer. Route 1 bus / right-turn are not culled.
+
 ## 19 Aug 2026 — Manual campus traffic paths (bus-style)
 
 Ambient cars follow authored `WaypointPath` lists under `Campus_Traffic_Paths`, the same way the Route 1 bus follows `Bus_Overtake_Path`. The auto-seeded `Campus_Road_Network` graph is no longer used for driving.

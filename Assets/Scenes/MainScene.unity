@@ -36117,9 +36117,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.AI.GlobalCityTrafficManager
   isTrafficEnabled: 1
-  spawnInterval: 0.1
+  spawnInterval: 1
   maxVehicles: 10
   defaultTrafficSpeed: 9
+  spawnMinDistance: 20
+  spawnMaxDistance: 100
+  despawnPadding: 10
+  drawSpawnRadiusGizmo: 1
   vehiclePrefabs:
   - {fileID: 4933583111240688830, guid: acf1b64a1fbe1d74d93024e62413459d, type: 3}
   - {fileID: 7014147353987398875, guid: fb71e58c7d638de488082959e77cc8da, type: 3}
@@ -36134,6 +36138,7 @@ MonoBehaviour:
   - {fileID: 1851428391}
   - {fileID: 1129373176}
   - {fileID: 1096636492}
+  - {fileID: 572085889}
   campusTrafficPathsRoot: {fileID: 1946143632}
   cityTrafficPathsRoot: {fileID: 0}
 --- !u!4 &975711440
@@ -36145,7 +36150,7 @@ Transform:
   m_GameObject: {fileID: 975711438}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 427.7, y: 0, z: -22.7}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

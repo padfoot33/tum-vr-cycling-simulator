@@ -27,6 +27,7 @@ namespace CyclingExperiment.AI
         private readonly List<GameObject> _activeVehicles = new List<GameObject>();
         private readonly List<WaypointPath> _nearbyPaths = new List<WaypointPath>(8);
         private float _timer;
+        private float _cullTimer;
         private bool _isTrafficActive;
 
         private void Start()
@@ -93,6 +94,13 @@ namespace CyclingExperiment.AI
             if (!_isTrafficActive) return;
 
             _activeVehicles.RemoveAll(v => v == null);
+
+            _cullTimer += Time.deltaTime;
+            if (_cullTimer >= 0.25f)
+            {
+                _cullTimer = 0f;
+                CullDistantVehicles();
+            }
 
             _timer += Time.deltaTime;
             if (_timer >= spawnInterval)
@@ -162,6 +170,7 @@ namespace CyclingExperiment.AI
             float t = path.isLoop ? Random.Range(0f, 1f) : Random.Range(0.05f, 0.35f);
             if (!path.TryGetPointAlongPath(t, out Vector3 position, out Vector3 forward, out int nextIndex))
                 return;
+            if (cityTraffic != null && !cityTraffic.IsInsideSpawnRing(position)) return;
             if (!IsApproachClear(position)) return;
 
             Quaternion rotation = forward.sqrMagnitude > 0.01f
@@ -199,6 +208,26 @@ namespace CyclingExperiment.AI
             }
 
             return true;
+        }
+
+        private void CullDistantVehicles()
+        {
+            BindCityTraffic();
+            if (cityTraffic == null) return;
+
+            for (int i = _activeVehicles.Count - 1; i >= 0; i--)
+            {
+                GameObject vehicle = _activeVehicles[i];
+                if (vehicle == null)
+                {
+                    _activeVehicles.RemoveAt(i);
+                    continue;
+                }
+
+                if (!cityTraffic.IsBeyondDespawnRadius(vehicle.transform.position)) continue;
+                Destroy(vehicle);
+                _activeVehicles.RemoveAt(i);
+            }
         }
 
         public void ClearAllVehicles()
