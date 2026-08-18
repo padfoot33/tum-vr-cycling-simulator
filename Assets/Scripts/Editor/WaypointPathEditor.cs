@@ -39,7 +39,7 @@ namespace CyclingExperiment.Editor
             if (_editPath)
             {
                 EditorGUILayout.HelpBox(
-                    "Shift-click the road in the Scene view to append WP_n. Drag children in the Hierarchy to change travel order.",
+                    "Click a yellow sphere to select it, then drag the move handle. Shift-click empty road to append WP_n.",
                     MessageType.Info);
             }
 
@@ -76,32 +76,8 @@ namespace CyclingExperiment.Editor
         private void OnSceneGUI()
         {
             var path = (WaypointPath)target;
-            if (!_editPath || path == null) return;
-
-            Event e = Event.current;
-            int controlId = GUIUtility.GetControlID(FocusType.Passive);
-            if (e.shift) HandleUtility.AddDefaultControl(controlId);
-
-            Handles.BeginGUI();
-            GUILayout.BeginArea(new Rect(12f, 12f, 320f, 40f));
-            GUILayout.Label("Path edit: Shift-click to append a waypoint", EditorStyles.helpBox);
-            GUILayout.EndArea();
-            Handles.EndGUI();
-
-            if (e.shift && e.button == 0 && e.type == EventType.MouseDown)
-            {
-                if (TryPickPoint(e.mousePosition, out Vector3 point))
-                {
-                    AddWaypointAt(path, point);
-                    GUIUtility.hotControl = controlId;
-                    e.Use();
-                }
-            }
-            else if (e.type == EventType.MouseUp && GUIUtility.hotControl == controlId)
-            {
-                GUIUtility.hotControl = 0;
-                e.Use();
-            }
+            if (path == null) return;
+            WaypointPathSceneOverlay.DrawHandles(path, _editPath);
         }
 
         internal static Transform AddWaypointAt(WaypointPath path, Vector3 position)
@@ -129,7 +105,7 @@ namespace CyclingExperiment.Editor
             MarkDirty(path);
         }
 
-        private static Vector3 PositionAfterLast(WaypointPath path)
+        internal static Vector3 PositionAfterLast(WaypointPath path)
         {
             path.SyncFromChildren();
             if (path.WaypointCount >= 2)
@@ -159,6 +135,119 @@ namespace CyclingExperiment.Editor
             return path.transform.position;
         }
 
+        internal static void MarkDirty(WaypointPath path)
+        {
+            EditorUtility.SetDirty(path);
+            EditorSceneManager.MarkSceneDirty(path.gameObject.scene);
+        }
+    }
+
+    /// <summary>
+    /// Pickable waypoint spheres while the path or a WP child is selected.
+    /// </summary>
+    [InitializeOnLoad]
+    static class WaypointPathSceneOverlay
+    {
+        private const float NodeSize = 1.2f;
+
+        static WaypointPathSceneOverlay()
+        {
+            SceneView.duringSceneGui -= OnSceneGUI;
+            SceneView.duringSceneGui += OnSceneGUI;
+        }
+
+        private static void OnSceneGUI(SceneView sceneView)
+        {
+            WaypointPath path = PathFromSelection();
+            if (path == null) return;
+
+            // CustomEditor already draws handles when the path itself is selected.
+            if (Selection.activeGameObject != null &&
+                Selection.activeGameObject.GetComponent<WaypointPath>() != null)
+            {
+                return;
+            }
+
+            DrawHandles(path, true);
+        }
+
+        internal static void DrawHandles(WaypointPath path, bool allowAppend)
+        {
+            if (path == null) return;
+            path.SyncFromChildren();
+
+            Transform selected = Selection.activeTransform;
+            Event e = Event.current;
+
+            for (int i = 0; i < path.transform.childCount; i++)
+            {
+                Transform child = path.transform.GetChild(i);
+                if (child == null) continue;
+
+                bool isSelected = selected == child;
+                Handles.color = isSelected ? new Color(0.3f, 1f, 0.35f, 0.95f) : new Color(1f, 0.92f, 0.2f, 0.9f);
+                float size = isSelected ? NodeSize * 1.15f : NodeSize;
+
+                if (Handles.Button(child.position, Quaternion.identity, size, size, Handles.SphereHandleCap))
+                {
+                    Selection.activeGameObject = child.gameObject;
+                    selected = child;
+                    isSelected = true;
+                }
+
+                if (!isSelected) continue;
+
+                EditorGUI.BeginChangeCheck();
+                Vector3 newPos = Handles.PositionHandle(child.position, Quaternion.identity);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    Undo.RecordObject(child, "Move Waypoint");
+                    child.position = newPos;
+                    path.SyncFromChildren();
+                    WaypointPathEditor.MarkDirty(path);
+                }
+            }
+
+            if (!allowAppend) return;
+
+            int appendControl = GUIUtility.GetControlID(FocusType.Passive);
+            if (e.shift) HandleUtility.AddDefaultControl(appendControl);
+
+            Handles.BeginGUI();
+            GUILayout.BeginArea(new Rect(12f, 12f, 360f, 40f));
+            GUILayout.Label("Click a node to drag it. Shift-click empty road to add WP_n.", EditorStyles.helpBox);
+            GUILayout.EndArea();
+            Handles.EndGUI();
+
+            if (e.shift && e.button == 0 && e.type == EventType.MouseDown)
+            {
+                if (TryPickPoint(e.mousePosition, out Vector3 point))
+                {
+                    Transform created = WaypointPathEditor.AddWaypointAt(path, point);
+                    Selection.activeGameObject = created.gameObject;
+                    GUIUtility.hotControl = appendControl;
+                    e.Use();
+                }
+            }
+            else if (e.type == EventType.MouseUp && GUIUtility.hotControl == appendControl)
+            {
+                GUIUtility.hotControl = 0;
+                e.Use();
+            }
+        }
+
+        private static WaypointPath PathFromSelection()
+        {
+            Transform t = Selection.activeTransform;
+            if (t == null) return null;
+
+            var path = t.GetComponent<WaypointPath>();
+            if (path != null) return path;
+
+            if (t.parent != null) return t.parent.GetComponent<WaypointPath>();
+            return null;
+        }
+
         private static bool TryPickPoint(Vector2 guiPoint, out Vector3 point)
         {
             Ray ray = HandleUtility.GUIPointToWorldRay(guiPoint);
@@ -177,12 +266,6 @@ namespace CyclingExperiment.Editor
 
             point = Vector3.zero;
             return false;
-        }
-
-        private static void MarkDirty(WaypointPath path)
-        {
-            EditorUtility.SetDirty(path);
-            EditorSceneManager.MarkSceneDirty(path.gameObject.scene);
         }
     }
 }

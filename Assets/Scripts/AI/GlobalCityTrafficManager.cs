@@ -38,11 +38,15 @@ namespace CyclingExperiment.AI
         [SerializeField] private GameObject campusTrafficPathsRoot;
         [SerializeField] private GameObject cityTrafficPathsRoot;
 
+        public const int PoolExtra = 8;
+
         private readonly List<GameObject> _spawnedVehicles = new List<GameObject>();
+        private AmbientVehiclePool _pool;
         private float _spawnTimer;
         private float _cullTimer;
 
         public bool IsTrafficEnabled => isTrafficEnabled;
+        public AmbientVehiclePool VehiclePool => _pool;
         public IReadOnlyList<GameObject> ActiveVehicles => _spawnedVehicles;
         public IReadOnlyList<WaypointPath> TrafficPaths
         {
@@ -64,6 +68,7 @@ namespace CyclingExperiment.AI
             HideLegacyWaypointCityPaths();
             BindPaths();
             ClampProximity();
+            EnsurePool();
         }
 
         private void OnValidate()
@@ -129,11 +134,19 @@ namespace CyclingExperiment.AI
         {
             LoadAllVehiclePrefabsIfEmpty();
             BindPaths();
+            EnsurePool();
+            if (_pool != null) _pool.Prewarm(maxVehicles);
 
             if (isTrafficEnabled)
             {
                 SpawnInitialVehicles();
             }
+        }
+
+        private void EnsurePool()
+        {
+            if (_pool == null) _pool = new AmbientVehiclePool();
+            _pool.Bind(transform, vehiclePrefabs, maxVehicles + PoolExtra);
         }
 
         public void LoadAllVehiclePrefabsIfEmpty()
@@ -185,7 +198,7 @@ namespace CyclingExperiment.AI
 
             if (!isTrafficEnabled) return;
 
-            _spawnedVehicles.RemoveAll(v => v == null);
+            _spawnedVehicles.RemoveAll(v => v == null || !v.activeInHierarchy);
 
             _cullTimer += Time.deltaTime;
             if (_cullTimer >= 0.25f)
@@ -322,7 +335,8 @@ namespace CyclingExperiment.AI
                 }
 
                 if (!IsBeyondDespawnRadius(vehicle.transform.position)) continue;
-                Destroy(vehicle);
+                if (_pool != null) _pool.Release(vehicle);
+                else Destroy(vehicle);
                 _spawnedVehicles.RemoveAt(i);
             }
         }
@@ -352,7 +366,7 @@ namespace CyclingExperiment.AI
             for (int i = 0; i < _spawnedVehicles.Count; i++)
             {
                 GameObject other = _spawnedVehicles[i];
-                if (other == null || other == ignore) continue;
+                if (other == null || other == ignore || !other.activeInHierarchy) continue;
                 Vector3 delta = other.transform.position - position;
                 delta.y = 0f;
                 if (delta.sqrMagnitude < SpawnClearRadius * SpawnClearRadius) return false;
@@ -388,9 +402,16 @@ namespace CyclingExperiment.AI
 
         public void ClearAllTraffic()
         {
-            foreach (var v in _spawnedVehicles)
+            if (_pool != null)
             {
-                if (v != null) Destroy(v);
+                _pool.ReleaseAll(_spawnedVehicles);
+            }
+            else
+            {
+                foreach (var v in _spawnedVehicles)
+                {
+                    if (v != null) Destroy(v);
+                }
             }
             _spawnedVehicles.Clear();
         }

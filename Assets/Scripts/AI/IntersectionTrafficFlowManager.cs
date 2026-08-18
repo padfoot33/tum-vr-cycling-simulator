@@ -93,7 +93,7 @@ namespace CyclingExperiment.AI
         {
             if (!_isTrafficActive) return;
 
-            _activeVehicles.RemoveAll(v => v == null);
+            _activeVehicles.RemoveAll(v => v == null || !v.activeInHierarchy);
 
             _cullTimer += Time.deltaTime;
             if (_cullTimer >= 0.25f)
@@ -202,6 +202,7 @@ namespace CyclingExperiment.AI
             {
                 GameObject other = _activeVehicles[i];
                 if (other == null) continue;
+                if (!other.activeInHierarchy) continue;
                 Vector3 delta = other.transform.position - position;
                 delta.y = 0f;
                 if (delta.sqrMagnitude < clearRadius * clearRadius) return false;
@@ -225,16 +226,25 @@ namespace CyclingExperiment.AI
                 }
 
                 if (!cityTraffic.IsBeyondDespawnRadius(vehicle.transform.position)) continue;
-                Destroy(vehicle);
+                if (cityTraffic.VehiclePool != null) cityTraffic.VehiclePool.Release(vehicle);
+                else Destroy(vehicle);
                 _activeVehicles.RemoveAt(i);
             }
         }
 
         public void ClearAllVehicles()
         {
-            foreach (var v in _activeVehicles)
+            BindCityTraffic();
+            if (cityTraffic != null && cityTraffic.VehiclePool != null)
             {
-                if (v != null) Destroy(v);
+                cityTraffic.VehiclePool.ReleaseAll(_activeVehicles);
+            }
+            else
+            {
+                foreach (var v in _activeVehicles)
+                {
+                    if (v != null) Destroy(v);
+                }
             }
             _activeVehicles.Clear();
         }

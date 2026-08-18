@@ -54,6 +54,7 @@ namespace CyclingExperiment.AI
 
         /// <summary>
         /// Ambient campus car: follow an authored WaypointPath with gap and cyclist yield.
+        /// Uses GlobalCityTrafficManager's pool when present.
         /// </summary>
         public static GameObject SpawnAmbientOnWaypointPath(
             GameObject prefab,
@@ -66,10 +67,40 @@ namespace CyclingExperiment.AI
         {
             if (prefab == null || path == null) return null;
 
-            GameObject vehicle = Object.Instantiate(prefab, position, rotation);
+            GameObject vehicle = null;
+            var pool = GlobalCityTrafficManager.Instance != null
+                ? GlobalCityTrafficManager.Instance.VehiclePool
+                : null;
+            if (pool != null)
+            {
+                vehicle = pool.Rent(prefab, position, rotation);
+            }
+
+            if (vehicle == null)
+            {
+                vehicle = Object.Instantiate(prefab, position, rotation);
+                Prepare(vehicle, disableRigidbody: true);
+            }
+            else
+            {
+                vehicle.transform.SetPositionAndRotation(position, rotation);
+            }
+
+            ConfigureAmbientOnWaypointPath(vehicle, path, startWaypointIndex, speed, name);
+            return vehicle;
+        }
+
+        public static void ConfigureAmbientOnWaypointPath(
+            GameObject vehicle,
+            WaypointPath path,
+            int startWaypointIndex,
+            float speed,
+            string name)
+        {
+            if (vehicle == null || path == null) return;
+
             if (!string.IsNullOrEmpty(name)) vehicle.name = name;
 
-            Prepare(vehicle, disableRigidbody: true);
             DisableAmbientDrivers(vehicle);
 
             var agent = vehicle.GetComponent<NavMeshAgent>();
@@ -84,12 +115,13 @@ namespace CyclingExperiment.AI
             var ai = GetOrAdd<SmartVehicleAI>(vehicle);
             ai.Path = path;
             ai.Speed = speed;
-            ai.DestroyAtEnd = !path.isLoop;
+            ai.DestroyAtEnd = true;
             ai.IsExperimentStressVehicle = false;
             ai.PreserveSpawnPosition = true;
             ai.StartWaypointIndex = Mathf.Clamp(startWaypointIndex, 0, Mathf.Max(0, path.WaypointCount - 1));
             ai.enabled = true;
-            return vehicle;
+            if (!vehicle.activeSelf) vehicle.SetActive(true);
+            ai.ResetTrip();
         }
 
         public static GameObject SpawnOnGraph(GameObject prefab, RoadNetwork network, RoadEdge edge, float distanceAlong, float speed, string name)

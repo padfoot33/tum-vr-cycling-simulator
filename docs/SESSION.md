@@ -2,6 +2,12 @@
 
 Working notes for current development. The project map lives in [PROJECT_MINDMAP.md](PROJECT_MINDMAP.md).
 
+## 19 Aug 2026 — Ambient car pool and click-drag waypoints
+
+Campus cars are rented from `AmbientVehiclePool` on `GlobalCityTrafficManager` (prewarm `maxVehicles`, cap +8 for intersection). Path end and distance cull `Release` (deactivate) instead of `Destroy`. Route 1 bus / right-turn still instantiate.
+
+Select a `WaypointPath` (or a `WP_n` child) and click a yellow sphere in the Scene view to drag it. Shift-click empty road still appends a waypoint.
+
 ## 19 Aug 2026 — Spawn cars only near the cyclist
 
 Ambient cars spawn in a horizontal ring around the rider (default **10–200 m**) on `GlobalCityTrafficManager` (Proximity spawn). Cars farther than max + 20 m padding are destroyed. Scene gizmos: orange inner circle, cyan outer. Route 1 bus / right-turn are not culled.

@@ -101,8 +101,11 @@ namespace CyclingExperiment.AI
 
         public event Action OnPathComplete;
 
-        private void Start()
+        public void ResetTrip()
         {
+            _isAtEnd = false;
+            _isMoving = true;
+            _followTimer = 0f;
             _currentSpeed = speed;
             _cachedFollowSpeed = speed;
             CacheVisualBottomOffset();
@@ -134,6 +137,11 @@ namespace CyclingExperiment.AI
             }
 
             SnapWheelsToGround();
+        }
+
+        private void Start()
+        {
+            ResetTrip();
         }
 
         private void Update()
@@ -193,7 +201,12 @@ namespace CyclingExperiment.AI
                         _isMoving = false;
                         OnPathComplete?.Invoke();
 
-                        if (destroyAtEnd)
+                        var pooled = GetComponent<PooledAmbientCar>();
+                        if (pooled != null && pooled.Pool != null)
+                        {
+                            pooled.Pool.Release(gameObject);
+                        }
+                        else if (destroyAtEnd)
                         {
                             Destroy(gameObject);
                         }
