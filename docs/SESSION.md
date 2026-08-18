@@ -2,6 +2,16 @@
 
 Working notes for current development. The project map lives in [PROJECT_MINDMAP.md](PROJECT_MINDMAP.md).
 
+## 19 Aug 2026 — Inspector-locked MainScene builds
+
+One scene: `Assets/Scenes/MainScene.unity`. On **Experiment_Scene_Refs**, tick **Lock Participant Run**, set route (1 or 2) and traffic, save, then File → Build Settings → Build. The player starts that run only (no M / T / 1 / 2). Leave the lock off for editor Play with the menu.
+
+**Cycling Experiment → Lock Run → …** writes those Inspector fields for you. **Unlock for editor Play** turns the lock off.
+
+Route 1 / Route 2 play-area boxes (`Route1_PlayArea`, `Route2_PlayArea`): cyan gizmos; rider cannot leave the union. **Cycling Experiment → Create Route Play Areas** seeds them; resize `Box_*` children in the Scene view.
+
+Ambient car `Prewarm` + first three spawns wait two frames after Play starts.
+
 ## 19 Aug 2026 — Ambient car pool and click-drag waypoints
 
 Campus cars are rented from `AmbientVehiclePool` on `GlobalCityTrafficManager` (prewarm `maxVehicles`, cap +8 for intersection). Path end and distance cull `Release` (deactivate) instead of `Destroy`. Route 1 bus / right-turn still instantiate.

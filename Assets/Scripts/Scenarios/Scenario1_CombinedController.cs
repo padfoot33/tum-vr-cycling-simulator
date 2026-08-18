@@ -237,6 +237,9 @@ namespace CyclingExperiment.Scenarios
                 Name = "Scenario1_RightTurn_OvertakingCar"
             });
 
+            bool ambientOn = sceneRefs == null || sceneRefs.cityTraffic == null || sceneRefs.cityTraffic.IsTrafficEnabled;
+            if (!ambientOn) return;
+
             if (intersectionTraffic == null && sceneRefs != null)
             {
                 intersectionTraffic = sceneRefs.intersectionTraffic;

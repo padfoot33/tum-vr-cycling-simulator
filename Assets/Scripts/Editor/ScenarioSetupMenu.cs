@@ -19,7 +19,7 @@ namespace CyclingExperiment.Editor
             // 1. Ensure EventSystem exists
             EnsureEventSystemExists();
 
-            // 2. Add MeshColliders to all child meshes in TUM_Campus_Container (so bicycle never falls)
+            // 2. Ground/road MeshColliders on TUM_Campus_Container (so bicycle never falls)
             AddCollidersToCampusModel();
 
             // 3. Setup Bicycle Smart Safety Assistant & Physics
@@ -175,7 +175,7 @@ namespace CyclingExperiment.Editor
 
             EditorUtility.DisplayDialog("Cycling Experiment",
                 "Combined Scenario 1 & Smart City Traffic System Successfully Built!\n\n" +
-                "• MeshColliders added to all tiles of TUM_Campus_Container (ground collision active).\n" +
+                "• Ground/road MeshColliders on TUM_Campus_Container (props are not triangle-cooked).\n" +
                 "• Ambient traffic uses Campus_Road_Network (nodes + directed edges).\n" +
                 "• Vehicle prefabs (cars, vans, taxis) populated.\n" +
                 "• Smart Safety Assistant (Auto-Brake & Nudge) attached to bicycle.\n" +
@@ -185,29 +185,13 @@ namespace CyclingExperiment.Editor
 
         private static void AddCollidersToCampusModel()
         {
-            GameObject campus = GameObject.Find("TUM_Campus_Container");
+            GameObject campus = CampusColliderSanitizer.FindCampus();
             if (campus != null)
-            {
-                var meshFilters = campus.GetComponentsInChildren<MeshFilter>(true);
-                int count = 0;
-                foreach (var mf in meshFilters)
-                {
-                    if (mf.sharedMesh != null && mf.GetComponent<Collider>() == null)
-                    {
-                        var mc = mf.gameObject.AddComponent<MeshCollider>();
-                        mc.sharedMesh = mf.sharedMesh;
-                        count++;
-                    }
-                }
-                Debug.Log($"[CyclingExperiment] Added MeshColliders to {count} meshes in TUM_Campus_Container.");
-            }
+                CampusColliderSanitizer.Apply(campus, addMissingGround: true);
 
-            // Deactivate legacy duplicate model if present
             GameObject oldCampus = GameObject.Find("tum_main_campus");
             if (oldCampus != null && campus != null)
-            {
                 oldCampus.SetActive(false);
-            }
         }
 
         private static void EnsureCityTrafficManager()
@@ -373,7 +357,7 @@ namespace CyclingExperiment.Editor
             EditorUtility.DisplayDialog("Cycling Experiment",
                 "UI, Colliders & Scripts Successfully Fixed!\n\n" +
                 "• 100% of your customized positions, waypoints, and triggers are UNTOUCHED.\n" +
-                "• MeshColliders added to TUM_Campus_Container tiles (no more falling).\n" +
+                "• Ground/road MeshColliders on TUM_Campus_Container (no more falling).\n" +
                 "• EventSystem active (buttons click & respond).\n" +
                 "• Smooth Chase Camera attached (V key for cockpit view).\n\n" +
                 "Press Play ▶️ to test!", "OK");

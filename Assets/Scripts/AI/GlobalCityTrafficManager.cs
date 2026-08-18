@@ -1,5 +1,7 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using CyclingExperiment.Scenarios;
 using ExperimentRefs = CyclingExperiment.ExperimentSceneRefs;
 
 namespace CyclingExperiment.AI
@@ -135,12 +137,21 @@ namespace CyclingExperiment.AI
             LoadAllVehiclePrefabsIfEmpty();
             BindPaths();
             EnsurePool();
-            if (_pool != null) _pool.Prewarm(maxVehicles);
 
+            if (ExperimentBuildSession.IsActive)
+                isTrafficEnabled = ExperimentBuildSession.TrafficEnabled;
+
+            StartCoroutine(DeferredPoolAndSpawn());
+        }
+
+        private IEnumerator DeferredPoolAndSpawn()
+        {
+            yield return null;
+            yield return null;
+
+            if (_pool != null) _pool.Prewarm(maxVehicles);
             if (isTrafficEnabled)
-            {
                 SpawnInitialVehicles();
-            }
         }
 
         private void EnsurePool()
@@ -191,7 +202,7 @@ namespace CyclingExperiment.AI
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.T))
+            if (Input.GetKeyDown(KeyCode.T) && !ExperimentBuildSession.LocksParticipantUi)
             {
                 ToggleTraffic();
             }

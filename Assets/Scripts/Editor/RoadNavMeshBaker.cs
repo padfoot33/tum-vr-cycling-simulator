@@ -154,7 +154,7 @@ namespace CyclingExperiment.Editor
             return roads;
         }
 
-        private static bool IsRoadName(string name)
+        public static bool IsRoadName(string name)
         {
             if (string.IsNullOrEmpty(name)) return false;
             return name.IndexOf("Roads", StringComparison.OrdinalIgnoreCase) >= 0

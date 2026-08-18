@@ -325,6 +325,30 @@ namespace BikeURP
             safetyBrake01 = 1f;
         }
 
+        /// <summary>
+        /// Zero speed without holding the VR safety brake, so the rider can turn back from a play-area wall.
+        /// </summary>
+        public void StopLongitudinalSpeed()
+        {
+            _speed = 0f;
+        }
+
+        /// <summary>
+        /// Move the bike without resetting steer or spawn state (play-area clamp).
+        /// </summary>
+        public void SetWorldPositionKeepYaw(Vector3 worldPosition)
+        {
+            Quaternion rot = Quaternion.Euler(0f, _yawDeg, 0f);
+            if (_rigidbody != null)
+            {
+                _rigidbody.position = worldPosition;
+                _rigidbody.rotation = rot;
+            }
+
+            transform.position = worldPosition;
+            transform.rotation = rot;
+        }
+
         // Backwards-compatible normalized steer setter: maps -1..1 to ±maxSteerDeg
         public void SetSteer(float value01)
         {

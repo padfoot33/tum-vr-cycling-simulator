@@ -54,9 +54,15 @@ namespace CyclingExperiment.UI
                 scenario2Position = Scenario3_ConstructionNarrowing.ApproachPosition;
                 scenario2Heading = Scenario3_ConstructionNarrowing.ApproachHeading;
             }
-            CreateScenarioUI();
+
+            bool locked = ExperimentBuildSession.LocksParticipantUi;
+            if (!locked)
+                CreateScenarioUI();
+
             ShowModal(false);
-            SelectScenario(1);
+
+            int route = ExperimentBuildSession.IsActive ? ExperimentBuildSession.RouteIndex : 1;
+            SelectScenario(route);
         }
 
         private void EnsureEventSystemExists()
@@ -71,6 +77,8 @@ namespace CyclingExperiment.UI
 
         private void Update()
         {
+            if (ExperimentBuildSession.LocksParticipantUi) return;
+
             if (Input.GetKeyDown(toggleMenuKey) || Input.GetKeyDown(KeyCode.Tab))
             {
                 ToggleModal();
@@ -278,6 +286,8 @@ namespace CyclingExperiment.UI
 
         public void ToggleGlobalTraffic()
         {
+            if (ExperimentBuildSession.LocksParticipantUi) return;
+
             var trafficMgr = Refs != null ? Refs.cityTraffic : null;
             if (trafficMgr == null) return;
 
@@ -344,6 +354,8 @@ namespace CyclingExperiment.UI
                     if (Refs.hud != null) Refs.hud.ShowMessage("Free Roam Mode Active", 4f);
                     break;
             }
+
+            Refs.ApplyPlayArea(scenarioIndex);
 
             if (Refs.followCamera != null) Refs.followCamera.SnapToTarget();
         }

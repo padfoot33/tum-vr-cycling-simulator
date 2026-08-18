@@ -36,8 +36,20 @@ namespace CyclingExperiment
         public TrafficDestinationSet trafficDestinations;
         public RoadNetwork campusRoadNetwork;
 
+        [Header("Play area")]
+        public PlayAreaBounds route1PlayArea;
+        public PlayAreaBounds route2PlayArea;
+        public PlayAreaConstraint playAreaConstraint;
+
         [Header("Route 2")]
         public Transform route2CyclistSpawn;
+
+        [Header("Locked participant run (set before Build)")]
+        [Tooltip("When on, Play/Build starts only this route, hides M/T/1/2, and applies traffic. Leave off for editor testing.")]
+        public bool lockParticipantRun;
+        [Tooltip("1 = Route 1 (bus + right-turn), 2 = Route 2 (construction).")]
+        public int lockedRouteIndex = 1;
+        public bool lockedTrafficEnabled = true;
 
         public static ExperimentSceneRefs EnsureExists()
         {
@@ -56,8 +68,18 @@ namespace CyclingExperiment
 
         private void Awake()
         {
+            if (lockParticipantRun)
+                ExperimentBuildSession.Apply(lockedRouteIndex, lockedTrafficEnabled, true);
+
             Instance = this;
             BindMissingOnce();
+        }
+
+        public void SetLockedRun(bool lockRun, int routeIndex, bool trafficEnabled)
+        {
+            lockParticipantRun = lockRun;
+            lockedRouteIndex = routeIndex < 2 ? 1 : 2;
+            lockedTrafficEnabled = trafficEnabled;
         }
 
         private void OnDestroy()
@@ -132,6 +154,33 @@ namespace CyclingExperiment
             }
 
             Scenario3_ConstructionNarrowing.DisableCampusRoadNavMesh();
+
+            if (route1PlayArea == null)
+                route1PlayArea = PlayAreaBounds.FindOrCreateRoute1(this);
+            if (route2PlayArea == null)
+                route2PlayArea = PlayAreaBounds.FindOrCreateRoute2(this);
+
+            if (playAreaConstraint == null)
+                playAreaConstraint = GetComponent<PlayAreaConstraint>();
+            if (playAreaConstraint == null)
+                playAreaConstraint = gameObject.AddComponent<PlayAreaConstraint>();
+            playAreaConstraint.Bind(this);
+        }
+
+        public void ApplyPlayArea(int scenarioIndex)
+        {
+            if (route1PlayArea != null)
+                route1PlayArea.gameObject.SetActive(scenarioIndex == 1);
+            if (route2PlayArea != null)
+                route2PlayArea.gameObject.SetActive(scenarioIndex == 2);
+
+            if (playAreaConstraint == null) return;
+            if (scenarioIndex == 1)
+                playAreaConstraint.SetActiveArea(route1PlayArea);
+            else if (scenarioIndex == 2)
+                playAreaConstraint.SetActiveArea(route2PlayArea);
+            else
+                playAreaConstraint.SetActiveArea(null);
         }
     }
 }
