@@ -25276,8 +25276,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.AI.SmartBicycleSafetyAssistant
   enableAutoBrake: 1
-  criticalBrakeDistance: 15
-  maxLateralOffset: 1.2
+  criticalBrakeDistance: 10
+  maxLateralOffset: 1
   obstacleLayers:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -52608,7 +52608,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.UI.HUDController
   _bicycleController: {fileID: 641229302}
   _showSpeed: 1
-  _showScenarioInfo: 1
+  _showScenarioInfo: 0
   _showDebugInfo: 0
 --- !u!4 &1363860668
 Transform:
