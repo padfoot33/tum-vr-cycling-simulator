@@ -322,6 +322,13 @@ namespace SBPScripts.Simulator
                 actualComPort = defaultComPort;
             }
 
+            if (!ArduinoPortIsAvailable(actualComPort))
+            {
+                arduinoConnected = false;
+                arduinoErrorMessage = "Arduino port " + actualComPort + " is not present. Keyboard brake fallback.";
+                return;
+            }
+
             // Initialize SerialPort with detected/configured port
             sp = new SerialPort(actualComPort, baudRate);
             
@@ -330,10 +337,7 @@ namespace SBPScripts.Simulator
                 sp.Open();
                 sp.ReadTimeout = readTimeoutMs;
                 sp.WriteTimeout = readTimeoutMs;
-           
-                // Wait a bit for Arduino to initialize
-                System.Threading.Thread.Sleep(100);
-                
+
                 if (sp.BytesToRead > 0)
                 {
                     string initialData = sp.ReadExisting();
@@ -369,6 +373,22 @@ namespace SBPScripts.Simulator
             }
         }
 
+        static bool ArduinoPortIsAvailable(string portName)
+        {
+            if (string.IsNullOrEmpty(portName)) return false;
+            try
+            {
+                string[] availablePorts = SerialPort.GetPortNames();
+                if (availablePorts == null || availablePorts.Length == 0) return false;
+                return Array.Exists(availablePorts, port =>
+                    port.Equals(portName, StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         /// <summary>
         /// Automatically detects available COM ports and tries to find Arduino
         /// </summary>
@@ -377,10 +397,8 @@ namespace SBPScripts.Simulator
             try
             {
                 string[] availablePorts = SerialPort.GetPortNames();
-                // if (enableArduinoDebugLogs)
-                {
-                  //  Debug.Log("Available COM ports: " + string.Join(", ", availablePorts));
-                }
+                if (availablePorts == null || availablePorts.Length == 0)
+                    return defaultComPort;
 
                 // First, try the default COM port
                 if (Array.Exists(availablePorts, port => port.Equals(defaultComPort, StringComparison.OrdinalIgnoreCase)))
@@ -395,28 +413,34 @@ namespace SBPScripts.Simulator
                 foreach (string testPort in commonArduinoPorts)
                 {
                     if (Array.Exists(availablePorts, port => port.Equals(testPort, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        // if (enableArduinoDebugLogs)
-                          //  Debug.Log("Found potential Arduino port: " + testPort);
                         return testPort;
-                    }
                 }
 
-                // If no common ports found, try the first available port
-                if (availablePorts.Length > 0)
+                for (int i = 0; i < availablePorts.Length; i++)
                 {
-                    // if (enableArduinoDebugLogs)
-                      //  Debug.Log("Using first available port: " + availablePorts[0]);
-                    return availablePorts[0];
+                    if (LooksLikeArduinoPort(availablePorts[i]))
+                        return availablePorts[i];
                 }
 
-                return defaultComPort; // Fallback to default
-            }
-            catch (Exception ex)
-            {
-              //  Debug.LogError("Error detecting COM ports: " + ex.Message);
                 return defaultComPort;
             }
+            catch (Exception)
+            {
+                return defaultComPort;
+            }
+        }
+
+        static bool LooksLikeArduinoPort(string portName)
+        {
+            if (string.IsNullOrEmpty(portName)) return false;
+            if (portName.StartsWith("COM", StringComparison.OrdinalIgnoreCase) && portName.Length > 3)
+                return true;
+            string lower = portName.ToLowerInvariant();
+            return lower.Contains("usbmodem")
+                   || lower.Contains("usbserial")
+                   || lower.Contains("arduino")
+                   || lower.Contains("ttyacm")
+                   || lower.Contains("ttyusb");
         }
 
         /// <summary>
@@ -1346,6 +1370,11 @@ namespace SBPScripts.Simulator
                 // Reinitialize with current port settings
                 if (sp == null)
                 {
+                    if (!ArduinoPortIsAvailable(actualComPort))
+                    {
+                        arduinoConnected = false;
+                        return;
+                    }
                     sp = new SerialPort(actualComPort, baudRate);
                 }
                 

@@ -133,32 +133,35 @@ namespace CyclingExperiment.Scenarios
 
         public static int DisableCampusRoadNavMesh()
         {
-            int disabled = 0;
-            var transforms = Resources.FindObjectsOfTypeAll<Transform>();
-            for (int i = 0; i < transforms.Length; i++)
-            {
-                Transform t = transforms[i];
-                if (t == null || t.name != CampusRoadNavMeshName) continue;
-                if (!t.gameObject.scene.IsValid() || !t.gameObject.scene.isLoaded) continue;
-                if (!t.gameObject.activeSelf) continue;
+            var navMesh = GameObject.Find(CampusRoadNavMeshName);
+            if (navMesh == null || !navMesh.activeSelf)
+                return 0;
 
-                t.gameObject.SetActive(false);
-                disabled++;
-            }
-
-            return disabled;
+            navMesh.SetActive(false);
+            return 1;
         }
 
         public static int StripConstructionNavMeshObstacles()
         {
             int removed = 0;
-            var obstacles = Resources.FindObjectsOfTypeAll<NavMeshObstacle>();
+            removed += StripObstaclesUnder(GameObject.Find("Scenario_2"));
+            if (s_propsRoot != null)
+                removed += StripObstaclesUnder(s_propsRoot.gameObject);
+            else
+                removed += StripObstaclesUnder(GameObject.Find(PropsRootName));
+            return removed;
+        }
+
+        private static int StripObstaclesUnder(GameObject root)
+        {
+            if (root == null) return 0;
+
+            int removed = 0;
+            var obstacles = root.GetComponentsInChildren<NavMeshObstacle>(true);
             for (int i = 0; i < obstacles.Length; i++)
             {
                 NavMeshObstacle obstacle = obstacles[i];
-                if (obstacle == null || !obstacle.gameObject.scene.IsValid() || !obstacle.gameObject.scene.isLoaded)
-                    continue;
-                if (!ShouldStripObstacle(obstacle.transform)) continue;
+                if (obstacle == null || !ShouldStripObstacle(obstacle.transform)) continue;
                 if (Application.isPlaying) UnityEngine.Object.Destroy(obstacle);
                 else UnityEngine.Object.DestroyImmediate(obstacle);
                 removed++;

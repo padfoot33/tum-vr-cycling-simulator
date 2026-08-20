@@ -50,6 +50,7 @@ namespace CyclingExperiment.Logging
         private bool _isLogging;
         private float _startTime;
         private float _nextLogTime;
+        private float _nextFlushTime;
 
         private Vector3 _lastBikePos;
         private float _lastBikePosTime;
@@ -99,6 +100,12 @@ namespace CyclingExperiment.Logging
             {
                 WriteSampleRow();
                 _nextLogTime = Time.time + (1f / Mathf.Max(1, logHz));
+            }
+
+            if (Time.time >= _nextFlushTime)
+            {
+                _writer?.Flush();
+                _nextFlushTime = Time.time + 1f;
             }
         }
 
@@ -159,7 +166,7 @@ namespace CyclingExperiment.Logging
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
             _runId = $"{safeParticipant}_{safeScenario}_{timestamp}";
 
-            string baseLogs = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs"));
+            string baseLogs = Path.Combine(Application.persistentDataPath, "Logs");
             string directory = useParticipantFolder
                 ? Path.Combine(baseLogs, safeParticipant)
                 : baseLogs;
@@ -167,9 +174,11 @@ namespace CyclingExperiment.Logging
 
             _runFilePath = Path.Combine(directory, $"{_runId}.csv");
             _writer = new StreamWriter(_runFilePath, false);
+            _writer.AutoFlush = false;
 
             _startTime = Time.time;
             _nextLogTime = Time.time;
+            _nextFlushTime = Time.time + 1f;
             _lastBikePos = bikeTransform.position;
             _lastBikePosTime = Time.time;
             _smoothedSpeedKph = 0f;

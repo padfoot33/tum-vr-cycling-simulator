@@ -63,7 +63,6 @@ namespace CyclingExperiment.AI
         {
             Instance = this;
             if (maxVehicles < 1) maxVehicles = 1;
-            if (maxVehicles == 8) maxVehicles = 36;
             if (spawnInterval < 0.5f) spawnInterval = 0.5f;
             LoadAllVehiclePrefabsIfEmpty();
             SanitizePrefabPool();
@@ -149,7 +148,6 @@ namespace CyclingExperiment.AI
             yield return null;
             yield return null;
 
-            if (_pool != null) _pool.Prewarm(maxVehicles);
             if (isTrafficEnabled)
                 SpawnInitialVehicles();
         }

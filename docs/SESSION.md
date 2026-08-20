@@ -6,7 +6,9 @@ Working notes for current development. The project map lives in [PROJECT_MINDMAP
 
 Participant Play has no speed HUD, scenario banner, toasts, or persistent M/T buttons. Press **M** for the operator modal only when the participant lock is off.
 
-Route 1 bus trigger is ~75 m before the bay; the Bogdan spawns behind the cyclist and is sped so it overtakes then parks before the rider arrives. StVO 214-10 sign at the right-turn. CSV at `Logs/<participant>/` from [`ExperimentRunLogger`](../Assets/Scripts/Logging/ExperimentRunLogger.cs) (client columns, no LOD, 20 Hz + vehicle markers).
+Route 1 bus trigger is ~75 m before the bay; the Bogdan spawns behind the cyclist and is sped so it overtakes then parks before the rider arrives. StVO 214-10 sign at the right-turn. CSV at `Application.persistentDataPath/Logs/<participant>/` from [`ExperimentRunLogger`](../Assets/Scripts/Logging/ExperimentRunLogger.cs) (client columns, no LOD, 20 Hz + vehicle markers).
+
+Play start: Wahoo TCP connect is async (0.5 s timeout, no Editor retries). Traffic cars spawn on demand instead of instantiating a pool in one frame. NavMesh cleanup uses scene objects only (no `FindObjectsOfTypeAll` on Play).
 
 **Editor:** **Cycling Experiment → Place Route 1 Right-Turn Sign**, **Retune Route 1 Bus Timing**, **Ensure Experiment Run Logger**. Save MainScene after Play so runtime-created sign/logger persist.
 

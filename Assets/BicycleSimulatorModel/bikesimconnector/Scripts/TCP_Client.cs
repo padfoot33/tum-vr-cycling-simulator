@@ -4,7 +4,7 @@ using System.Text;
 using System.IO;  //for Debug file writing
 using UnityEngine;
 using System.Net;
-using System.Threading;
+using System.Collections;
  
 
 public class tcp_client : MonoBehaviour
@@ -44,8 +44,11 @@ public class tcp_client : MonoBehaviour
 
     // Connection status tracking
     private bool isConnected = false;
+    private bool isConnecting = false;
+    private int connectGeneration;
+    private const float connectTimeoutSeconds = 0.5f;
     private float reconnectTimer = 0f;
-    private float reconnectInterval = 5f; // Try to reconnect every 5 seconds
+    private float reconnectInterval = 5f;
     private int maxReconnectAttempts = 10;
     private int currentReconnectAttempts = 0;
 
@@ -152,64 +155,100 @@ public class tcp_client : MonoBehaviour
 
     private void SetupServer()
     {
+        if (isConnecting || isConnected)
+            return;
+        if (!isActiveAndEnabled)
+            return;
+        StartCoroutine(ConnectAsync());
+    }
+
+    private IEnumerator ConnectAsync()
+    {
+        if (isConnecting)
+            yield break;
+
+        isConnecting = true;
+        currentReconnectAttempts++;
+        int generation = ++connectGeneration;
+        LogToFile($"[TCP-Client] Attempting to connect to {serverIp}:{serverPort}");
+
+        Socket socket = null;
+        IAsyncResult ar = null;
+        string connectError = null;
         try
         {
-            LogToFile($"[TCP-Client] Attempting to connect to {serverIp}:{serverPort}");
-          //  Debug.Log($"[TCP-Client] Attempting to connect to {serverIp}:{serverPort}");
-            
-            // Check if already connected and close existing connection
-            if (_clientSocket != null && _clientSocket.Connected)
+            if (_clientSocket != null)
             {
-                _clientSocket.Close();
+                try { _clientSocket.Close(); } catch { }
+                _clientSocket = null;
             }
-            
-            // Create new socket
-            _clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            
-            // Set socket options for better reliability
-            _clientSocket.ReceiveTimeout = 5000; // 5 second timeout
-            _clientSocket.SendTimeout = 5000;
-            _clientSocket.NoDelay = true;
-            
-            // Connect to the server
-            _clientSocket.Connect(new IPEndPoint(IPAddress.Parse(serverIp), serverPort));
-            
-            isConnected = true;
-            currentReconnectAttempts = 0;
-            LogToFile("[TCP-Client] Successfully connected to bike!");
-          //  Debug.Log("[TCP-Client] Successfully connected to bike!");
-            
-            // Start receiving data
-            _clientSocket.BeginReceive(_recieveBuffer, 0, _recieveBuffer.Length, SocketFlags.None, new AsyncCallback(ReceiveCallback), null);
+
+            socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            socket.NoDelay = true;
+            socket.ReceiveTimeout = 5000;
+            socket.SendTimeout = 5000;
+            _clientSocket = socket;
+            ar = socket.BeginConnect(new IPEndPoint(IPAddress.Parse(serverIp), serverPort), null, null);
         }
-        catch (SocketException ex)
+        catch (Exception ex)
+        {
+            connectError = ex.Message;
+        }
+
+        if (connectError != null)
         {
             isConnected = false;
-            string errorMsg = $"[TCP-Client] Socket connection failed: {ex.Message} (ErrorCode: {ex.ErrorCode})";
-            LogToFile(errorMsg);
-          //  Debug.LogError(errorMsg);
-            
-            // Handle specific error cases
-            switch (ex.ErrorCode)
+            isConnecting = false;
+            LogToFile($"[TCP-Client] Connect failed: {connectError}");
+            try { socket?.Close(); } catch { }
+            if (_clientSocket == socket) _clientSocket = null;
+            yield break;
+        }
+
+        float elapsed = 0f;
+        while (ar != null && !ar.IsCompleted && elapsed < connectTimeoutSeconds)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        if (generation != connectGeneration)
+        {
+            isConnecting = false;
+            yield break;
+        }
+
+        try
+        {
+            if (ar == null || !ar.IsCompleted)
             {
-                case 10061: // Connection refused
-                  //  Debug.LogError("[TCP-Client] Connection refused - Check if the bike is on and listening on the specified port");
-                    break;
-                case 10060: // Connection timeout
-                  //  Debug.LogError("[TCP-Client] Connection timeout - Check network connectivity and IP address");
-                    break;
-                case 11001: // Host not found
-                  //  Debug.LogError("[TCP-Client] Host not found - Check IP address");
-                    break;
+                LogToFile("[TCP-Client] Connect timed out (Kickr unreachable; using keyboard fallback)");
+                try { socket.Close(); } catch { }
+                try { if (ar != null) socket.EndConnect(ar); } catch { }
+                if (_clientSocket == socket) _clientSocket = null;
+                isConnected = false;
+            }
+            else
+            {
+                socket.EndConnect(ar);
+                isConnected = true;
+                currentReconnectAttempts = 0;
+                LogToFile("[TCP-Client] Successfully connected to bike!");
+                socket.BeginReceive(_recieveBuffer, 0, _recieveBuffer.Length, SocketFlags.None, new AsyncCallback(ReceiveCallback), null);
+                SendData(dataToSend1);
+                initState = 1;
             }
         }
         catch (Exception ex)
         {
             isConnected = false;
-            string errorMsg = $"[TCP-Client] General connection error: {ex.Message}";
-            LogToFile(errorMsg);
-          //  Debug.LogError(errorMsg);
+            LogToFile($"[TCP-Client] Connect failed: {ex.Message}");
+            try { socket?.Close(); } catch { }
+            if (_clientSocket == socket) _clientSocket = null;
         }
+
+        if (generation == connectGeneration)
+            isConnecting = false;
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -448,66 +487,45 @@ public class tcp_client : MonoBehaviour
     // Public method to manually trigger reconnection
     public void ForceReconnect()
     {
-      //  Debug.Log("[TCP-Client] Force reconnect requested");
         isConnected = false;
         initDone = false;
         initState = 0;
         currentReconnectAttempts = 0;
+        connectGeneration++;
+        isConnecting = false;
+        SetupServer();
     }
 
     void Start()
     {
-        ////////////////////////////////////////////////////////////////////////////////////////////
-        // 定义日志文件路径
         string logFileName = "WahooLog_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt";
         logFilePath = Path.Combine(Application.persistentDataPath, logFileName);
 
-        // 创建文件并写入头部信息
         File.WriteAllText(logFilePath, "=== Wahoo Log Start ===\n");
-      //  Debug.Log("Log file saved to: " + logFilePath);
-        
-        // Log platform and build information
+
         LogToFile($"Platform: {Application.platform}");
         LogToFile($"Is Editor: {Application.isEditor}");
         LogToFile($"Unity Version: {Application.unityVersion}");
         LogToFile($"Internet Reachability: {Application.internetReachability}");
-        ////////////////////////////////////////////////////////////////////////////////////////////
-        
-        // Startup sequence for the bike
+
+        maxReconnectAttempts = Application.isEditor ? 1 : 10;
+        currentReconnectAttempts = 0;
         SetupServer();
-        
-        if (isConnected)
-        {
-            SendData(dataToSend1); // this is the first message we send to he bike
-            initState++;
-        }
     }
 
     
     void Update()
     {
-        // Handle reconnection logic
-        if (!isConnected && currentReconnectAttempts < maxReconnectAttempts)
+        if (!isConnected && !isConnecting && currentReconnectAttempts < maxReconnectAttempts)
         {
             reconnectTimer += Time.deltaTime;
             if (reconnectTimer >= reconnectInterval)
             {
                 reconnectTimer = 0f;
-                currentReconnectAttempts++;
-              //  Debug.Log($"[TCP-Client] Reconnection attempt {currentReconnectAttempts}/{maxReconnectAttempts}");
-                LogToFile($"[TCP-Client] Reconnection attempt {currentReconnectAttempts}/{maxReconnectAttempts}");
-                
-                // Reset initialization state
                 initDone = false;
                 initState = 0;
-                
+                LogToFile($"[TCP-Client] Reconnection attempt {currentReconnectAttempts + 1}/{maxReconnectAttempts}");
                 SetupServer();
-                
-                if (isConnected)
-                {
-                    SendData(dataToSend1);
-                    initState++;
-                }
             }
         }
         
@@ -594,6 +612,8 @@ public class tcp_client : MonoBehaviour
     {
         try
         {
+            connectGeneration++;
+            isConnecting = false;
             isConnected = false;
             if (_clientSocket != null)
             {
@@ -605,25 +625,24 @@ public class tcp_client : MonoBehaviour
                 _clientSocket.Dispose();
             }
             LogToFile("[TCP-Client] Connection closed properly on destroy");
-          //  Debug.Log("[TCP-Client] Connection closed properly on destroy");
         }
-        catch (Exception ex)
-        {
-          //  Debug.LogWarning($"[TCP-Client] Error during cleanup: {ex.Message}");
-        }
+            catch
+            {
+            }
     }
 
     void OnApplicationPause(bool pauseStatus)
     {
+        if (Application.isEditor)
+            return;
+
         if (pauseStatus)
         {
-          //  Debug.Log("[TCP-Client] Application paused - closing connection");
             LogToFile("[TCP-Client] Application paused - closing connection");
             isConnected = false;
         }
         else
         {
-          //  Debug.Log("[TCP-Client] Application resumed - will attempt reconnection");
             LogToFile("[TCP-Client] Application resumed - will attempt reconnection");
             ForceReconnect();
         }
@@ -631,14 +650,15 @@ public class tcp_client : MonoBehaviour
 
     void OnApplicationFocus(bool hasFocus)
     {
+        if (Application.isEditor)
+            return;
+
         if (!hasFocus)
         {
-          //  Debug.Log("[TCP-Client] Application lost focus");
             LogToFile("[TCP-Client] Application lost focus");
         }
         else
         {
-          //  Debug.Log("[TCP-Client] Application gained focus");
             LogToFile("[TCP-Client] Application gained focus");
             if (!isConnected)
             {
