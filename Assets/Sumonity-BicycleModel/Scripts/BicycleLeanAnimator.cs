@@ -13,9 +13,9 @@ namespace BikeURP
         [Tooltip("Transform that receives the lean roll (defaults to controller.frameRoot if available).")]
         public Transform leanRoot;
         [Tooltip("Maximum lean angle in degrees applied to the lean root.")]
-        public float maxLeanDeg = 30f;
+        public float maxLeanDeg = 25f;
         [Tooltip("Sensitivity scaling for lean response (higher values lean more for the same curvature).")]
-        public float leanSensitivity = 8f;
+        public float leanSensitivity = 1f;
         [Tooltip("Smoothing factor (1/s) for reaching the target lean angle.")]
         public float leanSmoothing = 8f;
     [Tooltip("Invert lean direction for rigs that respond opposite to steering input.")]
@@ -57,8 +57,6 @@ namespace BikeURP
         private void LateUpdate()
         {
             if (!controller || !leanRoot || !_hasCachedBase)
-                return;
-            if (controller.frameRoot != null && leanRoot == controller.frameRoot)
                 return;
 
             float speed = controller.GetSpeedMps();

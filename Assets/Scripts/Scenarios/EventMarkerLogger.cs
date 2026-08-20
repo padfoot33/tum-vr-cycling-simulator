@@ -4,7 +4,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using UnityEngine;
-using BikeURP;
 
 namespace CyclingExperiment.Scenarios
 {
@@ -19,8 +18,8 @@ namespace CyclingExperiment.Scenarios
         [SerializeField, Tooltip("Reference to the player's transform")]
         private Transform playerTransform;
 
-        [SerializeField, Tooltip("Reference to the player's physics controller")]
-        private BicyclePhysicsController bicycleController;
+        [SerializeField, Tooltip("ICyclistMotion adapter or any GetSpeedKph provider")]
+        private MonoBehaviour cyclistMotion;
 
         private StreamWriter _csvWriter;
         private string _filePath;
@@ -40,7 +39,18 @@ namespace CyclingExperiment.Scenarios
 
         private void Start()
         {
+            BindPlayerIfNeeded();
             Debug.Log($"[EventMarkerLogger] Log file created at: {_filePath}");
+        }
+
+        private void BindPlayerIfNeeded()
+        {
+            var refs = ExperimentSceneRefs.Instance;
+            if (refs == null) return;
+            if (refs.bicycleTransform != null)
+                playerTransform = refs.bicycleTransform;
+            if (refs.Cyclist != null)
+                cyclistMotion = refs.Cyclist as MonoBehaviour;
         }
 
         private void InitializeLogFile()
@@ -73,6 +83,10 @@ namespace CyclingExperiment.Scenarios
         /// </summary>
         public void LogEvent(string eventName, Dictionary<string, string> extraData)
         {
+            var runLogger = CyclingExperiment.Logging.ExperimentRunLogger.Instance;
+            if (runLogger != null && runLogger.IsLogging)
+                runLogger.MarkEvent(eventName);
+
             if (_csvWriter == null) return;
 
             string timestamp = DateTime.Now.ToString("O");
@@ -87,9 +101,12 @@ namespace CyclingExperiment.Scenarios
                 heading = playerTransform.eulerAngles.y.ToString("F3", CultureInfo.InvariantCulture);
             }
 
-            if (bicycleController != null)
+            ICyclistMotion motion = cyclistMotion as ICyclistMotion;
+            if (motion == null && ExperimentSceneRefs.Instance != null)
+                motion = ExperimentSceneRefs.Instance.Cyclist;
+            if (motion != null)
             {
-                speed = bicycleController.GetSpeedKph().ToString("F3", CultureInfo.InvariantCulture);
+                speed = motion.GetSpeedKph().ToString("F3", CultureInfo.InvariantCulture);
             }
 
             string line = $"{timestamp},{eventName},{posX},{posY},{posZ},{speed},{heading}";

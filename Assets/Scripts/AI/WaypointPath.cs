@@ -187,6 +187,111 @@ namespace CyclingExperiment.AI
             return true;
         }
 
+        public bool TrySampleDistance(float metersFromStart, out Vector3 position, out Vector3 forward, out int nextWaypointIndex)
+        {
+            position = Vector3.zero;
+            forward = Vector3.forward;
+            nextWaypointIndex = 0;
+
+            if (waypoints == null || waypoints.Count == 0) return false;
+            if (waypoints.Count == 1)
+            {
+                position = waypoints[0].position;
+                return true;
+            }
+
+            float total = GetTotalLength();
+            if (total <= 0.01f)
+            {
+                position = waypoints[0].position;
+                return true;
+            }
+
+            float target = Mathf.Clamp(metersFromStart, 0f, total);
+            float walked = 0f;
+            int segmentCount = isLoop ? waypoints.Count : waypoints.Count - 1;
+
+            for (int i = 0; i < segmentCount; i++)
+            {
+                int a = i;
+                int b = (i + 1) % waypoints.Count;
+                if (waypoints[a] == null || waypoints[b] == null) continue;
+
+                float seg = HorizontalDistance(waypoints[a].position, waypoints[b].position);
+                if (walked + seg >= target || i == segmentCount - 1)
+                {
+                    float localT = seg > 0.01f ? Mathf.Clamp01((target - walked) / seg) : 0f;
+                    position = Vector3.Lerp(waypoints[a].position, waypoints[b].position, localT);
+                    forward = waypoints[b].position - waypoints[a].position;
+                    forward.y = 0f;
+                    if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
+                    else forward.Normalize();
+                    nextWaypointIndex = b;
+                    return true;
+                }
+
+                walked += seg;
+            }
+
+            position = waypoints[waypoints.Count - 1].position;
+            nextWaypointIndex = waypoints.Count - 1;
+            return true;
+        }
+
+        /// <summary>
+        /// Horizontal distance along the polyline to the closest point to <paramref name="worldPosition"/>.
+        /// </summary>
+        public float GetDistanceAlongPath(Vector3 worldPosition)
+        {
+            if (waypoints == null || waypoints.Count < 2) return 0f;
+
+            float bestDist = float.MaxValue;
+            float bestAlong = 0f;
+            float walked = 0f;
+            int segmentCount = isLoop ? waypoints.Count : waypoints.Count - 1;
+
+            for (int i = 0; i < segmentCount; i++)
+            {
+                int a = i;
+                int b = (i + 1) % waypoints.Count;
+                if (waypoints[a] == null || waypoints[b] == null) continue;
+
+                Vector3 closest = ClosestPointOnSegmentXZ(waypoints[a].position, waypoints[b].position, worldPosition);
+                float d = HorizontalDistance(worldPosition, closest);
+                float seg = HorizontalDistance(waypoints[a].position, waypoints[b].position);
+                float alongSeg = HorizontalDistance(waypoints[a].position, closest);
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    bestAlong = walked + alongSeg;
+                }
+
+                walked += seg;
+            }
+
+            return bestAlong;
+        }
+
+        public static float HorizontalDistance(Vector3 a, Vector3 b)
+        {
+            float dx = a.x - b.x;
+            float dz = a.z - b.z;
+            return Mathf.Sqrt(dx * dx + dz * dz);
+        }
+
+        private static Vector3 ClosestPointOnSegmentXZ(Vector3 a, Vector3 b, Vector3 p)
+        {
+            Vector2 a2 = new Vector2(a.x, a.z);
+            Vector2 b2 = new Vector2(b.x, b.z);
+            Vector2 p2 = new Vector2(p.x, p.z);
+            Vector2 ab = b2 - a2;
+            float abLenSq = ab.sqrMagnitude;
+            if (abLenSq < 0.000001f) return a;
+            float t = Mathf.Clamp01(Vector2.Dot(p2 - a2, ab) / abLenSq);
+            Vector2 c2 = a2 + t * ab;
+            return new Vector3(c2.x, Mathf.Lerp(a.y, b.y, t), c2.y);
+        }
+
         private void OnValidate()
         {
             SyncFromChildren();

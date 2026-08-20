@@ -26,6 +26,8 @@ namespace CyclingExperiment.AI
         [SerializeField] private bool destroyAtEnd = false;
 
         [SerializeField] private bool preserveSpawnPosition;
+        [SerializeField] private bool stopSmoothlyAtPathEnd;
+        [SerializeField] private int startWaypointIndex;
 
         /// <summary>
         /// Fires when a waypoint is reached with its index.
@@ -65,6 +67,18 @@ namespace CyclingExperiment.AI
             set => preserveSpawnPosition = value;
         }
 
+        public bool StopSmoothlyAtPathEnd
+        {
+            get => stopSmoothlyAtPathEnd;
+            set => stopSmoothlyAtPathEnd = value;
+        }
+
+        public int StartWaypointIndex
+        {
+            get => startWaypointIndex;
+            set => startWaypointIndex = value;
+        }
+
         public bool IsAtEnd => _isAtEnd;
 
         private void Start()
@@ -75,6 +89,10 @@ namespace CyclingExperiment.AI
             {
                 transform.position = path.GetWaypoint(0);
                 _currentWaypointIndex = 0;
+            }
+            else
+            {
+                _currentWaypointIndex = Mathf.Clamp(startWaypointIndex, 0, path.WaypointCount - 1);
             }
 
             if (path.WaypointCount > 1)
@@ -103,7 +121,11 @@ namespace CyclingExperiment.AI
             if (distance > 0.05f)
             {
                 Vector3 moveDir = direction.normalized;
-                transform.position += moveDir * (speed * Time.deltaTime);
+                float moveSpeed = speed;
+                if (stopSmoothlyAtPathEnd && !path.isLoop && _currentWaypointIndex >= path.WaypointCount - 1)
+                    moveSpeed = Mathf.Lerp(0.35f, speed, Mathf.Clamp01((distance - 1.2f) / 10f));
+
+                transform.position += moveDir * (moveSpeed * Time.deltaTime);
 
                 Quaternion targetRotation = Quaternion.LookRotation(moveDir);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);

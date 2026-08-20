@@ -39,31 +39,26 @@ namespace BikeURP
 
         [Header("Steering")]
         public float maxSteerDeg = 30f;
-        public float digitalSteerDeg = 18f;
+        public float digitalSteerDeg = 10f;
         public float steerResponse = 10f;          // 1/s smoothing toward target
-        public float steerSpeedAttenuation = 0.04f; // delta_eff = delta/(1+k|v|)
+        public float steerSpeedAttenuation = 0.10f; // delta_eff = delta/(1+k|v|)
         public float zeroSpeedYawRateDegPerDeg = 6f; // deg/s per deg at near-zero speed
         public float minSteerSpeedForYaw = 0.5f;     // m/s threshold
     [Tooltip("If false, the bike cannot rotate in place at zero speed (strict single-track behavior).")]
     public bool allowYawInPlace = false;
 
         [Header("Longitudinal (torque model)")]
-        public float maxDriveTorque = 28f; // Nm (rear) — sized for a 12 km/h climb
+        public float maxDriveTorque = 120f; // Nm (rear)
         public float maxBrakeTorque = 150f; // Nm (both oppose motion)
         public float rollingResistance = 5f; // N per m/s
         public float airDrag = 0.5f;         // N per m/s (linear)
-        [Tooltip("Max speed in m/s. Experiment default is 20 km/h (5.56 m/s).")]
-        public float maxSpeed = 5.56f;
-        [Tooltip("Seconds of full W to reach max speed from rest.")]
-        public float timeToMaxSpeed = 3.75f;
-        [Tooltip("Seconds to coast from max speed to a stop after releasing W.")]
-        public float coastTimeToStop = 5f;
+        public float maxSpeed = 20f;         // m/s cap
 
         // Inputs
         [System.NonSerialized] public float throttle01; // -1..1
         [System.NonSerialized] public float brake01;    // 0..1
         [System.NonSerialized] public float steer01;    // -1..1 (for analog)
-        [System.NonSerialized] public float safetyBrake01; // 0..1, set by VR assist; Input cannot clear this
+        private float _safetyBrake01;
 
         // Internal state
         private float _speed;            // m/s
@@ -82,18 +77,9 @@ namespace BikeURP
     private Quaternion _crankRightBaseLocalRot; // base local rot for right crank
     private float _leanDeg;          // current visual lean
     private float _crankAngle;       // degrees
-        private Rigidbody _rigidbody;
 
         void Awake()
         {
-            _rigidbody = GetComponent<Rigidbody>();
-            if (_rigidbody != null)
-            {
-                _rigidbody.isKinematic = true;
-                _rigidbody.useGravity = false;
-                _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-            }
-
             // Initialize yaw from current transform
             Vector3 fwd = transform.forward;
             _yawDeg = Mathf.Atan2(fwd.x, fwd.z) * Mathf.Rad2Deg;
@@ -126,32 +112,17 @@ namespace BikeURP
             float alpha = 1f - Mathf.Exp(-steerResponse * dt);
             _steerAngleRad = Mathf.Lerp(_steerAngleRad, targetDelta, alpha);
 
-            float appliedThrottle = throttle01;
-            if (safetyBrake01 > 0.01f && throttle01 > 0f) appliedThrottle = 0f;
-            float appliedBrake = brake01;
-            if (safetyBrake01 > 0.01f && throttle01 >= -0.05f)
-                appliedBrake = Mathf.Max(brake01, safetyBrake01);
-
-            float driveAccel = 0f;
-            if (timeToMaxSpeed > 0.05f)
-                driveAccel = (maxSpeed / timeToMaxSpeed) * appliedThrottle;
-
-            float coastAccel = 0f;
-            if (Mathf.Abs(appliedThrottle) < 0.05f && appliedBrake < 0.05f && Mathf.Abs(_speed) > 0.02f && coastTimeToStop > 0.05f)
-            {
-                coastAccel = Mathf.Sign(_speed) * (maxSpeed / coastTimeToStop);
-            }
-
-            float brakeAccel = 0f;
-            if (appliedBrake > 0.01f && Mathf.Abs(_speed) > 0.01f)
-            {
-                float spaceStopTime = 1.6f;
-                brakeAccel = Mathf.Sign(_speed) * appliedBrake * (maxSpeed / spaceStopTime);
-            }
-
-            float accel = driveAccel - coastAccel - brakeAccel;
+            // Longitudinal dynamics from torque -> force -> accel
+            float driveForce = (wheelRadius > 1e-3f) ? (throttle01 * maxDriveTorque) / wheelRadius : 0f;
+            float rr = rollingResistance * _speed;
+            float drag = airDrag * Mathf.Abs(_speed);
+            float appliedBrake = Mathf.Max(brake01, _safetyBrake01);
+            float brake = 0f;
+            if (_speed > 0.01f) brake = appliedBrake * (maxBrakeTorque / Mathf.Max(0.001f, wheelRadius));
+            else if (_speed < -0.01f) brake = -appliedBrake * (maxBrakeTorque / Mathf.Max(0.001f, wheelRadius));
+            float F_long = driveForce - rr - drag - brake;
+            float accel = F_long / Mathf.Max(1e-3f, mass);
             _speed += accel * dt;
-            if (Mathf.Abs(_speed) < 0.02f && Mathf.Abs(appliedThrottle) < 0.05f) _speed = 0f;
             _speed = Mathf.Clamp(_speed, -maxSpeed, maxSpeed);
 
             // Yaw rate from kinematic bicycle; add near-zero-speed yaw-in-place
@@ -178,22 +149,21 @@ namespace BikeURP
             // Advance position along forward
             Quaternion yawRot = Quaternion.Euler(0f, _yawDeg, 0f);
             Vector3 forward = yawRot * Vector3.forward;
-            Vector3 nextPos = transform.position + forward * (_speed * dt);
-            ApplyPose(nextPos, yawRot);
+            transform.position += forward * (_speed * dt);
+            transform.rotation = yawRot; // upright; no roll
 
             // Wheel visuals
             UpdateLean(forward);
             UpdateWheelVisuals(forward);
             UpdateHandlebar();
             UpdateCranks();
-            UpdatePedalingAnimation();
         }
 
         [Header("Visual Lean")]
         [Tooltip("Max visual lean angle (deg)")]
-        public float maxLeanDegVisual = 22f;
+        public float maxLeanDegVisual = 25f;
         [Tooltip("Sensitivity scaling for lean: lean = atan(leanSensitivity * v^2 * curvature / g)")]
-        public float leanSensitivity = 3.5f;
+        public float leanSensitivity = 1.0f;
     [Tooltip("Deprecated: wheel meshes follow chassis by hierarchy. Kept for compatibility.")]
     public bool wheelMeshesFollowChassisTilt = true;
 
@@ -283,70 +253,25 @@ namespace BikeURP
                 crankRight.localRotation = _crankRightBaseLocalRot * Quaternion.AngleAxis(_crankAngle + 180f, Vector3.right);
         }
 
-        private void UpdatePedalingAnimation()
-        {
-            if (!pedalingAnimator) return;
-
-            bool pedaling = throttle01 > 0f && safetyBrake01 < 0.01f;
-            if (!string.IsNullOrEmpty(pedalingBoolName))
-            {
-                pedalingAnimator.SetBool(pedalingBoolName, pedaling);
-            }
-
-            float targetSpeed = 1f;
-            if (pedaling && maxSpeed > 0.05f)
-            {
-                float normalized = Mathf.Clamp01(Mathf.Abs(_speed) / maxSpeed);
-                targetSpeed = Mathf.Lerp(0.4f, 1.2f, normalized);
-            }
-
-            pedalingAnimator.speed = Mathf.MoveTowards(pedalingAnimator.speed, targetSpeed, Time.fixedDeltaTime * 2.5f);
-        }
-
         // Public API
         public void SetThrottle(float value01)
         {
             throttle01 = Mathf.Clamp(value01, -1f, 1f);
+            if (pedalingAnimator && !string.IsNullOrEmpty(pedalingBoolName))
+            {
+                // Drive the pedaling bool so animations follow input state.
+                pedalingAnimator.SetBool(pedalingBoolName, throttle01 > 0f);
+            }
         }
         public void SetBrake(float value01) => brake01 = Mathf.Clamp01(value01);
 
-        /// <summary>
-        /// VR assist brake. BicycleInput cannot clear this; pass 0 when the path is clear.
-        /// </summary>
-        public void SetSafetyBrake(float value01) => safetyBrake01 = Mathf.Clamp01(value01);
+        public void SetSafetyBrake(float value01) => _safetyBrake01 = Mathf.Clamp01(value01);
 
-        /// <summary>
-        /// Immediate stop used when the bike is already inside a vehicle collider.
-        /// </summary>
         public void HaltForwardMotion()
         {
-            if (_speed > 0f) _speed = 0f;
-            if (throttle01 > 0f) throttle01 = 0f;
-            safetyBrake01 = 1f;
-        }
-
-        /// <summary>
-        /// Zero speed without holding the VR safety brake, so the rider can turn back from a play-area wall.
-        /// </summary>
-        public void StopLongitudinalSpeed()
-        {
             _speed = 0f;
-        }
-
-        /// <summary>
-        /// Move the bike without resetting steer or spawn state (play-area clamp).
-        /// </summary>
-        public void SetWorldPositionKeepYaw(Vector3 worldPosition)
-        {
-            Quaternion rot = Quaternion.Euler(0f, _yawDeg, 0f);
-            if (_rigidbody != null)
-            {
-                _rigidbody.position = worldPosition;
-                _rigidbody.rotation = rot;
-            }
-
-            transform.position = worldPosition;
-            transform.rotation = rot;
+            throttle01 = 0f;
+            _safetyBrake01 = 1f;
         }
 
         // Backwards-compatible normalized steer setter: maps -1..1 to ±maxSteerDeg
@@ -377,52 +302,6 @@ namespace BikeURP
             _steerTargetRad = Mathf.Deg2Rad * clamped;
             steer01 = Mathf.Approximately(maxSteerDeg, 0f) ? 0f : clamped / maxSteerDeg;
             UpdateAnimatorSteer(clamped);
-        }
-
-        /// <summary>
-        /// Place the bike on the road and sync internal yaw so the next physics tick does not snap back.
-        /// </summary>
-        public void Teleport(Vector3 worldPosition, float yawDegrees)
-        {
-            _speed = 0f;
-            throttle01 = 0f;
-            brake01 = 0f;
-            safetyBrake01 = 0f;
-            steer01 = 0f;
-            _steerTargetRad = 0f;
-            _steerAngleRad = 0f;
-            _yawDeg = yawDegrees;
-            worldPosition = SnapToGround(worldPosition);
-            ApplyPose(worldPosition, Quaternion.Euler(0f, yawDegrees, 0f));
-            if (_rigidbody != null)
-            {
-                _rigidbody.position = worldPosition;
-                _rigidbody.rotation = Quaternion.Euler(0f, yawDegrees, 0f);
-            }
-        }
-
-        private static Vector3 SnapToGround(Vector3 position)
-        {
-            if (Physics.Raycast(position + Vector3.up * 8f, Vector3.down, out RaycastHit hit, 24f, ~0,
-                    QueryTriggerInteraction.Ignore))
-            {
-                return new Vector3(position.x, hit.point.y + 0.05f, position.z);
-            }
-
-            return position;
-        }
-
-        private void ApplyPose(Vector3 worldPosition, Quaternion worldRotation)
-        {
-            if (_rigidbody != null)
-            {
-                _rigidbody.MovePosition(worldPosition);
-                _rigidbody.MoveRotation(worldRotation);
-                return;
-            }
-
-            transform.position = worldPosition;
-            transform.rotation = worldRotation;
         }
 
         // Helpers

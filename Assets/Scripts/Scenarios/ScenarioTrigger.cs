@@ -30,6 +30,11 @@ namespace CyclingExperiment.Scenarios
         private bool _hasTriggered = false;
         private Collider _collider;
 
+        public void ResetTrigger()
+        {
+            _hasTriggered = false;
+        }
+
         private void Awake()
         {
             _collider = GetComponent<Collider>();
@@ -44,7 +49,18 @@ namespace CyclingExperiment.Scenarios
             if (other.CompareTag(triggerTag)) return true;
             if (other.attachedRigidbody != null && other.attachedRigidbody.CompareTag(triggerTag)) return true;
             if (other.transform.root != null && other.transform.root.CompareTag(triggerTag)) return true;
-            if (other.name.Contains("bicyle") || (other.transform.root != null && other.transform.root.name.Contains("bicyle"))) return true;
+
+            var refs = ExperimentSceneRefs.Instance;
+            if (refs != null && refs.bicycleTransform != null)
+            {
+                Transform bike = refs.bicycleTransform;
+                if (other.transform == bike || other.transform.IsChildOf(bike))
+                    return true;
+            }
+
+            if (other.name.Contains("bicyle") || other.name.Contains("SimBike") ||
+                (other.transform.root != null && (other.transform.root.name.Contains("bicyle") || other.transform.root.name.Contains("SimBike"))))
+                return true;
             return false;
         }
 

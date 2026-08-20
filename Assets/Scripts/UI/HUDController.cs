@@ -3,18 +3,20 @@ using UnityEngine;
 namespace CyclingExperiment.UI
 {
     /// <summary>
-    /// Simple HUD controller showing cyclist speed, scenario status, and debug info.
-    /// Creates its own Canvas and UI elements at runtime — no prefab needed.
+    /// Optional operator HUD. Speed, scenario banners, and toasts stay off in Play
+    /// so participants do not see control instructions.
     /// </summary>
     public class HUDController : MonoBehaviour
     {
         [Header("References")]
-        [SerializeField, Tooltip("Reference to the BicyclePhysicsController to read speed")]
-        private MonoBehaviour _bicycleController; // Will cast to get speed via reflection or direct reference
+        [SerializeField, Tooltip("Bicycle controller or ICyclistMotion adapter")]
+        private MonoBehaviour _bicycleController;
+
+        private ICyclistMotion _cyclist;
 
         [Header("Display Settings")]
-        [SerializeField] private bool _showSpeed = true;
-        [SerializeField] private bool _showScenarioInfo = true;
+        [SerializeField] private bool _showSpeed = false;
+        [SerializeField] private bool _showScenarioInfo = false;
         [SerializeField] private bool _showDebugInfo = false;
 
         // Internal UI references
@@ -29,7 +31,21 @@ namespace CyclingExperiment.UI
         private void Start()
         {
             CreateHUD();
+            BindCyclist();
             CacheSpeedMethod();
+        }
+
+        private void BindCyclist()
+        {
+            var refs = ExperimentSceneRefs.Instance;
+            if (refs != null && refs.Cyclist != null)
+            {
+                _bicycleController = refs.Cyclist as MonoBehaviour;
+                _cyclist = refs.Cyclist;
+                return;
+            }
+
+            _cyclist = _bicycleController as ICyclistMotion;
         }
 
         private void CacheSpeedMethod()
@@ -46,7 +62,9 @@ namespace CyclingExperiment.UI
 
         private void CreateHUD()
         {
-            // Create Canvas
+            if (!_showSpeed && !_showScenarioInfo && !_showDebugInfo)
+                return;
+
             GameObject canvasObj = new GameObject("HUD_Canvas");
             canvasObj.transform.SetParent(transform);
             _canvas = canvasObj.AddComponent<Canvas>();
@@ -146,7 +164,11 @@ namespace CyclingExperiment.UI
             if (_speedText == null || _bicycleController == null) return;
 
             float speed = 0f;
-            if (_getSpeedKphMethod != null)
+            if (_cyclist != null)
+            {
+                speed = _cyclist.GetSpeedKph();
+            }
+            else if (_getSpeedKphMethod != null)
             {
                 speed = (float)_getSpeedKphMethod.Invoke(_bicycleController, null);
             }
@@ -187,28 +209,16 @@ namespace CyclingExperiment.UI
         public void SetBicycleController(MonoBehaviour controller)
         {
             _bicycleController = controller;
+            _cyclist = controller as ICyclistMotion;
             CacheSpeedMethod();
         }
 
         /// <summary>
-        /// Show a temporary message on screen.
+        /// Participant Play has no on-screen toasts. Kept so callers stay valid.
         /// </summary>
         public void ShowMessage(string message, float duration = 3f)
         {
-            if (_scenarioText != null)
-            {
-                _scenarioText.text = $"<color=cyan>{message}</color>";
-                CancelInvoke(nameof(ClearMessage));
-                Invoke(nameof(ClearMessage), duration);
-            }
         }
 
-        private void ClearMessage()
-        {
-            if (_scenarioText != null)
-            {
-                _scenarioText.text = "";
-            }
-        }
     }
 }

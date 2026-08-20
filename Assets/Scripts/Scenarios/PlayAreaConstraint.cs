@@ -36,7 +36,7 @@ namespace CyclingExperiment.Scenarios
             if (refs == null) return;
 
             Transform bike = refs.bicycleTransform;
-            var physics = refs.bicyclePhysics;
+            var motion = refs.Cyclist;
             if (bike == null) return;
 
             Vector3 pos = bike.position;
@@ -46,10 +46,10 @@ namespace CyclingExperiment.Scenarios
             closest.y = pos.y;
             if ((closest - pos).sqrMagnitude < 0.0004f) return;
 
-            if (physics != null)
+            if (motion != null)
             {
-                physics.StopLongitudinalSpeed();
-                physics.SetWorldPositionKeepYaw(closest);
+                motion.StopLongitudinalSpeed();
+                motion.SetWorldPositionKeepYaw(closest);
             }
             else
             {

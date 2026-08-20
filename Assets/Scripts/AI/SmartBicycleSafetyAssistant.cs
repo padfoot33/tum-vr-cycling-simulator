@@ -22,6 +22,7 @@ namespace CyclingExperiment.AI
         [SerializeField] private float nudgeStrength = 1.2f;
 
         private BikeURP.BicyclePhysicsController _physicsController;
+        private ICyclistMotion _cyclist;
         private Rigidbody _rigidbody;
         private Collider _bikeCollider;
         private readonly Collider[] _overlapHits = new Collider[24];
@@ -29,6 +30,7 @@ namespace CyclingExperiment.AI
         private void Awake()
         {
             _physicsController = GetComponent<BikeURP.BicyclePhysicsController>();
+            _cyclist = GetComponent<SimBikeCyclistMotion>();
             _rigidbody = GetComponent<Rigidbody>();
             _bikeCollider = GetComponent<Collider>();
             maxLateralOffset = Mathf.Max(0.85f, maxLateralOffset);
@@ -37,11 +39,11 @@ namespace CyclingExperiment.AI
 
         private void FixedUpdate()
         {
-            if (_physicsController == null) return;
+            if (_physicsController == null && _cyclist == null) return;
 
             if (IsRiderReversing())
             {
-                _physicsController.SetSafetyBrake(0f);
+                ApplySafetyBrake(0f);
                 return;
             }
 
@@ -51,7 +53,7 @@ namespace CyclingExperiment.AI
                 if (TryResolveOverlap())
                 {
                     brake = 1f;
-                    _physicsController.HaltForwardMotion();
+                    HaltForward();
                 }
                 else
                 {
@@ -59,7 +61,7 @@ namespace CyclingExperiment.AI
                 }
             }
 
-            _physicsController.SetSafetyBrake(brake);
+            ApplySafetyBrake(brake);
 
             if (enableLateralNudge && brake < 0.99f)
             {
@@ -67,9 +69,27 @@ namespace CyclingExperiment.AI
             }
         }
 
+        private void ApplySafetyBrake(float brake)
+        {
+            if (_physicsController != null)
+                _physicsController.SetSafetyBrake(brake);
+            else if (brake >= 0.99f)
+                HaltForward();
+        }
+
+        private void HaltForward()
+        {
+            if (_physicsController != null)
+                _physicsController.HaltForwardMotion();
+            else
+                _cyclist?.StopLongitudinalSpeed();
+        }
+
         private bool IsRiderReversing()
         {
-            return _physicsController.throttle01 < -0.1f || _physicsController.GetSpeedMps() < -0.15f;
+            if (_physicsController != null)
+                return _physicsController.throttle01 < -0.1f || _physicsController.GetSpeedMps() < -0.15f;
+            return false;
         }
 
         private bool TryResolveOverlap()

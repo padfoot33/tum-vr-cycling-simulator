@@ -561,8 +561,8 @@ namespace SBPScripts.Simulator
             // get TCP Bike Connector Object
             if(isSimulatorVehicle)
             {
-                tcp_bike_connection = BikeConnectorTCP.GetComponent<tcp_client>();
-                // ScriptB scriptB = GetComponent<ScriptB>();
+                if (BikeConnectorTCP != null)
+                    tcp_bike_connection = BikeConnectorTCP.GetComponent<tcp_client>();
                 steeringInput = GetComponent<FFBInspectorBike>();
             }
 
@@ -629,6 +629,24 @@ namespace SBPScripts.Simulator
             {
                 Debug.Log($"[BicycleSimulatorController] ⏱️ WayPoint playback still disabled ({wayPointPlaybackDisableCount} nested): {reason}");
             }
+        }
+
+        public float GetSpeedMps()
+        {
+            if (rb == null) return 0f;
+            Vector3 v = rb.linearVelocity;
+            v.y = 0f;
+            return v.magnitude;
+        }
+
+        public float GetSpeedKph() => GetSpeedMps() * 3.6f;
+
+        public void HaltIntegratedVelocity()
+        {
+            velocity = 0f;
+            acceleration = 0f;
+            customAccelerationAxis = 0f;
+            rawCustomAccelerationAxis = 0f;
         }
 
         IEnumerator LogData()
@@ -1051,199 +1069,80 @@ namespace SBPScripts.Simulator
                 }
                 else if (isSimulatorVehicle) 
                 {
+                    bool wahooOk = tcp_bike_connection != null && tcp_bike_connection.IsConnected();
+                    bool fanatecOk = steeringInput != null && steeringInput.HasSteeringDevice;
+                    bool arduinoOk = arduinoConnected && sp != null && sp.IsOpen;
 
-                    if (useConstantVelocity)
-                    {
-                        // target velocity used for constant velocity simulation where only steering is analyzed
-                        target_velocity_wahoo_bike = constantSimVelocity;
-                    }
-                    else{
-                        // target velocity from wahoo bike (SOLL)
-                        target_velocity_wahoo_bike = ((float)tcp_bike_connection.targetOutputVelocity/(3.6f))*globalSpeedGainSimBike; // in m/s
-                    }
-                  //  Debug.Log("Target Velocity: " + target_velocity_wahoo_bike.ToString("F1"));
-
-                    // actual velocity from unity bike (IST)
                     actual_velocity_unity_bike = rb.linearVelocity.magnitude;
-                    //Debug.Log("Actual Velocity: " + actual_velocity_unity_bike.ToString("F1"));
-                    /////v = a*t + v0  ///////////////////////////////////////////////////////////////////////////////////////////////////
-                    // if (target_velocity_wahoo_bike > 0.0f)
-                    // {
-                    //     acceleration = ((float)tcp_bike_connection.targetOutputPower) / (mass_kg * target_velocity_wahoo_bike);
-                        
-                    // }
-                    // else
-                    // {
-                    //     acceleration = 0.0f;
-                    // }
-                    acceleration = ((float)tcp_bike_connection.targetOutputPower) / mass_kg ;
-                    
-                    // Read Arduino data with error handling
-                    if (arduinoConnected && sp != null && sp.IsOpen)
+
+                    if (useConstantVelocity || wahooOk)
                     {
-                        try
-                        {
-                            // if (enableArduinoDebugLogs)
-                            {
-                              //  Debug.Log("Attempting to read from Arduino...");
-                              //  Debug.Log("Bytes available to read: " + sp.BytesToRead);
-                              //  Debug.Log("Serial port is open: " + sp.IsOpen);
-                            }
-                            
-                            // Check if data is available before trying to read
-                            if (sp.BytesToRead > 0)
-                            {
-                                string data = "";
-                                
-                                // Try ReadLine first, fallback to ReadExisting if needed
-                                try
-                                {
-                                    data = sp.ReadLine().Trim();
-                                }
-                                catch (TimeoutException)
-                                {
-                                    // If ReadLine times out, try ReadExisting
-                                    data = sp.ReadExisting().Trim();
-                                    // Find the last complete line
-                                    string[] lines = data.Split(new char[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                                    if (lines.Length > 0)
-                                        data = lines[lines.Length - 1];
-                                }
-                                
-                                if (!string.IsNullOrEmpty(data))
-                                {
-                                    // if (enableArduinoDebugLogs)
-                                      //  Debug.Log("Raw data received from Arduino: " + data);
-                                    
-                                    string[] values = data.Split(',');
-                                    // if (enableArduinoDebugLogs)
-                                      //  Debug.Log("Split values count: " + values.Length);
-                                    
-                                    if (values.Length >= 2)
-                                    {
-                                        if (float.TryParse(values[0].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float rawLeftBrake) &&
-                                            float.TryParse(values[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float rawRightBrake))
-                                        {
-                                            // if (enableArduinoDebugLogs)
-                                              //  Debug.Log("Raw brake values - Left: " + rawLeftBrake + ", Right: " + rawRightBrake);
-                                            
-                                            leftBrakeSignal = rawLeftBrake - 16.5f;
-                                            rightBrakeSignal = rawRightBrake - 17.0f;
-                                            
-                                            // if (enableArduinoDebugLogs)
-                                              //  Debug.Log("Processed brake signals - Left: " + leftBrakeSignal + ", Right: " + rightBrakeSignal);
+                        if (useConstantVelocity)
+                            target_velocity_wahoo_bike = constantSimVelocity;
+                        else
+                            target_velocity_wahoo_bike = ((float)tcp_bike_connection.targetOutputVelocity / 3.6f) * globalSpeedGainSimBike;
 
-                                            // --- Calculating the braking force ---
-                                            float totalBrakedeacceleration = ((leftBrakeSignal) + (rightBrakeSignal)) / 200.0f * brakeSensitivity;
-                                            // if (enableArduinoDebugLogs)
-                                              //  Debug.Log("Total brake deacceleration: " + totalBrakedeacceleration);
+                        acceleration = wahooOk
+                            ? ((float)tcp_bike_connection.targetOutputPower) / mass_kg
+                            : 0f;
+                        if (useConstantVelocity && !wahooOk)
+                            velocity = Mathf.Clamp(constantSimVelocity, 0f, topSpeed);
 
-                                            // --- Applying the brake force ---
-                                            acceleration -= totalBrakedeacceleration;
-                                            // if (enableArduinoDebugLogs)
-                                              //  Debug.Log("Acceleration after brake: " + acceleration);
-                                        }
-                                        else
-                                        {
-                                            // if (enableArduinoDebugLogs)
-                                              //  Debug.LogWarning("Failed to parse Arduino brake values: " + data);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        // if (enableArduinoDebugLogs)
-                                          //  Debug.LogWarning("Arduino data format incorrect. Expected 2 values, got " + values.Length + ". Raw data: " + data);
-                                    }
-                                }
-                            }
-                            // If no data available, just continue without error
-                        }
-                        catch (TimeoutException ex)
+                        if (arduinoOk)
+                            ApplyArduinoBrakeToAcceleration();
+                        else
+                            ApplyKeyboardBrakeToWahooLoop();
+
+                        if (velocity <= 0.0f && acceleration < 0.0f)
+                            acceleration = 0.0f;
+
+                        velocity += globalaccGainSimBike * acceleration * Time.deltaTime;
+                        if (velocity < 0f) velocity = 0f;
+                        if (velocity > topSpeed) velocity = topSpeed;
+
+                        float torqueInput = piControllerSpeedWahoo != null
+                            ? piControllerSpeedWahoo.Control(velocity, actual_velocity_unity_bike)
+                            : 0f;
+
+                        if (velocity < 0.1f)
                         {
-                            // Don't immediately disconnect on timeout in build mode, just skip this frame
-                            // if (enableArduinoDebugLogs)
-                            {
-                              //  Debug.LogWarning("Arduino read timeout (this may be normal in build mode): " + ex.Message);
-                              //  Debug.Log("Serial port status - IsOpen: " + sp.IsOpen + ", BytesToRead: " + sp.BytesToRead);
-                            }
+                            float stopGain = 0.5f;
+                            rb.linearVelocity = Vector3.Lerp(rb.linearVelocity, Vector3.zero, Time.deltaTime * stopGain);
+                            rb.angularVelocity = Vector3.Lerp(rb.angularVelocity, Vector3.zero, Time.deltaTime * stopGain);
                         }
-                        catch (System.IO.IOException ex)
-                        {
-                            arduinoConnected = false;
-                            arduinoErrorMessage = "Arduino connection lost: The connection to the Arduino has been interrupted.";
-                          //  Debug.LogError("Arduino Read Error: " + arduinoErrorMessage);
-                            // if (enableArduinoDebugLogs)
-                              //  Debug.LogError("IO Exception Details: " + ex.ToString());
-                        }
-                        catch (InvalidOperationException ex)
-                        {
-                            arduinoConnected = false;
-                            arduinoErrorMessage = "Arduino port error: Serial port is not open or has been closed.";
-                          //  Debug.LogError("Arduino Read Error: " + arduinoErrorMessage);
-                            // if (enableArduinoDebugLogs)
-                              //  Debug.LogError("InvalidOperation Exception Details: " + ex.ToString());
-                        }
-                        catch (Exception ex)
-                        {
-                            // Don't disconnect immediately for other exceptions in build mode
-                            // if (enableArduinoDebugLogs)
-                            {
-                              //  Debug.LogWarning("Arduino read error (continuing): " + ex.Message);
-                              //  Debug.LogWarning("Exception Details: " + ex.ToString());
-                            }
-                        }
+
+                        customAccelerationAxis = Mathf.Clamp(torqueInput, -1f, 1f);
+                        rawCustomAccelerationAxis = customAccelerationAxis;
                     }
                     else
                     {
-                        // Reset brake signals when Arduino is not connected
                         leftBrakeSignal = 0.0f;
                         rightBrakeSignal = 0.0f;
+                        CustomInput("Vertical", ref customAccelerationAxis, 1, 1, false);
+                        CustomInput("Vertical", ref rawCustomAccelerationAxis, 1, 1, true);
+                        if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.Space))
+                        {
+                            customAccelerationAxis = Mathf.Min(customAccelerationAxis, -1f);
+                            rawCustomAccelerationAxis = customAccelerationAxis;
+                        }
                     }
-                    if(velocity <= 0.0f && acceleration < 0.0f)
+
+                    if (fanatecOk)
                     {
-                        // If the bike is not moving and the acceleration is negative, set acceleration to 0
-                        acceleration = 0.0f;
+                        steeringValueFanatec = steeringInput.steeringInputCorrected;
+                        float steeringGain = globalSteeringGain;
+                        customSteerAxis = (float)steeringValueFanatec * steeringGain;
+                        customLeanAxis = (float)steeringValueFanatec * steeringGain / 2;
+                        customSteerAxis = Mathf.Clamp(customSteerAxis, -1f, 1f);
+                        customLeanAxis = Mathf.Clamp(customLeanAxis / 2, -1f, 1f);
                     }
-                  //  Debug.Log("Cal Acceleration: " + acceleration.ToString("F1"));
-                    velocity += globalaccGainSimBike * acceleration * Time.deltaTime;
-                    
-                    if (velocity < 0f) velocity = 0f; 
-                    if (velocity > topSpeed) velocity = topSpeed;
-                  //  Debug.Log("Cal Velocity: " + velocity.ToString("F1"));
-                    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                     
-                    // torque input
-                    float torqueInput = piControllerSpeedWahoo.Control(velocity, actual_velocity_unity_bike);
-                    //Debug.Log("Torque Input left: " + torqueInput.ToString("F1"));
-
-                    
-                    
-                    
-
-                    if (velocity < 0.1f)
+                    else
                     {
-                        float stopGain = 0.5f; // Adjust the gain as needed
-                        rb.linearVelocity = Vector3.Lerp(rb.linearVelocity, Vector3.zero, Time.deltaTime * stopGain);
-                        rb.angularVelocity = Vector3.Lerp(rb.angularVelocity, Vector3.zero, Time.deltaTime * stopGain);
+                        CustomInput("Horizontal", ref customSteerAxis, 5, 5, false);
+                        CustomInput("Horizontal", ref customLeanAxis, 1, 1, false);
                     }
-
-
-                    customAccelerationAxis = torqueInput;
-                    rawCustomAccelerationAxis = torqueInput;
-                    customAccelerationAxis = Mathf.Clamp(customAccelerationAxis, -1f, 1f);
-                    rawCustomAccelerationAxis = Mathf.Clamp(rawCustomAccelerationAxis, -1f, 1f);
-
-         
-                    
-                    steeringValueFanatec = steeringInput.steeringInputCorrected;
-                    float steeringGain = globalSteeringGain;
-
-
-                    customSteerAxis = (float)steeringValueFanatec * steeringGain;
-                    customLeanAxis = (float)steeringValueFanatec * steeringGain / 2;
-                    customSteerAxis = Mathf.Clamp(customSteerAxis, -1f, 1f);
-                    customLeanAxis = Mathf.Clamp(customLeanAxis/2, -1f, 1f);            
                 }
+
                 else {
                     CustomInput("Horizontal",   ref customSteerAxis, 5, 5, false);
                     CustomInput("Vertical",     ref customAccelerationAxis, 1, 1, false);
@@ -1253,10 +1152,12 @@ namespace SBPScripts.Simulator
 
                 sprint = Input.GetKey(KeyCode.LeftShift);
 
-                wheelieInput = Input.GetKey(KeyCode.LeftControl);
+                wheelieInput = !isSimulatorVehicle && Input.GetKey(KeyCode.LeftControl);
 
-                //Stateful Input - bunny hopping
-                if (Input.GetKey(KeyCode.Space))
+                // Bunny hop is disabled on the hardware/experiment bike; Space is brake fallback.
+                if (isSimulatorVehicle)
+                    bunnyHopInputState = 0;
+                else if (Input.GetKey(KeyCode.Space))
                     bunnyHopInputState = 1;
                 else if (Input.GetKeyUp(KeyCode.Space))
                     bunnyHopInputState = -1;
@@ -1311,6 +1212,64 @@ namespace SBPScripts.Simulator
                 Gizmos.color = Color.green;
                 Vector3 SUMO_groundtruth = new Vector3(SUMOMarker.x, 0.1f, SUMOMarker.y);
                 Gizmos.DrawSphere(SUMO_groundtruth, 1.0f);
+            }
+        }
+
+        void ApplyArduinoBrakeToAcceleration()
+        {
+            try
+            {
+                if (sp.BytesToRead <= 0) return;
+
+                string data;
+                try
+                {
+                    data = sp.ReadLine().Trim();
+                }
+                catch (TimeoutException)
+                {
+                    data = sp.ReadExisting().Trim();
+                    string[] lines = data.Split(new char[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
+                    if (lines.Length > 0)
+                        data = lines[lines.Length - 1];
+                }
+
+                if (string.IsNullOrEmpty(data)) return;
+
+                string[] values = data.Split(',');
+                if (values.Length < 2) return;
+
+                if (float.TryParse(values[0].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float rawLeftBrake) &&
+                    float.TryParse(values[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float rawRightBrake))
+                {
+                    leftBrakeSignal = rawLeftBrake - 16.5f;
+                    rightBrakeSignal = rawRightBrake - 17.0f;
+                    float totalBrakedeacceleration = (leftBrakeSignal + rightBrakeSignal) / 200.0f * brakeSensitivity;
+                    acceleration -= totalBrakedeacceleration;
+                }
+            }
+            catch (TimeoutException) { }
+            catch (System.IO.IOException)
+            {
+                arduinoConnected = false;
+                arduinoErrorMessage = "Arduino connection lost: The connection to the Arduino has been interrupted.";
+            }
+            catch (InvalidOperationException)
+            {
+                arduinoConnected = false;
+                arduinoErrorMessage = "Arduino port error: Serial port is not open or has been closed.";
+            }
+            catch (Exception) { }
+        }
+
+        void ApplyKeyboardBrakeToWahooLoop()
+        {
+            leftBrakeSignal = 0.0f;
+            rightBrakeSignal = 0.0f;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.Space))
+            {
+                acceleration -= brakeSensitivity;
+                velocity *= Mathf.Clamp01(1f - Time.deltaTime * 4f);
             }
         }
 

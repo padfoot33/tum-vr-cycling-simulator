@@ -1,5 +1,6 @@
 using UnityEngine;
 using CyclingExperiment.AI;
+using CyclingExperiment.Logging;
 using ExperimentRefs = CyclingExperiment.ExperimentSceneRefs;
 
 namespace CyclingExperiment.Scenarios
@@ -21,8 +22,14 @@ namespace CyclingExperiment.Scenarios
         [SerializeField, Tooltip("Bus prefab to spawn")]
         private GameObject busPrefab;
 
-        [SerializeField, Range(4f, 12f), Tooltip("Overtaking bus speed in m/s (12 ≈ 43 km/h). Tune on Scenario_1.")]
-        private float busSpeed = 12f;
+        [SerializeField, Range(4f, 16f), Tooltip("Overtaking bus speed in m/s (16 ≈ 58 km/h). Tuned so the bus parks before the cyclist.")]
+        private float busSpeed = 14f;
+
+        [SerializeField, Tooltip("Spawn this far behind the cyclist on the bus path")]
+        private float spawnBehindDistance = 20f;
+
+        [SerializeField, Tooltip("Bus should reach the bay this many seconds before the cyclist")]
+        private float parkLeadSeconds = 2.5f;
 
         [Header("Stage 3: Right Turn Overtaking Car Setup")]
         [SerializeField, Tooltip("Path the aggressive car follows during the right turn")]
@@ -65,10 +72,12 @@ namespace CyclingExperiment.Scenarios
         private GameObject _spawnedBus;
         private WaypointFollower _spawnedBusFollower;
         private GameObject _spawnedOvertakingCar;
+        private WaypointFollower _spawnedOvertakingCarFollower;
         private bool _busOvertakeTriggered = false;
         private bool _rightTurnTriggered = false;
         private bool _busPassedPlayer = false;
         private bool _busClearedByCyclist = false;
+        private bool _busArrived = false;
         private bool _carPassedPlayer = false;
 
         private void Start()
@@ -80,14 +89,14 @@ namespace CyclingExperiment.Scenarios
 
         private void ClampScenarioSpeeds()
         {
-            busSpeed = Mathf.Clamp(busSpeed, 4f, 12f);
+            busSpeed = Mathf.Clamp(busSpeed, 4f, 16f);
             if (overtakingCarSpeed > 14f) overtakingCarSpeed = 11f;
         }
 
         public void AutoAssignReferences()
         {
             if (sceneRefs == null) sceneRefs = ExperimentRefs.EnsureExists();
-            if (playerTransform == null && sceneRefs != null) playerTransform = sceneRefs.bicycleTransform;
+            if (sceneRefs != null && sceneRefs.bicycleTransform != null) playerTransform = sceneRefs.bicycleTransform;
             if (intersectionTraffic == null && sceneRefs != null) intersectionTraffic = sceneRefs.intersectionTraffic;
 
 #if UNITY_EDITOR
@@ -150,24 +159,20 @@ namespace CyclingExperiment.Scenarios
             _busOvertakeTriggered = true;
             Debug.Log("[Scenario1] Stage 1: Bus Overtake Triggered!");
 
+            LogRunEvent("BUS_EVENT_START", "BUS_ACTIVE", "C2", "interaction");
             if (EventMarkerLogger.Instance != null) EventMarkerLogger.Instance.LogEvent("BUS_EVENT_START");
             if (ScenarioManager.Instance != null) ScenarioManager.Instance.StartScenario("Route1_BusOvertake");
 
-            Vector3 spawnPos = busOvertakePath.GetWaypoint(0);
-            Quaternion spawnRot = Quaternion.identity;
-            if (busOvertakePath.WaypointCount > 1)
-            {
-                Vector3 dir = busOvertakePath.GetWaypoint(1) - spawnPos;
-                dir.y = 0;
-                if (dir != Vector3.zero) spawnRot = Quaternion.LookRotation(dir.normalized);
-            }
+            ResolveBusSpawn(out Vector3 spawnPos, out Quaternion spawnRot, out int nextWaypoint, out float spawnSpeed);
 
             _spawnedBus = VehicleRuntimeFactory.SpawnOnWaypointPath(busPrefab, spawnPos, spawnRot, new VehicleRuntimeFactory.SpawnSettings
             {
                 Path = busOvertakePath,
-                Speed = busSpeed,
+                Speed = spawnSpeed,
                 DestroyAtEnd = false,
                 PreserveSpawnPosition = true,
+                StartWaypointIndex = nextWaypoint,
+                StopSmoothlyAtPathEnd = true,
                 Name = "Scenario1_Bus_Spawned"
             });
             _spawnedBusFollower = _spawnedBus != null ? _spawnedBus.GetComponent<WaypointFollower>() : null;
@@ -216,6 +221,7 @@ namespace CyclingExperiment.Scenarios
             _rightTurnTriggered = true;
             Debug.Log("[Scenario1] Stage 3: Right Turn Car Overtake Triggered!");
 
+            LogRunEvent("RIGHT_TURN_START", "RIGHT_TURN_ACTIVE", "C4", "interaction");
             if (EventMarkerLogger.Instance != null) EventMarkerLogger.Instance.LogEvent("RIGHT_TURN_START");
             if (ScenarioManager.Instance != null) ScenarioManager.Instance.StartScenario("Route1_RightTurn");
 
@@ -236,6 +242,9 @@ namespace CyclingExperiment.Scenarios
                 PreserveSpawnPosition = true,
                 Name = "Scenario1_RightTurn_OvertakingCar"
             });
+            _spawnedOvertakingCarFollower = _spawnedOvertakingCar != null
+                ? _spawnedOvertakingCar.GetComponent<WaypointFollower>()
+                : null;
 
             bool ambientOn = sceneRefs == null || sceneRefs.cityTraffic == null || sceneRefs.cityTraffic.IsTrafficEnabled;
             if (!ambientOn) return;
@@ -256,7 +265,20 @@ namespace CyclingExperiment.Scenarios
 
         private void Update()
         {
-            // Monitor bus pass
+            var logger = ExperimentRunLogger.Instance;
+
+            if (_busOvertakeTriggered && _spawnedBus != null)
+            {
+                PushEventVehicle(_spawnedBus, _spawnedBusFollower);
+
+                if (!_busArrived && _spawnedBusFollower != null && _spawnedBusFollower.IsAtEnd)
+                {
+                    _busArrived = true;
+                    Debug.Log("[Scenario1] Bus arrived at the bay.");
+                    if (EventMarkerLogger.Instance != null) EventMarkerLogger.Instance.LogEvent("BUS_ARRIVE");
+                }
+            }
+
             if (_busOvertakeTriggered && !_busPassedPlayer && _spawnedBus != null && playerTransform != null)
             {
                 Vector3 toBus = _spawnedBus.transform.position - playerTransform.position;
@@ -270,15 +292,26 @@ namespace CyclingExperiment.Scenarios
 
             CompleteBusStageIfCleared(false);
 
-            // Monitor right turn car pass
+            if (_rightTurnTriggered && _spawnedOvertakingCar != null)
+                PushEventVehicle(_spawnedOvertakingCar, _spawnedOvertakingCarFollower);
+
             if (_rightTurnTriggered && !_carPassedPlayer && _spawnedOvertakingCar != null && playerTransform != null)
             {
                 Vector3 toCar = _spawnedOvertakingCar.transform.position - playerTransform.position;
                 if (Vector3.Dot(toCar, playerTransform.forward) > carPassedAheadDistance)
                 {
                     _carPassedPlayer = true;
-                    Debug.Log("[Scenario1] Overtaking car executed right turn. Logging RIGHT_TURN_END.");
-                    if (EventMarkerLogger.Instance != null) EventMarkerLogger.Instance.LogEvent("RIGHT_TURN_END");
+                    Debug.Log("[Scenario1] Overtaking car executed right turn. Logging RIGHT_TURN_CAR_PASS.");
+                    if (logger != null)
+                    {
+                        logger.ClearScriptedEvent();
+                        logger.ClearEventVehicleData();
+                    }
+                    if (EventMarkerLogger.Instance != null)
+                    {
+                        EventMarkerLogger.Instance.LogEvent("RIGHT_TURN_CAR_PASS");
+                        EventMarkerLogger.Instance.LogEvent("RIGHT_TURN_END");
+                    }
 
                     if (ScenarioManager.Instance != null) ScenarioManager.Instance.EndScenario("Route1_RightTurn");
                 }
@@ -291,6 +324,7 @@ namespace CyclingExperiment.Scenarios
             _rightTurnTriggered = false;
             _busPassedPlayer = false;
             _busClearedByCyclist = false;
+            _busArrived = false;
             _carPassedPlayer = false;
 
             if (_spawnedBus != null) Destroy(_spawnedBus);
@@ -298,6 +332,17 @@ namespace CyclingExperiment.Scenarios
             _spawnedBus = null;
             _spawnedBusFollower = null;
             _spawnedOvertakingCar = null;
+            _spawnedOvertakingCarFollower = null;
+
+            ResetTrigger(sceneRefs != null ? sceneRefs.busStopTrigger : null);
+            ResetTrigger(sceneRefs != null ? sceneRefs.rightTurnTrigger : null);
+
+            var logger = ExperimentRunLogger.Instance;
+            if (logger != null)
+            {
+                logger.ClearScriptedEvent();
+                logger.ClearEventVehicleData();
+            }
         }
 
         private void OnDestroy()
@@ -346,8 +391,72 @@ namespace CyclingExperiment.Scenarios
 
             _busClearedByCyclist = true;
             Debug.Log("[Scenario1] Cyclist cleared parked bus. Logging BUS_EVENT_END.");
+            var logger = ExperimentRunLogger.Instance;
+            if (logger != null)
+            {
+                logger.ClearScriptedEvent();
+                logger.ClearEventVehicleData();
+                logger.SetSegment("C3", "approach");
+            }
             if (EventMarkerLogger.Instance != null) EventMarkerLogger.Instance.LogEvent("BUS_EVENT_END");
             if (ScenarioManager.Instance != null) ScenarioManager.Instance.EndScenario("Route1_BusOvertake");
+        }
+
+        private void ResolveBusSpawn(out Vector3 spawnPos, out Quaternion spawnRot, out int nextWaypoint, out float spawnSpeed)
+        {
+            spawnSpeed = busSpeed;
+            nextWaypoint = 1;
+            spawnPos = busOvertakePath.GetWaypoint(0);
+            spawnRot = Quaternion.identity;
+
+            Vector3 cyclistPos = playerTransform != null ? playerTransform.position : spawnPos;
+            float cyclistAlong = busOvertakePath.GetDistanceAlongPath(cyclistPos);
+            float spawnAlong = Mathf.Max(0f, cyclistAlong - Mathf.Max(8f, spawnBehindDistance));
+            busOvertakePath.TrySampleDistance(spawnAlong, out spawnPos, out Vector3 forward, out nextWaypoint);
+            if (forward.sqrMagnitude > 0.01f)
+                spawnRot = Quaternion.LookRotation(forward);
+
+            float pathLength = busOvertakePath.GetTotalLength();
+            float busRemaining = Mathf.Max(8f, pathLength - spawnAlong);
+            float cyclistRemaining = Mathf.Max(8f, pathLength - cyclistAlong);
+            float cyclistSpeed = 4f;
+            if (playerTransform != null)
+            {
+                var motion = sceneRefs != null ? sceneRefs.Cyclist : null;
+                if (motion != null)
+                    cyclistSpeed = Mathf.Max(4f, motion.GetSpeedMps());
+            }
+
+            float tCyclist = cyclistRemaining / cyclistSpeed;
+            float tBus = Mathf.Max(2f, tCyclist - Mathf.Max(0.5f, parkLeadSeconds));
+            spawnSpeed = Mathf.Clamp(busRemaining / tBus, 10f, 16f);
+        }
+
+        private static void LogRunEvent(string marker, string phase, string segmentId, string taskContext)
+        {
+            var logger = ExperimentRunLogger.Instance;
+            if (logger == null) return;
+            logger.SetSegment(segmentId, taskContext);
+            logger.SetScriptedEvent(marker, phase);
+        }
+
+        private static void PushEventVehicle(GameObject vehicle, WaypointFollower follower)
+        {
+            var logger = ExperimentRunLogger.Instance;
+            if (logger == null || vehicle == null) return;
+            float speedKph = 0f;
+            if (follower != null)
+                speedKph = follower.IsAtEnd ? 0f : follower.Speed * 3.6f;
+            Vector3 p = vehicle.transform.position;
+            logger.UpdateEventVehicleData(p.x, p.z, speedKph);
+        }
+
+        private static void ResetTrigger(Transform trigger)
+        {
+            if (trigger == null) return;
+            var scenarioTrigger = trigger.GetComponent<ScenarioTrigger>();
+            if (scenarioTrigger != null)
+                scenarioTrigger.ResetTrigger();
         }
     }
 }

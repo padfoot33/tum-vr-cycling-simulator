@@ -1,0 +1,34 @@
+{
+    "name": "BikeSteerControl",
+    "maps": [
+        {
+            "name": "VehicleControls",
+            "id": "b54a4f4d-17d2-42bd-8fff-dbaf832594cf",
+            "actions": [
+                {
+                    "name": "Steer",
+                    "type": "Value",
+                    "id": "090530fd-4089-4053-9907-ebcc37a05a91",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "d7487c98-64f3-476f-9328-1655091dc4c6",
+                    "path": "<Joystick>/stick/right",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Steer",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}

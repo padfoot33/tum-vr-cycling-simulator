@@ -8401,7 +8401,7 @@ Transform:
   m_GameObject: {fileID: 230667164}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.54354066, z: -0, w: 0.8393828}
-  m_LocalPosition: {x: 449.2, y: 1.2, z: -26.4}
+  m_LocalPosition: {x: 416.63, y: 1.2, z: -16.56}
   m_LocalScale: {x: 0.99999994, y: 1, z: 0.99999994}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -33829,7 +33829,7 @@ Transform:
   m_GameObject: {fileID: 891295611}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 2, y: 0, z: 12.8}
+  m_LocalPosition: {x: 2, y: 0, z: 37.8}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -36083,7 +36083,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.Scenarios.Scenario1_CombinedController
   busOvertakePath: {fileID: 926250823}
   busPrefab: {fileID: 6097283062772588808, guid: 27334295a198940e1a678a9784074c64, type: 3}
-  busSpeed: 12
+  busSpeed: 14
   rightTurnCarPath: {fileID: 1098182118}
   overtakingCarPrefab: {fileID: 4933583111240688830, guid: acf1b64a1fbe1d74d93024e62413459d, type: 3}
   overtakingCarSpeed: 11
@@ -52607,7 +52607,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.UI.HUDController
   _bicycleController: {fileID: 641229302}
-  _showSpeed: 1
+  _showSpeed: 0
   _showScenarioInfo: 0
   _showDebugInfo: 0
 --- !u!4 &1363860668
@@ -85291,6 +85291,7 @@ MonoBehaviour:
   bicycle: {fileID: 378510523}
   bicycleTransform: {fileID: 641229301}
   bicyclePhysics: {fileID: 641229302}
+  cyclistMotion: {fileID: 0}
   route1: {fileID: 946615556}
   cityTraffic: {fileID: 975711439}
   intersectionTraffic: {fileID: 1492515012}

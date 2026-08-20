@@ -48,6 +48,9 @@ namespace CyclingExperiment.AI
             follower.Speed = settings.Speed;
             follower.DestroyAtEnd = settings.DestroyAtEnd;
             follower.PreserveSpawnPosition = settings.PreserveSpawnPosition;
+            follower.StartWaypointIndex = settings.StartWaypointIndex;
+            follower.StopSmoothlyAtPathEnd = settings.StopSmoothlyAtPathEnd;
+            EnsureTracked(vehicle);
 
             return vehicle;
         }
@@ -121,6 +124,7 @@ namespace CyclingExperiment.AI
             ai.StartWaypointIndex = Mathf.Clamp(startWaypointIndex, 0, Mathf.Max(0, path.WaypointCount - 1));
             ai.enabled = true;
             if (!vehicle.activeSelf) vehicle.SetActive(true);
+            EnsureTracked(vehicle);
             ai.ResetTrip();
         }
 
@@ -149,6 +153,7 @@ namespace CyclingExperiment.AI
             ai.CruiseSpeed = speed;
             ai.IsExperimentStressVehicle = false;
             ai.Bind(network, edge, distanceAlong, speed);
+            EnsureTracked(vehicle);
             return vehicle;
         }
 
@@ -205,6 +210,14 @@ namespace CyclingExperiment.AI
             return component;
         }
 
+        private static void EnsureTracked(GameObject vehicle)
+        {
+            if (vehicle == null) return;
+            var tracked = vehicle.GetComponent<CyclingExperiment.Logging.TrackedTrafficVehicle>();
+            if (tracked == null)
+                vehicle.AddComponent<CyclingExperiment.Logging.TrackedTrafficVehicle>();
+        }
+
         private static void DisableNamed(GameObject vehicle, string typeName)
         {
             var behaviour = vehicle.GetComponent(typeName) as MonoBehaviour;
@@ -235,6 +248,8 @@ namespace CyclingExperiment.AI
         private bool _isExperimentStressVehicle;
 
         private static readonly List<GraphVehicleAI> Active = new List<GraphVehicleAI>(48);
+
+        public float CurrentSpeed => _currentSpeed;
 
         public RoadEdge CurrentEdge => _edge;
         public float DistanceAlong => _distanceAlong;

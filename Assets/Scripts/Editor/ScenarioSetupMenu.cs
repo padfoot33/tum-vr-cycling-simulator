@@ -23,48 +23,54 @@ namespace CyclingExperiment.Editor
             AddCollidersToCampusModel();
 
             // 3. Setup Bicycle Smart Safety Assistant & Physics
-            GameObject bicycle = GameObject.Find("bicyle_animated_human");
+            GameObject bicycle = FindExperimentBicycle();
             if (bicycle == null)
             {
-                EditorUtility.DisplayDialog("Error", "Could not find 'bicyle_animated_human' in hierarchy.", "OK");
+                EditorUtility.DisplayDialog("Error", "Could not find SimBike or bicyle_animated_human in the hierarchy.", "OK");
                 return;
             }
 
             bicycle.tag = "Player";
 
-            var rootCol = bicycle.GetComponent<BoxCollider>() ?? bicycle.AddComponent<BoxCollider>();
-            rootCol.center = new Vector3(0, 0.8f, 0);
-            rootCol.size = new Vector3(0.8f, 1.6f, 1.8f);
-
-            var bikePhysics = bicycle.GetComponent("BicyclePhysicsController") as MonoBehaviour;
-            if (bikePhysics != null) bikePhysics.enabled = true;
-
-            var bikeInput = bicycle.GetComponent<BikeURP.BicycleInput>();
-            if (bikeInput != null)
+            if (bicycle.GetComponent<SBPScripts.Simulator.BicycleSimulatorController>() != null)
             {
-                bikeInput.enabled = true;
-                bikeInput.controller = bikePhysics as BikeURP.BicyclePhysicsController;
-                bikeInput.useDigitalSteer = true;
+                ConfigureSimBikeForExperiment(bicycle);
             }
-
-            var bikeLean = bicycle.GetComponent<BikeURP.BicycleLeanAnimator>();
-            if (bikeLean != null)
+            else
             {
-                bikeLean.enabled = true;
-                bikeLean.controller = bikePhysics as BikeURP.BicyclePhysicsController;
-                Transform armature = bicycle.transform.Find("Armature") ?? bicycle.transform;
-                bikeLean.leanRoot = armature;
-                bikeLean.leanSensitivity = 8f;
-                bikeLean.maxLeanDeg = 30f;
+                var rootCol = bicycle.GetComponent<BoxCollider>() ?? bicycle.AddComponent<BoxCollider>();
+                rootCol.center = new Vector3(0, 0.8f, 0);
+                rootCol.size = new Vector3(0.8f, 1.6f, 1.8f);
+
+                var bikePhysics = bicycle.GetComponent("BicyclePhysicsController") as MonoBehaviour;
+                if (bikePhysics != null) bikePhysics.enabled = true;
+
+                var bikeInput = bicycle.GetComponent<BikeURP.BicycleInput>();
+                if (bikeInput != null)
+                {
+                    bikeInput.enabled = true;
+                    bikeInput.controller = bikePhysics as BikeURP.BicyclePhysicsController;
+                    bikeInput.useDigitalSteer = true;
+                }
+
+                var bikeLean = bicycle.GetComponent<BikeURP.BicycleLeanAnimator>();
+                if (bikeLean != null)
+                {
+                    bikeLean.enabled = true;
+                    bikeLean.controller = bikePhysics as BikeURP.BicyclePhysicsController;
+                    Transform armature = bicycle.transform.Find("Armature") ?? bicycle.transform;
+                    bikeLean.leanRoot = armature;
+                    bikeLean.leanSensitivity = 8f;
+                    bikeLean.maxLeanDeg = 30f;
+                }
+
+                var sumoController = bicycle.GetComponent("BicycleSumoController") as MonoBehaviour;
+                if (sumoController != null) sumoController.enabled = false;
+
+                if (bicycle.GetComponent<SmartBicycleSafetyAssistant>() == null) bicycle.AddComponent<SmartBicycleSafetyAssistant>();
+
+                SetupCamera(bicycle.transform);
             }
-
-            var sumoController = bicycle.GetComponent("BicycleSumoController") as MonoBehaviour;
-            if (sumoController != null) sumoController.enabled = false;
-
-            if (bicycle.GetComponent<SmartBicycleSafetyAssistant>() == null) bicycle.AddComponent<SmartBicycleSafetyAssistant>();
-
-            // Setup Camera
-            SetupCamera(bicycle.transform);
 
             // 4. Organize Scenarios Hierarchy Container
             GameObject scenariosRoot = GameObject.Find("Scenarios");
@@ -156,7 +162,9 @@ namespace CyclingExperiment.Editor
             GameObject hudObj = GameObject.Find("HUD_Controller");
             if (hudObj == null) hudObj = new GameObject("HUD_Controller");
             var hud = hudObj.GetComponent<HUDController>() ?? hudObj.AddComponent<HUDController>();
-            if (bikePhysics != null) hud.SetBicycleController(bikePhysics);
+            MonoBehaviour cyclistForHud = bicycle.GetComponent<SimBikeCyclistMotion>()
+                ?? bicycle.GetComponent("BicyclePhysicsController") as MonoBehaviour;
+            if (cyclistForHud != null) hud.SetBicycleController(cyclistForHud);
 
             GameObject uiObj = GameObject.Find("Scenario_Selection_UI");
             if (uiObj == null) uiObj = new GameObject("Scenario_Selection_UI");
@@ -208,11 +216,16 @@ namespace CyclingExperiment.Editor
             if (refsObj == null) refsObj = new GameObject("Experiment_Scene_Refs");
             var refs = refsObj.GetComponent<ExperimentRefs>() ?? refsObj.AddComponent<ExperimentRefs>();
 
-            refs.bicycle = GameObject.Find("bicyle_animated_human");
+            refs.bicycle = FindExperimentBicycle();
             if (refs.bicycle != null)
             {
                 refs.bicycleTransform = refs.bicycle.transform;
                 refs.bicyclePhysics = refs.bicycle.GetComponent<BikeURP.BicyclePhysicsController>();
+                var motion = refs.bicycle.GetComponent<SimBikeCyclistMotion>()
+                    ?? (refs.bicycle.GetComponent<SBPScripts.Simulator.BicycleSimulatorController>() != null
+                        ? refs.bicycle.AddComponent<SimBikeCyclistMotion>()
+                        : null);
+                refs.SetCyclist(refs.bicycle, motion);
             }
 
             refs.route1 = Object.FindObjectOfType<Scenario1_CombinedController>();
@@ -224,6 +237,17 @@ namespace CyclingExperiment.Editor
 
             var trigger = GameObject.Find("Trigger_Scenario1_BusStop");
             if (trigger != null) refs.busStopTrigger = trigger.transform;
+            var rightTurn = GameObject.Find("Trigger_Scenario1_RightTurn");
+            if (rightTurn != null) refs.rightTurnTrigger = rightTurn.transform;
+            refs.EnsureRightTurnSign();
+            refs.EnsureRoute1ReferencePath();
+            refs.EnsureRunLogger();
+            AssignSerializedRef(refs, "runLogger", refs.runLogger);
+            AssignSerializedRef(refs, "rightTurnSign", refs.rightTurnSign);
+            AssignSerializedRef(refs, "route1PathTracker", refs.route1PathTracker);
+            AssignSerializedRef(refs.runLogger, "bikeTransform", refs.bicycleTransform);
+            AssignSerializedRef(refs.runLogger, "cyclistMotion", refs.Cyclist as MonoBehaviour);
+            AssignSerializedRef(refs.runLogger, "referencePathTracker", refs.route1PathTracker);
             refs.route1CyclistSpawn = EnsureCyclistSpawnRoute1();
             refs.route2CyclistSpawn = EnsureCyclistSpawnRoute2();
             refs.cityTrafficPaths = GameObject.Find("City_Traffic_Paths");
@@ -240,6 +264,10 @@ namespace CyclingExperiment.Editor
             AssignSerializedRef(refs.route1, "intersectionTraffic", refs.intersectionTraffic);
             AssignSerializedRef(refs.followCamera, "target", refs.bicycleTransform);
             AssignSerializedRef(refs.intersectionTraffic, "cityTraffic", refs.cityTraffic);
+            AssignSerializedRef(refs.hud, "_bicycleController", refs.Cyclist as MonoBehaviour);
+            var logger = Object.FindObjectOfType<EventMarkerLogger>();
+            AssignSerializedRef(logger, "playerTransform", refs.bicycleTransform);
+            AssignSerializedRef(logger, "cyclistMotion", refs.Cyclist as MonoBehaviour);
 
             EditorUtility.SetDirty(refs);
         }
@@ -417,43 +445,50 @@ namespace CyclingExperiment.Editor
 
         private static void FixConnectionsPreservePlacementsInternal()
         {
-            GameObject bicycle = GameObject.Find("bicyle_animated_human");
+            GameObject bicycle = FindExperimentBicycle();
             if (bicycle == null) return;
 
             bicycle.tag = "Player";
 
-            var rootCol = bicycle.GetComponent<BoxCollider>() ?? bicycle.AddComponent<BoxCollider>();
-            rootCol.center = new Vector3(0, 0.8f, 0);
-            rootCol.size = new Vector3(0.8f, 1.6f, 1.8f);
-
-            var bikePhysics = bicycle.GetComponent("BicyclePhysicsController") as MonoBehaviour;
-            if (bikePhysics != null) bikePhysics.enabled = true;
-
-            var bikeInput = bicycle.GetComponent<BikeURP.BicycleInput>();
-            if (bikeInput != null)
+            if (bicycle.GetComponent<SBPScripts.Simulator.BicycleSimulatorController>() != null)
             {
-                bikeInput.enabled = true;
-                bikeInput.controller = bikePhysics as BikeURP.BicyclePhysicsController;
-                bikeInput.useDigitalSteer = true;
+                ConfigureSimBikeForExperiment(bicycle);
             }
-
-            var bikeLean = bicycle.GetComponent<BikeURP.BicycleLeanAnimator>();
-            if (bikeLean != null)
+            else
             {
-                bikeLean.enabled = true;
-                bikeLean.controller = bikePhysics as BikeURP.BicyclePhysicsController;
-                Transform armature = bicycle.transform.Find("Armature") ?? bicycle.transform;
-                bikeLean.leanRoot = armature;
-                bikeLean.leanSensitivity = 8f;
-                bikeLean.maxLeanDeg = 30f;
+                var rootCol = bicycle.GetComponent<BoxCollider>() ?? bicycle.AddComponent<BoxCollider>();
+                rootCol.center = new Vector3(0, 0.8f, 0);
+                rootCol.size = new Vector3(0.8f, 1.6f, 1.8f);
+
+                var bikePhysics = bicycle.GetComponent("BicyclePhysicsController") as MonoBehaviour;
+                if (bikePhysics != null) bikePhysics.enabled = true;
+
+                var bikeInput = bicycle.GetComponent<BikeURP.BicycleInput>();
+                if (bikeInput != null)
+                {
+                    bikeInput.enabled = true;
+                    bikeInput.controller = bikePhysics as BikeURP.BicyclePhysicsController;
+                    bikeInput.useDigitalSteer = true;
+                }
+
+                var bikeLean = bicycle.GetComponent<BikeURP.BicycleLeanAnimator>();
+                if (bikeLean != null)
+                {
+                    bikeLean.enabled = true;
+                    bikeLean.controller = bikePhysics as BikeURP.BicyclePhysicsController;
+                    Transform armature = bicycle.transform.Find("Armature") ?? bicycle.transform;
+                    bikeLean.leanRoot = armature;
+                    bikeLean.leanSensitivity = 8f;
+                    bikeLean.maxLeanDeg = 30f;
+                }
+
+                var sumoController = bicycle.GetComponent("BicycleSumoController") as MonoBehaviour;
+                if (sumoController != null) sumoController.enabled = false;
+
+                if (bicycle.GetComponent<SmartBicycleSafetyAssistant>() == null) bicycle.AddComponent<SmartBicycleSafetyAssistant>();
+
+                SetupCamera(bicycle.transform);
             }
-
-            var sumoController = bicycle.GetComponent("BicycleSumoController") as MonoBehaviour;
-            if (sumoController != null) sumoController.enabled = false;
-
-            if (bicycle.GetComponent<SmartBicycleSafetyAssistant>() == null) bicycle.AddComponent<SmartBicycleSafetyAssistant>();
-
-            SetupCamera(bicycle.transform);
             FixLightingInternal();
 
             Scenario3_ConstructionNarrowing.RemoveDemoBusMarker();
@@ -556,6 +591,32 @@ namespace CyclingExperiment.Editor
                 "OK");
         }
 
+        private static GameObject FindExperimentBicycle()
+        {
+            var sim = FindIncludingInactive("SimBike");
+            if (sim != null && sim.activeInHierarchy) return sim;
+            var old = FindIncludingInactive("bicyle_animated_human");
+            if (old != null && old.activeInHierarchy) return old;
+            if (sim != null) return sim;
+            return old;
+        }
+
+        private static void ConfigureSimBikeForExperiment(GameObject bicycle)
+        {
+            bicycle.tag = "Player";
+            if (bicycle.GetComponent<SimBikeCyclistMotion>() == null)
+                bicycle.AddComponent<SimBikeCyclistMotion>();
+
+            var spawn = bicycle.GetComponent<SimBikeSpawnController>();
+            if (spawn != null)
+            {
+                var so = new SerializedObject(spawn);
+                var spawnOnAwake = so.FindProperty("spawnOnAwake");
+                if (spawnOnAwake != null) spawnOnAwake.boolValue = false;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
+        }
+
         private static GameObject FindIncludingInactive(string objectName)
         {
             var transforms = Resources.FindObjectsOfTypeAll<Transform>();
@@ -567,6 +628,103 @@ namespace CyclingExperiment.Editor
             }
 
             return null;
+        }
+
+        [MenuItem("Cycling Experiment/Place Route 1 Right-Turn Sign", false, 11)]
+        public static void PlaceRoute1RightTurnSign()
+        {
+            var trigger = GameObject.Find("Trigger_Scenario1_RightTurn");
+            if (trigger == null)
+            {
+                EditorUtility.DisplayDialog("Cycling Experiment", "Trigger_Scenario1_RightTurn was not found.", "OK");
+                return;
+            }
+
+            Transform sign = Route1RightTurnSign.Ensure(trigger.transform);
+            Undo.RegisterCreatedObjectUndo(sign.gameObject, "Place Route 1 Right-Turn Sign");
+            var refs = Object.FindObjectOfType<ExperimentRefs>();
+            if (refs != null)
+            {
+                refs.rightTurnTrigger = trigger.transform;
+                refs.rightTurnSign = sign;
+                EditorUtility.SetDirty(refs);
+            }
+
+            Selection.activeTransform = sign;
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            EditorUtility.DisplayDialog("Cycling Experiment",
+                "Placed StVO 214-10 (mandatory right) at the Route 1 turn.\nSave the scene to keep it.",
+                "OK");
+        }
+
+        [MenuItem("Cycling Experiment/Retune Route 1 Bus Timing", false, 12)]
+        public static void RetuneRoute1BusTiming()
+        {
+            var pathObj = GameObject.Find("Bus_Overtake_Path");
+            var trigger = GameObject.Find("Trigger_Scenario1_BusStop");
+            var spawn = GameObject.Find("Cyclist_Spawn_Route1");
+            if (pathObj == null || trigger == null)
+            {
+                EditorUtility.DisplayDialog("Cycling Experiment", "Bus_Overtake_Path or Trigger_Scenario1_BusStop is missing.", "OK");
+                return;
+            }
+
+            var path = pathObj.GetComponent<WaypointPath>();
+            if (path == null || path.WaypointCount < 2)
+            {
+                EditorUtility.DisplayDialog("Cycling Experiment", "Bus_Overtake_Path needs at least two waypoints.", "OK");
+                return;
+            }
+
+            path.SyncFromChildren();
+            Vector3 bay = path.GetWaypoint(path.WaypointCount - 1);
+            Vector3 toward = spawn != null ? spawn.transform.position : path.GetWaypoint(0);
+            Vector3 delta = toward - bay;
+            delta.y = 0f;
+            float len = delta.magnitude;
+            if (len < 5f)
+            {
+                EditorUtility.DisplayDialog("Cycling Experiment", "Could not measure spawn-to-bay direction.", "OK");
+                return;
+            }
+
+            Vector3 unit = delta / len;
+            Vector3 triggerPos = bay + unit * 75f;
+            triggerPos.y = trigger.transform.position.y;
+            Undo.RecordObject(trigger.transform, "Retune bus trigger");
+            trigger.transform.position = triggerPos;
+
+            Transform wp0 = path.transform.GetChild(0);
+            Vector3 wp0Pos = bay + unit * 100f;
+            wp0Pos.y = wp0.position.y;
+            Undo.RecordObject(wp0, "Extend bus path start");
+            wp0.position = wp0Pos;
+            path.SyncFromChildren();
+
+            var controller = Object.FindObjectOfType<Scenario1_CombinedController>();
+            if (controller != null)
+            {
+                var so = new SerializedObject(controller);
+                var speedProp = so.FindProperty("busSpeed");
+                if (speedProp != null) speedProp.floatValue = 14f;
+                so.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(controller);
+            }
+
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            EditorUtility.DisplayDialog("Cycling Experiment",
+                "Moved Trigger_Scenario1_BusStop to ~75 m before the bay, extended Bus_Overtake_Path WP_0 behind the cyclist, and set busSpeed to 14 m/s.\nSave the scene.",
+                "OK");
+        }
+
+        [MenuItem("Cycling Experiment/Ensure Experiment Run Logger", false, 13)]
+        public static void EnsureExperimentRunLogger()
+        {
+            EnsureExperimentSceneRefs();
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            EditorUtility.DisplayDialog("Cycling Experiment",
+                "ExperimentRunLogger, close-pass tracker, Route 1 reference path, and right-turn sign are on Experiment_Scene_Refs.\nLogs write to Logs/<participant>/ next to the project.\nSave the scene.",
+                "OK");
         }
     }
 }

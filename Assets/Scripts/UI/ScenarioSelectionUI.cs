@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using CyclingExperiment.Camera;
 using CyclingExperiment.AI;
+using CyclingExperiment.Logging;
 using CyclingExperiment.Scenarios;
 using ExperimentRefs = CyclingExperiment.ExperimentSceneRefs;
 
@@ -130,9 +131,6 @@ namespace CyclingExperiment.UI
             scaler.dynamicPixelsPerUnit = 2.0f;
 
             canvasObj.AddComponent<GraphicRaycaster>();
-
-            // Top-right Menu & Traffic Toggle Buttons
-            CreateTopButtons(canvasObj.transform);
 
             // Modal Background Overlay
             _modalPanel = new GameObject("ScenarioModal_Panel");
@@ -297,8 +295,6 @@ namespace CyclingExperiment.UI
             {
                 _trafficBtnText.text = state ? "🚗 Traffic: ON [T]" : "🚗 Traffic: OFF [T]";
             }
-
-            if (Refs.hud != null) Refs.hud.ShowMessage(state ? "City Traffic ENABLED" : "City Traffic DISABLED", 3f);
         }
 
         public void SelectScenario(int scenarioIndex)
@@ -312,7 +308,7 @@ namespace CyclingExperiment.UI
                 return;
             }
 
-            ApplyCyclistSpeedLimit(Refs.bicyclePhysics);
+            ApplyCyclistSpeedLimit(Refs.Cyclist);
 
             if (Refs.route1 != null) Refs.route1.ResetScenario();
 
@@ -323,35 +319,35 @@ namespace CyclingExperiment.UI
                     {
                         Vector3 spawnPos = Refs.route1CyclistSpawn.position;
                         float spawnHeading = Refs.route1CyclistSpawn.eulerAngles.y;
-                        TeleportBike(Refs.bicyclePhysics, bike.transform, spawnPos, spawnHeading);
+                        TeleportBike(Refs.Cyclist, bike.transform, spawnPos, spawnHeading);
                     }
                     else
                     {
                         Debug.LogWarning("[ScenarioSelectionUI] Cyclist_Spawn_Route1 missing; using fallback spawn.");
-                        TeleportBike(Refs.bicyclePhysics, bike.transform, scenario1Position, scenario1Heading);
+                        TeleportBike(Refs.Cyclist, bike.transform, scenario1Position, scenario1Heading);
                     }
-                    if (Refs.hud != null) Refs.hud.ShowMessage("Route 1: Combined Bus Stop & Right-Turn Sequence", 5f);
+                    BeginRunLog("Route1_BusStop_RightTurn", "C1", "approach");
                     if (EventMarkerLogger.Instance != null) EventMarkerLogger.Instance.LogEvent("ROUTE1_START");
                     break;
 
                 case 2:
                     if (Refs.route2CyclistSpawn != null)
                     {
-                        TeleportBike(Refs.bicyclePhysics, bike.transform,
+                        TeleportBike(Refs.Cyclist, bike.transform,
                             Refs.route2CyclistSpawn.position, Refs.route2CyclistSpawn.eulerAngles.y);
                     }
                     else
                     {
-                        TeleportBike(Refs.bicyclePhysics, bike.transform,
+                        TeleportBike(Refs.Cyclist, bike.transform,
                             Scenario3_ConstructionNarrowing.ApproachPosition, Scenario3_ConstructionNarrowing.ApproachHeading);
                     }
-                    if (Refs.hud != null) Refs.hud.ShowMessage("Route 2: Construction Road Narrowing Sequence", 5f);
+                    BeginRunLog("Route2_Construction", "C1", "approach");
                     if (EventMarkerLogger.Instance != null) EventMarkerLogger.Instance.LogEvent("ROUTE2_START");
                     break;
 
                 case 0:
                 default:
-                    if (Refs.hud != null) Refs.hud.ShowMessage("Free Roam Mode Active", 4f);
+                    BeginRunLog("FreeRoam", "C1", "approach");
                     break;
             }
 
@@ -360,16 +356,24 @@ namespace CyclingExperiment.UI
             if (Refs.followCamera != null) Refs.followCamera.SnapToTarget();
         }
 
+        private void BeginRunLog(string scenarioName, string segmentId, string taskContext)
+        {
+            var logger = ExperimentRunLogger.Instance;
+            if (logger == null && Refs != null) logger = Refs.runLogger;
+            if (logger == null) return;
+            logger.StartLogging(scenarioName, segmentId, taskContext);
+        }
+
         private static bool AlmostEqual(Vector3 a, Vector3 b)
         {
             return (a - b).sqrMagnitude < 0.01f;
         }
 
-        private static void TeleportBike(BikeURP.BicyclePhysicsController physics, Transform bike, Vector3 position, float heading)
+        private static void TeleportBike(ICyclistMotion motion, Transform bike, Vector3 position, float heading)
         {
-            if (physics != null)
+            if (motion != null)
             {
-                physics.Teleport(position, heading);
+                motion.Teleport(position, heading);
                 return;
             }
 
@@ -377,14 +381,13 @@ namespace CyclingExperiment.UI
             bike.rotation = Quaternion.Euler(0, heading, 0);
         }
 
-        private void ApplyCyclistSpeedLimit(BikeURP.BicyclePhysicsController physics)
+        private void ApplyCyclistSpeedLimit(ICyclistMotion motion)
         {
-            if (physics == null) return;
+            if (motion == null) return;
 
             float kph = Mathf.Max(1f, cyclistMaxSpeedKph);
-            physics.maxSpeed = kph / 3.6f;
-            var speedField = physics.GetType().GetField("_speed", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (speedField != null) speedField.SetValue(physics, 0f);
+            motion.MaxSpeedMps = kph / 3.6f;
+            motion.StopLongitudinalSpeed();
         }
 
     }

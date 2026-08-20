@@ -28,8 +28,9 @@ namespace CyclingExperiment.Scenarios
         {
             if (playerTransform == null)
             {
-                var bike = GameObject.Find("bicyle_animated_human");
-                if (bike != null) playerTransform = bike.transform;
+                var refs = ExperimentSceneRefs.Instance;
+                if (refs != null && refs.bicycleTransform != null)
+                    playerTransform = refs.bicycleTransform;
             }
         }
 

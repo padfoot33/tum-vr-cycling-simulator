@@ -14,6 +14,8 @@ public class SimBikeSpawnController : MonoBehaviour
     [SerializeField] private int activeScenario = 1;
 
     [Header("Spawn Configuration")]
+    [Tooltip("When off, ScenarioSelectionUI owns spawn via TeleportTo. Leave off in MainScene.")]
+    [SerializeField] private bool spawnOnAwake = false;
     [SerializeField] private LayerMask groundMask = -1;
     [SerializeField] private float groundYOffset = 0.05f;
     [SerializeField] private float yawOffsetScenario1Degrees = 0f;
@@ -25,7 +27,6 @@ public class SimBikeSpawnController : MonoBehaviour
 
     private Transform simBikeRoot;
 
-    // Scripts to temporarily disable during spawn
     private static readonly string[] ScriptsToDisable = new[]
     {
         "BicycleController",
@@ -33,6 +34,7 @@ public class SimBikeSpawnController : MonoBehaviour
         "SteeringInput",
         "SimulatorSteeringInput",
         "FFB_Bike",
+        "FFBInspectorBike",
         "SaveBicycleReplay",
         "CyclistSetup",
         "BicycleStatus"
@@ -43,8 +45,6 @@ public class SimBikeSpawnController : MonoBehaviour
     private ConfigurableJoint[] allJoints;
     private Rigidbody[] jointConnectedBodies;
     private MonoBehaviour[] disabledScripts;
-    private Vector3 initialSpawnPos;
-    private Quaternion initialSpawnRot;
     private Vector3 postLockPos;
     private RigidbodyConstraints originalRootConstraints;
     private float rotationLockTimer = 0f;
@@ -60,7 +60,8 @@ public class SimBikeSpawnController : MonoBehaviour
             return;
         }
 
-        StartCoroutine(PerformSpawn());
+        if (spawnOnAwake)
+            StartCoroutine(PerformScenarioSpawn());
     }
 
     private void FindReferences()
@@ -90,11 +91,27 @@ public class SimBikeSpawnController : MonoBehaviour
         originalRootConstraints = rootRigidbody.constraints;
     }
 
-    private IEnumerator PerformSpawn()
+    /// <summary>
+    /// Joint-safe teleport used by scenario select and play-area clamp.
+    /// </summary>
+    public void TeleportTo(Vector3 worldPosition, float yawDegrees)
     {
-        if (rootRigidbody == null || simBikeRoot == null)
-            yield break;
+        FindReferences();
+        if (simBikeRoot == null || rootRigidbody == null) return;
 
+        StopAllCoroutines();
+        StartCoroutine(PerformTeleport(worldPosition, yawDegrees, snapToGround: true));
+    }
+
+    public void SetSpawnPoints(Transform route1, Transform route2, Transform route3 = null)
+    {
+        scenario1Spawn = route1;
+        scenario2Spawn = route2;
+        scenario3Spawn = route3;
+    }
+
+    private IEnumerator PerformScenarioSpawn()
+    {
         Transform targetTransform = GetTargetSpawn();
         if (targetTransform == null)
         {
@@ -104,39 +121,38 @@ public class SimBikeSpawnController : MonoBehaviour
 
         float yawOffset = GetYawOffsetForScenario();
         float targetYaw = targetTransform.eulerAngles.y + yawOffset;
+        yield return PerformTeleport(targetTransform.position, targetYaw, snapToGround: true);
+    }
 
-        Vector3 targetPos = targetTransform.position;
+    private IEnumerator PerformTeleport(Vector3 targetPos, float targetYaw, bool snapToGround)
+    {
+        if (rootRigidbody == null || simBikeRoot == null)
+            yield break;
 
         float groundY = targetPos.y;
-        Vector3 rayOrigin = targetPos + Vector3.up * 10f;
-        if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 50f, groundMask))
+        if (snapToGround)
         {
-            groundY = hit.point.y + groundYOffset;
-            Debug.Log($"[SimBikeSpawnController] Raycast hit '{hit.collider.gameObject.name}' at Y={hit.point.y}");
+            Vector3 rayOrigin = targetPos + Vector3.up * 10f;
+            if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 50f, groundMask))
+                groundY = hit.point.y + groundYOffset;
         }
 
         Vector3 finalSpawnPos = new Vector3(targetPos.x, groundY, targetPos.z);
         Quaternion yawOnly = Quaternion.Euler(0f, targetYaw, 0f);
 
-        Debug.Log($"[SimBikeSpawnController] SPAWN START: Scenario={activeScenario}");
-        Debug.Log($"[SimBikeSpawnController] BEFORE: SimBike pos={simBikeRoot.position}, rot={simBikeRoot.eulerAngles}");
-        Debug.Log($"[SimBikeSpawnController] TARGET: pos={finalSpawnPos}, yaw={targetYaw}");
-
-        initialSpawnPos = simBikeRoot.position;
-        initialSpawnRot = simBikeRoot.rotation;
-
         disabledScripts = DisableMovementScripts();
-        Debug.Log($"[SimBikeSpawnController] Disabled {disabledScripts.Length} movement scripts");
 
-        foreach (var joint in allJoints)
+        if (allJoints != null)
         {
-            joint.connectedBody = null;
+            foreach (var joint in allJoints)
+            {
+                if (joint != null) joint.connectedBody = null;
+            }
         }
-        if (allJoints.Length > 0)
-            Debug.Log($"[SimBikeSpawnController] Disconnected {allJoints.Length} ConfigurableJoint(s)");
 
         foreach (var rb in allRigidbodies)
         {
+            if (rb == null) continue;
             rb.isKinematic = true;
             rb.useGravity = false;
             rb.linearVelocity = Vector3.zero;
@@ -146,29 +162,26 @@ public class SimBikeSpawnController : MonoBehaviour
         simBikeRoot.SetPositionAndRotation(finalSpawnPos, yawOnly);
         Physics.SyncTransforms();
 
-        Debug.Log($"[SimBikeSpawnController] AFTER APPLY: SimBike pos={simBikeRoot.position}, rot={simBikeRoot.eulerAngles}");
-
         yield return new WaitForFixedUpdate();
         yield return new WaitForFixedUpdate();
 
         postLockPos = simBikeRoot.position;
-
         float posDelta = Vector3.Distance(postLockPos, finalSpawnPos);
         if (posDelta > postSpawnPositionTolerance)
-        {
-            Debug.LogWarning($"[SimBikeSpawnController] POSITION DRIFT: {posDelta}m after spawn lock! Expected {finalSpawnPos}, got {postLockPos}");
             ListEnabledScripts();
-        }
 
-        for (int i = 0; i < allJoints.Length; i++)
+        if (allJoints != null && jointConnectedBodies != null)
         {
-            allJoints[i].connectedBody = jointConnectedBodies[i];
+            for (int i = 0; i < allJoints.Length; i++)
+            {
+                if (allJoints[i] != null)
+                    allJoints[i].connectedBody = jointConnectedBodies[i];
+            }
         }
-        if (allJoints.Length > 0)
-            Debug.Log($"[SimBikeSpawnController] Reconnected {allJoints.Length} ConfigurableJoint(s)");
 
         foreach (var rb in allRigidbodies)
         {
+            if (rb == null) continue;
             rb.isKinematic = false;
             rb.useGravity = true;
             rb.linearVelocity = Vector3.zero;
@@ -180,15 +193,10 @@ public class SimBikeSpawnController : MonoBehaviour
             rootRigidbody.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
             rotationLockTimer = rotationLockDuration;
             isRotationLocked = true;
-            Debug.Log($"[SimBikeSpawnController] Root RB rotation X/Z locked for {rotationLockDuration}s");
         }
 
         ReenableScripts();
-        Debug.Log($"[SimBikeSpawnController] Re-enabled movement scripts");
-
         Physics.SyncTransforms();
-
-        Debug.Log($"[SimBikeSpawnController] SPAWN COMPLETE: SimBike pos={simBikeRoot.position}, rot={simBikeRoot.eulerAngles}");
     }
 
     private Transform GetTargetSpawn()
@@ -217,7 +225,6 @@ public class SimBikeSpawnController : MonoBehaviour
     {
         var disabled = new List<MonoBehaviour>();
         var scriptNameSet = new HashSet<string>(ScriptsToDisable);
-
         var allComponents = simBikeRoot.GetComponentsInChildren<MonoBehaviour>(true);
 
         foreach (var mb in allComponents)
@@ -229,21 +236,12 @@ public class SimBikeSpawnController : MonoBehaviour
             }
         }
 
-        if (disabled.Count > 0)
-        {
-            var disabledNames = new List<string>();
-            foreach (var mb in disabled)
-                disabledNames.Add(mb.GetType().Name);
-            Debug.Log($"[SimBikeSpawnController] Disabled scripts: {string.Join(", ", disabledNames)}");
-        }
-
         return disabled.ToArray();
     }
 
     private void ReenableScripts()
     {
-        if (disabledScripts == null)
-            return;
+        if (disabledScripts == null) return;
 
         foreach (var script in disabledScripts)
         {
@@ -256,7 +254,6 @@ public class SimBikeSpawnController : MonoBehaviour
     {
         var enabled = simBikeRoot.GetComponentsInChildren<MonoBehaviour>();
         var enabledNames = new List<string>();
-
         foreach (var mb in enabled)
         {
             if (mb != null && mb.enabled)
@@ -268,15 +265,13 @@ public class SimBikeSpawnController : MonoBehaviour
 
     private void Update()
     {
-        if (isRotationLocked)
+        if (!isRotationLocked) return;
+
+        rotationLockTimer -= Time.deltaTime;
+        if (rotationLockTimer <= 0f)
         {
-            rotationLockTimer -= Time.deltaTime;
-            if (rotationLockTimer <= 0f)
-            {
-                rootRigidbody.constraints = originalRootConstraints;
-                isRotationLocked = false;
-                Debug.Log("[SimBikeSpawnController] Root RB rotation freeze released. Constraints restored.");
-            }
+            rootRigidbody.constraints = originalRootConstraints;
+            isRotationLocked = false;
         }
     }
 }

@@ -2,6 +2,28 @@
 
 Working notes for current development. The project map lives in [PROJECT_MINDMAP.md](PROJECT_MINDMAP.md).
 
+## 20 Aug 2026 — Client play HUD, bus timing, sign, run log
+
+Participant Play has no speed HUD, scenario banner, toasts, or persistent M/T buttons. Press **M** for the operator modal only when the participant lock is off.
+
+Route 1 bus trigger is ~75 m before the bay; the Bogdan spawns behind the cyclist and is sped so it overtakes then parks before the rider arrives. StVO 214-10 sign at the right-turn. CSV at `Logs/<participant>/` from [`ExperimentRunLogger`](../Assets/Scripts/Logging/ExperimentRunLogger.cs) (client columns, no LOD, 20 Hz + vehicle markers).
+
+**Editor:** **Cycling Experiment → Place Route 1 Right-Turn Sign**, **Retune Route 1 Bus Timing**, **Ensure Experiment Run Logger**. Save MainScene after Play so runtime-created sign/logger persist.
+
+## 20 Aug 2026 — SimBike replaces keyboard cyclist
+
+`MainScene` now uses [`SimBike.prefab`](../Assets/BicycleSimulatorModel/Prefabs/SimBike.prefab) as the rider. The old `bicyle_animated_human` stays in the scene **disabled** for revert.
+
+**Editor:** **Cycling Experiment → Swap Cyclist to SimBike** (already applied if you ran it). View is SimBike first-person (`Main Camera` on the rider). Chase cam `V` toggle is off. WASD / `S` / Space work until hardware connects.
+
+**Lab hardware (independent axes):**
+- Speed: Wahoo Kickr TCP `192.168.0.2:36866`
+- Steer: Fanatec DirectInput + FFB
+- Brake: Arduino serial `COM3` @ 9600 (auto-detect)
+- Unplug one device and that axis falls back to keys.
+
+**Play check:** Play MainScene without hardware → WASD, HUD km/h, `[1]` Route 1 bus, `[2]` Route 2, cars yield, play-area clamp. Save the scene after the swap menu.
+
 ## 19 Aug 2026 — Inspector-locked MainScene builds
 
 One scene: `Assets/Scenes/MainScene.unity`. On **Experiment_Scene_Refs**, tick **Lock Participant Run**, set route (1 or 2) and traffic, save, then File → Build Settings → Build. The player starts that run only (no M / T / 1 / 2). Leave the lock off for editor Play with the menu.

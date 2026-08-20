@@ -28,6 +28,8 @@ namespace CyclingExperiment.AI
 
             Transform root = collider.transform.root;
             if (root.GetComponent<BikeURP.BicyclePhysicsController>() != null) return true;
+            if (root.GetComponent<SBPScripts.Simulator.BicycleSimulatorController>() != null) return true;
+            if (root.GetComponent<SimBikeCyclistMotion>() != null) return true;
 
             string name = root.name;
             return name.IndexOf("bicyle", System.StringComparison.OrdinalIgnoreCase) >= 0 ||

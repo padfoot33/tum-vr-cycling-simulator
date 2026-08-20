@@ -89,6 +89,8 @@ namespace CyclingExperiment.AI
         /// <summary>Whether this vehicle has completed a non-looping path.</summary>
         public bool IsAtEnd => _isAtEnd;
 
+        public float CurrentSpeed => _currentSpeed;
+
         /// <summary>
         /// When enabled, reduce speed before the final waypoint instead of stopping abruptly.
         /// Intended for buses that remain parked at a stop.
