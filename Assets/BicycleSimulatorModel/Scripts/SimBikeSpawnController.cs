@@ -21,8 +21,6 @@ public class SimBikeSpawnController : MonoBehaviour
     [SerializeField] private float yawOffsetScenario1Degrees = 0f;
     [SerializeField] private float yawOffsetScenario2Degrees = 0f;
     [SerializeField] private float yawOffsetScenario3Degrees = 0f;
-    [SerializeField] private bool lockXZRotationAfterSpawn = true;
-    [SerializeField] private float rotationLockDuration = 1.0f;
     [SerializeField] private float postSpawnPositionTolerance = 0.5f;
 
     private Transform simBikeRoot;
@@ -40,15 +38,12 @@ public class SimBikeSpawnController : MonoBehaviour
         "BicycleStatus"
     };
 
-    private Rigidbody rootRigidbody;
-    private Rigidbody[] allRigidbodies;
-    private ConfigurableJoint[] allJoints;
-    private Rigidbody[] jointConnectedBodies;
-    private MonoBehaviour[] disabledScripts;
-    private Vector3 postLockPos;
-    private RigidbodyConstraints originalRootConstraints;
-    private float rotationLockTimer = 0f;
-    private bool isRotationLocked = false;
+        private Rigidbody rootRigidbody;
+        private Rigidbody[] allRigidbodies;
+        private ConfigurableJoint[] allJoints;
+        private Rigidbody[] jointConnectedBodies;
+        private MonoBehaviour[] disabledScripts;
+        private Vector3 postLockPos;
 
     private void Awake()
     {
@@ -87,8 +82,6 @@ public class SimBikeSpawnController : MonoBehaviour
                 jointConnectedBodies[i] = allJoints[i].connectedBody;
             }
         }
-
-        originalRootConstraints = rootRigidbody.constraints;
     }
 
     /// <summary>
@@ -188,15 +181,21 @@ public class SimBikeSpawnController : MonoBehaviour
             rb.angularVelocity = Vector3.zero;
         }
 
-        if (lockXZRotationAfterSpawn)
-        {
-            rootRigidbody.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
-            rotationLockTimer = rotationLockDuration;
-            isRotationLocked = true;
-        }
-
         ReenableScripts();
         Physics.SyncTransforms();
+    }
+
+    public void ZeroAllVelocities()
+    {
+        if (allRigidbodies == null)
+            FindReferences();
+        if (allRigidbodies == null) return;
+        foreach (var body in allRigidbodies)
+        {
+            if (body == null) continue;
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+        }
     }
 
     private Transform GetTargetSpawn()
@@ -261,17 +260,5 @@ public class SimBikeSpawnController : MonoBehaviour
         }
 
         Debug.LogWarning($"[SimBikeSpawnController] Enabled scripts on SimBike: {string.Join(", ", enabledNames)}");
-    }
-
-    private void Update()
-    {
-        if (!isRotationLocked) return;
-
-        rotationLockTimer -= Time.deltaTime;
-        if (rotationLockTimer <= 0f)
-        {
-            rootRigidbody.constraints = originalRootConstraints;
-            isRotationLocked = false;
-        }
     }
 }

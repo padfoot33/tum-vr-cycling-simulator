@@ -16,7 +16,7 @@ Play start: Wahoo TCP connect is async (0.5 s timeout, no Editor retries). Traff
 
 `MainScene` now uses [`SimBike.prefab`](../Assets/BicycleSimulatorModel/Prefabs/SimBike.prefab) as the rider. The old `bicyle_animated_human` stays in the scene **disabled** for revert.
 
-**Editor:** **Cycling Experiment → Swap Cyclist to SimBike** (already applied if you ran it). View is SimBike first-person (`Main Camera` on the rider). Chase cam `V` toggle is off. WASD / `S` / Space work until hardware connects.
+**Editor:** **Cycling Experiment → Swap Cyclist to SimBike** (already applied if you ran it). View is SimBike first-person (`Main Camera` on the rider). Chase cam `V` toggle is off. WASD / `S` / Space work until hardware connects. With no keys the PhysX SimBike is held still (upright freeze, zero wheel velocity). Root BoxCollider is a trigger so it does not shove the road. One AudioListener stays on the active camera.
 
 **Lab hardware (independent axes):**
 - Speed: Wahoo Kickr TCP `192.168.0.2:36866`

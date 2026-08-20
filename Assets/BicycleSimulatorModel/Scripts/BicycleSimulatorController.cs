@@ -178,6 +178,7 @@ namespace SBPScripts.Simulator
 
         float steeringValueFanatec;
         FFBInspectorBike steeringInput;
+        SimBikeSpawnController spawnController;
 
         public CycleGeometry cycleGeometry;
         public GameObject fPhysicsWheel, rPhysicsWheel;
@@ -512,6 +513,7 @@ namespace SBPScripts.Simulator
             Debug.Log($"[BicycleSimulatorController] 🎯 AWAKE: Scene='{gameObject.scene.name}' | GameObject='{gameObject.name}' | Path='{parentPath}'");
             
             transform.rotation = Quaternion.Euler(0, transform.rotation.eulerAngles.y, 0);
+            spawnController = GetComponent<SimBikeSpawnController>();
             Debug.Log($"[BicycleSimulatorController] FLAGS isSumoVehicle={isSumoVehicle}, isSimulatorVehicle={isSimulatorVehicle}, id={id}");
 
             // Input from bike
@@ -543,6 +545,7 @@ namespace SBPScripts.Simulator
 
             rb = GetComponent<Rigidbody>();
             rb.maxAngularVelocity = Mathf.Infinity;
+            spawnController = GetComponent<SimBikeSpawnController>();
 
             fWheelRb = fPhysicsWheel.GetComponent<Rigidbody>();
             fWheelRb.maxAngularVelocity = Mathf.Infinity;
@@ -673,6 +676,55 @@ namespace SBPScripts.Simulator
             rawCustomAccelerationAxis = 0f;
         }
 
+        bool IsWahooConnected()
+        {
+            return tcp_bike_connection != null && tcp_bike_connection.IsConnected();
+        }
+
+        bool HasRiderDriveInput()
+        {
+            if (IsWahooConnected())
+                return true;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S)
+                || Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.Space)
+                || Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.DownArrow)
+                || Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.RightArrow))
+                return true;
+            if (Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.1f)
+                return true;
+            if (Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.1f)
+                return true;
+            return false;
+        }
+
+        bool ShouldHoldIdle()
+        {
+            if (IsWahooConnected())
+                return false;
+            return !HasRiderDriveInput();
+        }
+
+        void HoldIdlePhysics()
+        {
+            HaltIntegratedVelocity();
+            customSteerAxis = 0f;
+            customLeanAxis = 0f;
+            ZeroRigidbody(rb);
+            ZeroRigidbody(fWheelRb);
+            ZeroRigidbody(rWheelRb);
+            if (spawnController != null)
+                spawnController.KeepUprightLock();
+            else if (rb != null)
+                rb.constraints |= RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+        }
+
+        static void ZeroRigidbody(Rigidbody body)
+        {
+            if (body == null) return;
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+        }
+
         IEnumerator LogData()
         {
             while (true)
@@ -788,6 +840,15 @@ namespace SBPScripts.Simulator
 
         void ApplyPhysicsUpdate()
         {
+            if (isSimulatorVehicle && ShouldHoldIdle())
+            {
+                HoldIdlePhysics();
+                return;
+            }
+
+            if (isSimulatorVehicle)
+                spawnController?.ReleaseUprightLock();
+
             //Physics based Steering Control.
             fPhysicsWheel.transform.rotation = Quaternion.Euler(transform.rotation.eulerAngles.x, transform.rotation.eulerAngles.y + customSteerAxis * steerAngle.Evaluate(rb.linearVelocity.magnitude) + oscillationSteerEffect, 0);
             fPhysicsWheelConfigJoint.axis = new Vector3(1, 0, 0); 

@@ -136,11 +136,7 @@ namespace CyclingExperiment
                 }
 
                 if (bicycle.GetComponent<SBPScripts.Simulator.BicycleSimulatorController>() != null)
-                {
-                    var listeners = bicycle.GetComponentsInChildren<AudioListener>(true);
-                    foreach (var listener in listeners)
-                        listener.enabled = listener.gameObject.name == "Main Camera";
-                }
+                    SimBikeCyclistMotion.ConfigureExperimentPhysics(bicycle);
             }
 
             if (route1 == null) route1 = Object.FindObjectOfType<Scenario1_CombinedController>();
@@ -336,9 +332,7 @@ namespace CyclingExperiment
             if (followCamera != null)
                 followCamera.gameObject.SetActive(false);
 
-            var listeners = instance.GetComponentsInChildren<AudioListener>(true);
-            foreach (var listener in listeners)
-                listener.enabled = listener.gameObject.name == "Main Camera";
+            SimBikeCyclistMotion.ConfigureExperimentPhysics(instance);
 
             var cyclist = instance.transform.Find("Old Cycle Cyclist");
             var animator = cyclist != null ? cyclist.GetComponent<Animator>() : null;

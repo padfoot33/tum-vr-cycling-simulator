@@ -615,6 +615,8 @@ namespace CyclingExperiment.Editor
                 if (spawnOnAwake != null) spawnOnAwake.boolValue = false;
                 so.ApplyModifiedPropertiesWithoutUndo();
             }
+
+            SimBikeCyclistMotion.ConfigureExperimentPhysics(bicycle);
         }
 
         private static GameObject FindIncludingInactive(string objectName)

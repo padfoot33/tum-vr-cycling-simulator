@@ -99,7 +99,7 @@ namespace CyclingExperiment.Editor
             DisableChaseCamera();
             EnsureMotionAdapter(simBike);
             DisableSpawnOnAwake(simBike);
-            KeepSingleAudioListener(simBike);
+            SimBikeCyclistMotion.ConfigureExperimentPhysics(simBike);
             DisableCyclistRootMotion(simBike);
 
             var refs = ExperimentRefs.EnsureExists();
@@ -213,18 +213,6 @@ namespace CyclingExperiment.Editor
             if (spawnOnAwake != null) spawnOnAwake.boolValue = false;
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(spawn);
-        }
-
-        private static void KeepSingleAudioListener(GameObject simBike)
-        {
-            var listeners = simBike.GetComponentsInChildren<AudioListener>(true);
-            foreach (var listener in listeners)
-            {
-                bool keep = listener.gameObject.name == "Main Camera";
-                if (listener.enabled == keep) continue;
-                Undo.RecordObject(listener, "SimBike AudioListener");
-                listener.enabled = keep;
-            }
         }
 
         private static void DisableCyclistRootMotion(GameObject simBike)

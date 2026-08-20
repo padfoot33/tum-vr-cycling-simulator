@@ -35202,9 +35202,25 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0.069
       objectReference: {fileID: 0}
+    - target: {fileID: 3251271796660935133, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_RequestedTrackingOriginMode
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4307708336145152465, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_UseGravity
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4307708336145152471, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_Name
       value: SimBike
+      objectReference: {fileID: 0}
+    - target: {fileID: 7131291131850236548, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7782976941744832388, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 9082841014273762199, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: scenario1Spawn
@@ -85405,7 +85421,7 @@ MonoBehaviour:
   playAreaConstraint: {fileID: 2024471567}
   route2CyclistSpawn: {fileID: 1157012269}
   lockParticipantRun: 1
-  lockedRouteIndex: 1
+  lockedRouteIndex: 2
   lockedTrafficEnabled: 1
 --- !u!4 &2024471566
 Transform:

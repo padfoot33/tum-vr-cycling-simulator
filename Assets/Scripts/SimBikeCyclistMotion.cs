@@ -53,6 +53,82 @@ namespace CyclingExperiment
         private void Awake()
         {
             CacheRefs();
+            ConfigureExperimentPhysics(gameObject);
+        }
+
+        /// <summary>
+        /// Root collider is a trigger (wheels contact the road). One AudioListener on the active camera.
+        /// </summary>
+        public static void ConfigureExperimentPhysics(GameObject bike)
+        {
+            if (bike == null) return;
+
+            var box = bike.GetComponent<BoxCollider>();
+            if (box != null)
+                box.isTrigger = true;
+
+            EnsureOneAudioListener(bike);
+        }
+
+        public static void EnsureOneAudioListener(GameObject bike)
+        {
+            if (bike == null) return;
+
+            var listeners = bike.GetComponentsInChildren<AudioListener>(true);
+            if (listeners == null || listeners.Length == 0)
+                return;
+
+            AudioListener keep = null;
+            for (int i = 0; i < listeners.Length; i++)
+            {
+                AudioListener listener = listeners[i];
+                if (listener == null) continue;
+                if (listener.gameObject.name == "Main Camera" && listener.gameObject.activeInHierarchy)
+                {
+                    keep = listener;
+                    break;
+                }
+            }
+
+            if (keep == null)
+            {
+                var cameras = bike.GetComponentsInChildren<UnityEngine.Camera>(true);
+                for (int i = 0; i < cameras.Length; i++)
+                {
+                    UnityEngine.Camera cam = cameras[i];
+                    if (cam == null || !cam.isActiveAndEnabled) continue;
+                    var listener = cam.GetComponent<AudioListener>();
+                    if (listener != null)
+                    {
+                        keep = listener;
+                        break;
+                    }
+                }
+            }
+
+            if (keep == null)
+            {
+                for (int i = 0; i < listeners.Length; i++)
+                {
+                    if (listeners[i] != null && listeners[i].gameObject.name == "Main Camera")
+                    {
+                        keep = listeners[i];
+                        break;
+                    }
+                }
+            }
+
+            if (keep == null)
+                keep = listeners[0];
+
+            for (int i = 0; i < listeners.Length; i++)
+            {
+                if (listeners[i] != null)
+                    listeners[i].enabled = listeners[i] == keep;
+            }
+
+            if (keep != null)
+                keep.enabled = true;
         }
 
         private void CacheRefs()
