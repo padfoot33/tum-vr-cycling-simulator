@@ -25212,6 +25212,10 @@ PrefabInstance:
       value: bicyle_animated_human
       objectReference: {fileID: 0}
     - target: {fileID: 8057256382253205560, guid: 34ccd41fe34feee46bda2addce5faa9e, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8057256382253205560, guid: 34ccd41fe34feee46bda2addce5faa9e, type: 3}
       propertyPath: m_TagString
       value: Player
       objectReference: {fileID: 0}
@@ -25231,17 +25235,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7249334497186140802, guid: 34ccd41fe34feee46bda2addce5faa9e, type: 3}
   m_PrefabInstance: {fileID: 641229300}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &641229302 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5197803466448921892, guid: 34ccd41fe34feee46bda2addce5faa9e, type: 3}
-  m_PrefabInstance: {fileID: 641229300}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 378510523}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8e373d46399a35b408d4ca1baffe0c6c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!65 &641229308
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -33455,8 +33448,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 546c00619f21a4d0496005d0930aa91f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.Scenarios.EventMarkerLogger
-  playerTransform: {fileID: 641229301}
-  bicycleController: {fileID: 641229302}
+  playerTransform: {fileID: 1662763193}
+  cyclistMotion: {fileID: 1662763183}
 --- !u!4 &882387999
 Transform:
   m_ObjectHideFlags: 0
@@ -35161,6 +35154,71 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 5608683242764416321, guid: fe898286cea120f4190862305ef68ffa, type: 3}
+--- !u!1001 &930631919
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 632.11
+      objectReference: {fileID: 0}
+    - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 610.99
+      objectReference: {fileID: 0}
+    - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.84798014
+      objectReference: {fileID: 0}
+    - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.0088886125
+      objectReference: {fileID: 0}
+    - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0.5299313
+      objectReference: {fileID: 0}
+    - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0.004844882
+      objectReference: {fileID: 0}
+    - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: -1.158
+      objectReference: {fileID: 0}
+    - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: -784.006
+      objectReference: {fileID: 0}
+    - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0.069
+      objectReference: {fileID: 0}
+    - target: {fileID: 4307708336145152471, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_Name
+      value: SimBike
+      objectReference: {fileID: 0}
+    - target: {fileID: 9082841014273762199, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: scenario1Spawn
+      value: 
+      objectReference: {fileID: 1431983341}
+    - target: {fileID: 9082841014273762199, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: scenario2Spawn
+      value: 
+      objectReference: {fileID: 1157012269}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
 --- !u!1 &930684128 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1506986684801239855, guid: 9617d4ea46d0be64bab0509212afe5da, type: 3}
@@ -35836,7 +35894,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &944582869
 Transform:
   m_ObjectHideFlags: 0
@@ -36084,6 +36142,8 @@ MonoBehaviour:
   busOvertakePath: {fileID: 926250823}
   busPrefab: {fileID: 6097283062772588808, guid: 27334295a198940e1a678a9784074c64, type: 3}
   busSpeed: 14
+  spawnBehindDistance: 20
+  parkLeadSeconds: 2.5
   rightTurnCarPath: {fileID: 1098182118}
   overtakingCarPrefab: {fileID: 4933583111240688830, guid: acf1b64a1fbe1d74d93024e62413459d, type: 3}
   overtakingCarSpeed: 11
@@ -36093,7 +36153,7 @@ MonoBehaviour:
   stationAmbientVolume: 0.22
   stationAmbientMinDistance: 6
   stationAmbientMaxDistance: 36
-  playerTransform: {fileID: 641229301}
+  playerTransform: {fileID: 1662763193}
   sceneRefs: {fileID: 2024471565}
   intersectionTraffic: {fileID: 1492515012}
   busEngineLoop: {fileID: 0}
@@ -40146,8 +40206,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 24, y: 16, z: 77.04022}
-  m_Center: {x: 0, y: 0, z: 0}
+  m_Size: {x: 24, y: 16, z: 71.74974}
+  m_Center: {x: 0.000000008497182, y: 0, z: -2.6452408}
 --- !u!1 &1041294457 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 7715956723729170758, guid: 9617d4ea46d0be64bab0509212afe5da, type: 3}
@@ -52606,7 +52666,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: da3a2b71c839942bd8fd8d7c46848b50, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.UI.HUDController
-  _bicycleController: {fileID: 641229302}
+  _bicycleController: {fileID: 1662763183}
   _showSpeed: 0
   _showScenarioInfo: 0
   _showDebugInfo: 0
@@ -63740,6 +63800,27 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 6049880876679392091, guid: 49ef940afe18c524687abab514e9ec5a, type: 3}
+--- !u!1 &1662763182 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4307708336145152471, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+  m_PrefabInstance: {fileID: 930631919}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1662763183 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4307708336145152500, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+  m_PrefabInstance: {fileID: 930631919}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1662763182}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f6a0c2e4b8147d3a1c8e5d0b7f39214, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.SimBikeCyclistMotion
+--- !u!4 &1662763193 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+  m_PrefabInstance: {fileID: 930631919}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1662797213
 GameObject:
   m_ObjectHideFlags: 0
@@ -85288,22 +85369,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a4c2e91b8d64f0e9c1a5f3e6b2d8a10, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.ExperimentSceneRefs
-  bicycle: {fileID: 378510523}
-  bicycleTransform: {fileID: 641229301}
-  bicyclePhysics: {fileID: 641229302}
-  cyclistMotion: {fileID: 0}
+  bicycle: {fileID: 1662763182}
+  bicycleTransform: {fileID: 1662763193}
+  bicyclePhysics: {fileID: 0}
+  cyclistMotion: {fileID: 1662763183}
   route1: {fileID: 946615556}
   cityTraffic: {fileID: 975711439}
   intersectionTraffic: {fileID: 1492515012}
   hud: {fileID: 1363860667}
-  followCamera: {fileID: 944582873}
+  followCamera: {fileID: 0}
   eventSystem: {fileID: 986935853}
   busStopTrigger: {fileID: 230667168}
+  rightTurnTrigger: {fileID: 0}
+  rightTurnSign: {fileID: 0}
   route1CyclistSpawn: {fileID: 1431983341}
   cityTrafficPaths: {fileID: 0}
   campusTrafficPaths: {fileID: 1946143632}
   trafficDestinations: {fileID: 1149753371}
   campusRoadNetwork: {fileID: 0}
+  route1PathTracker: {fileID: 0}
+  runLogger: {fileID: 0}
   route1PlayArea: {fileID: 1732696664}
   route2PlayArea: {fileID: 977575444}
   playAreaConstraint: {fileID: 2024471567}
@@ -90583,3 +90668,4 @@ SceneRoots:
   - {fileID: 156128839}
   - {fileID: 975711440}
   - {fileID: 2024471566}
+  - {fileID: 930631919}
