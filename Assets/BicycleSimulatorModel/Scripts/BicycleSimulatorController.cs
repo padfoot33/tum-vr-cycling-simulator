@@ -545,6 +545,7 @@ namespace SBPScripts.Simulator
 
             rb = GetComponent<Rigidbody>();
             rb.maxAngularVelocity = Mathf.Infinity;
+            rb.constraints &= ~(RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ);
             spawnController = GetComponent<SimBikeSpawnController>();
 
             fWheelRb = fPhysicsWheel.GetComponent<Rigidbody>();
@@ -712,10 +713,7 @@ namespace SBPScripts.Simulator
             ZeroRigidbody(rb);
             ZeroRigidbody(fWheelRb);
             ZeroRigidbody(rWheelRb);
-            if (spawnController != null)
-                spawnController.KeepUprightLock();
-            else if (rb != null)
-                rb.constraints |= RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+            spawnController?.ZeroAllVelocities();
         }
 
         static void ZeroRigidbody(Rigidbody body)
@@ -845,9 +843,6 @@ namespace SBPScripts.Simulator
                 HoldIdlePhysics();
                 return;
             }
-
-            if (isSimulatorVehicle)
-                spawnController?.ReleaseUprightLock();
 
             //Physics based Steering Control.
             fPhysicsWheel.transform.rotation = Quaternion.Euler(transform.rotation.eulerAngles.x, transform.rotation.eulerAngles.y + customSteerAxis * steerAngle.Evaluate(rb.linearVelocity.magnitude) + oscillationSteerEffect, 0);

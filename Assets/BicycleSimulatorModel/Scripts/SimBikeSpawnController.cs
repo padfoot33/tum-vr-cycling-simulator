@@ -48,6 +48,7 @@ public class SimBikeSpawnController : MonoBehaviour
     private void Awake()
     {
         FindReferences();
+        ClearRotationFreeze();
 
         if (simBikeRoot == null || rootRigidbody == null)
         {
@@ -82,6 +83,12 @@ public class SimBikeSpawnController : MonoBehaviour
                 jointConnectedBodies[i] = allJoints[i].connectedBody;
             }
         }
+    }
+
+    void ClearRotationFreeze()
+    {
+        if (rootRigidbody == null) return;
+        rootRigidbody.constraints &= ~(RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ);
     }
 
     /// <summary>
