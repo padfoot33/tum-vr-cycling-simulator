@@ -149,6 +149,12 @@ namespace CyclingExperiment.Scenarios
                 return;
             }
 
+            if (!ExperimentBuildSession.AllowsScriptedVehicles)
+            {
+                Debug.Log("[Scenario1] Traffic disabled / test run: Skipping bus overtake.");
+                return;
+            }
+
             if (busOvertakePath == null || busPrefab == null)
             {
                 Debug.LogWarning("[Scenario1] Missing bus path or bus prefab.");
@@ -198,6 +204,12 @@ namespace CyclingExperiment.Scenarios
             if (ScenarioManager.Instance != null && ScenarioManager.Instance.CurrentCondition == ExperimentCondition.Baseline)
             {
                 Debug.Log("[Scenario1] Baseline condition: Skipping right-turn car overtake.");
+                return;
+            }
+
+            if (!ExperimentBuildSession.AllowsScriptedVehicles)
+            {
+                Debug.Log("[Scenario1] Traffic disabled / test run: Skipping right-turn car overtake.");
                 return;
             }
 

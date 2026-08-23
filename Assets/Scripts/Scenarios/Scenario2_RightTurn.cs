@@ -75,6 +75,12 @@ namespace CyclingExperiment.Scenarios
                 return;
             }
 
+            if (!ExperimentBuildSession.AllowsScriptedVehicles)
+            {
+                Debug.Log("[Scenario2_RightTurn] Traffic disabled / test run: Skipping traffic spawn.");
+                return;
+            }
+
             AutoAssignReferencesIfNull();
 
             if (intersectionTrafficPaths.Count == 0 || vehiclePrefabs.Count == 0)

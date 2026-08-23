@@ -81,6 +81,12 @@ namespace CyclingExperiment.Scenarios
                 return;
             }
 
+            if (!ExperimentBuildSession.AllowsScriptedVehicles)
+            {
+                Debug.Log("[Scenario1_BusOvertake] Traffic disabled / test run: Skipping bus spawn.");
+                return;
+            }
+
             AutoAssignReferencesIfNull();
 
             if (busPrefab == null)

@@ -11,7 +11,7 @@ namespace CyclingExperiment.UI
 {
     /// <summary>
     /// Interactive in-game Scenario Selector UI & Teleportation System.
-    /// Supports Combined Route 1, Route 2 Construction, Free Roam, and Live Traffic ON/OFF Toggle.
+    /// Supports Combined Route 1, Route 2 Construction, Free Roam, Test Run, and Live Traffic ON/OFF Toggle.
     /// Press 'M' or 'Tab' to open menu; 'T' to toggle city traffic.
     /// </summary>
     public class ScenarioSelectionUI : MonoBehaviour
@@ -95,6 +95,7 @@ namespace CyclingExperiment.UI
                 if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) SelectScenario(1);
                 if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) SelectScenario(2);
                 if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3) || Input.GetKeyDown(KeyCode.Escape)) SelectScenario(0);
+                if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4)) SelectScenario(3);
             }
         }
 
@@ -149,26 +150,27 @@ namespace CyclingExperiment.UI
             GameObject card = new GameObject("ModalCard");
             card.transform.SetParent(_modalPanel.transform, false);
             var cardRect = card.AddComponent<RectTransform>();
-            cardRect.sizeDelta = new Vector2(760, 560);
+            cardRect.sizeDelta = new Vector2(760, 640);
             cardRect.anchoredPosition = Vector2.zero;
 
             var cardBg = card.AddComponent<Image>();
             cardBg.color = new Color(0.11f, 0.15f, 0.22f, 0.98f);
 
             // Title
-            CreateText(card.transform, "Title", "TUM VR CYCLING EXPERIMENT", new Vector2(0, 220), 28, FontStyle.Bold, Color.white);
-            CreateText(card.transform, "Subtitle", "Select a scenario to start simulation (or press 1, 2, 3):", new Vector2(0, 175), 18, FontStyle.Normal, new Color(0.75f, 0.85f, 0.95f));
+            CreateText(card.transform, "Title", "TUM VR CYCLING EXPERIMENT", new Vector2(0, 260), 28, FontStyle.Bold, Color.white);
+            CreateText(card.transform, "Subtitle", "Select a scenario to start simulation (or press 1, 2, 3, 4):", new Vector2(0, 215), 18, FontStyle.Normal, new Color(0.75f, 0.85f, 0.95f));
 
             // Buttons
-            CreateScenarioButton(card.transform, "[1]  Route 1: Combined Bus Stop & Right-Turn Sequence\n<size=15><color=#90CDF4>Gabelsbergerstr. • Bus Overtake & Park ➔ Red Strip Right-Turn</color></size>", new Vector2(0, 95), () => SelectScenario(1));
-            CreateScenarioButton(card.transform, "[2]  Route 2: Construction Narrowing Sequence\n<size=15><color=#90CDF4>Narrowed Roadway Chute with Passing Traffic Squeeze</color></size>", new Vector2(0, 10), () => SelectScenario(2));
-            CreateScenarioButton(card.transform, "[3]  Free Roam & City Exploration\n<size=15><color=#A0AEC0>Freely Ride and Explore the Munich TUM Campus with Ambient Traffic</color></size>", new Vector2(0, -75), () => SelectScenario(0));
+            CreateScenarioButton(card.transform, "[1]  Route 1: Combined Bus Stop & Right-Turn Sequence\n<size=15><color=#90CDF4>Gabelsbergerstr. • Bus Overtake & Park ➔ Red Strip Right-Turn</color></size>", new Vector2(0, 135), () => SelectScenario(1));
+            CreateScenarioButton(card.transform, "[2]  Route 2: Construction Narrowing Sequence\n<size=15><color=#90CDF4>Narrowed Roadway Chute with Passing Traffic Squeeze</color></size>", new Vector2(0, 50), () => SelectScenario(2));
+            CreateScenarioButton(card.transform, "[3]  Free Roam & City Exploration\n<size=15><color=#A0AEC0>Freely Ride and Explore the Munich TUM Campus with Ambient Traffic</color></size>", new Vector2(0, -35), () => SelectScenario(0));
+            CreateScenarioButton(card.transform, "[4]  Test Run\n<size=15><color=#A0AEC0>Free roam with no traffic and no scenario events</color></size>", new Vector2(0, -120), () => SelectScenario(3));
 
             // Traffic Toggle inside modal
-            CreateTrafficToggleButton(card.transform, new Vector2(0, -155));
+            CreateTrafficToggleButton(card.transform, new Vector2(0, -200));
 
             // Hint
-            CreateText(card.transform, "Hint", "Press 'M' for Menu  •  Press 'T' to Toggle Traffic  •  Press 'V' for Cockpit View", new Vector2(0, -230), 16, FontStyle.Italic, new Color(0.6f, 0.75f, 0.9f));
+            CreateText(card.transform, "Hint", "Press 'M' for Menu  •  Press 'T' to Toggle Traffic  •  Press 'V' for Cockpit View", new Vector2(0, -275), 16, FontStyle.Italic, new Color(0.6f, 0.75f, 0.9f));
         }
 
         private void CreateTopButtons(Transform parent)
@@ -312,9 +314,13 @@ namespace CyclingExperiment.UI
 
             if (Refs.route1 != null) Refs.route1.ResetScenario();
 
+            bool leavingTestRun = ExperimentBuildSession.IsTestRun && scenarioIndex != ExperimentBuildSession.TestRunRouteIndex;
+            ExperimentBuildSession.SetPlayTestRun(scenarioIndex == ExperimentBuildSession.TestRunRouteIndex);
+
             switch (scenarioIndex)
             {
                 case 1:
+                    RestoreTrafficAfterTestRun(leavingTestRun);
                     if (Refs.route1CyclistSpawn != null)
                     {
                         Vector3 spawnPos = Refs.route1CyclistSpawn.position;
@@ -331,6 +337,7 @@ namespace CyclingExperiment.UI
                     break;
 
                 case 2:
+                    RestoreTrafficAfterTestRun(leavingTestRun);
                     if (Refs.route2CyclistSpawn != null)
                     {
                         TeleportBike(Refs.Cyclist, bike.transform,
@@ -345,15 +352,31 @@ namespace CyclingExperiment.UI
                     if (EventMarkerLogger.Instance != null) EventMarkerLogger.Instance.LogEvent("ROUTE2_START");
                     break;
 
+                case 3:
+                    if (Refs.cityTraffic != null) Refs.cityTraffic.SetTrafficEnabled(false);
+                    if (Refs.intersectionTraffic != null) Refs.intersectionTraffic.StopTrafficFlow();
+                    BeginRunLog("TestRun", "C0", "debug");
+                    if (EventMarkerLogger.Instance != null) EventMarkerLogger.Instance.LogEvent("TEST_RUN_START");
+                    break;
+
                 case 0:
                 default:
+                    RestoreTrafficAfterTestRun(leavingTestRun);
                     BeginRunLog("FreeRoam", "C1", "approach");
                     break;
             }
 
-            Refs.ApplyPlayArea(scenarioIndex);
+            Refs.ApplyPlayArea(scenarioIndex == ExperimentBuildSession.TestRunRouteIndex ? 0 : scenarioIndex);
 
             if (Refs.followCamera != null) Refs.followCamera.SnapToTarget();
+        }
+
+        private void RestoreTrafficAfterTestRun(bool leavingTestRun)
+        {
+            if (!leavingTestRun || ExperimentBuildSession.LocksParticipantUi) return;
+            if (ExperimentBuildSession.IsActive && !ExperimentBuildSession.TrafficEnabled) return;
+            if (Refs == null || Refs.cityTraffic == null) return;
+            Refs.cityTraffic.SetTrafficEnabled(true);
         }
 
         private void BeginRunLog(string scenarioName, string segmentId, string taskContext)

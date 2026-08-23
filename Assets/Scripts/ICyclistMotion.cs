@@ -12,6 +12,9 @@ namespace CyclingExperiment
         float GetSpeedKph();
         float GetSpeedMps();
         float GetSteeringAngleDeg();
+        float GetLeftBrake();
+        float GetRightBrake();
+        bool IsBrakeActive();
         float MaxSpeedMps { get; set; }
         void Teleport(Vector3 worldPosition, float yawDegrees);
         void SetWorldPositionKeepYaw(Vector3 worldPosition);

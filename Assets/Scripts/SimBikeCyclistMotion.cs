@@ -13,6 +13,7 @@ namespace CyclingExperiment
         [SerializeField] BicycleSimulatorController simulator;
         [SerializeField] SimBikeSpawnController spawnController;
         [SerializeField] Rigidbody rootBody;
+        [SerializeField] float brakeDeadzone = 1.5f;
 
         Rigidbody[] _bodies;
 
@@ -38,6 +39,25 @@ namespace CyclingExperiment
             if (angle > 180f)
                 angle -= 360f;
             return angle;
+        }
+
+        public float GetLeftBrake()
+        {
+            CacheRefs();
+            return simulator != null ? simulator.leftBrakeSignal : 0f;
+        }
+
+        public float GetRightBrake()
+        {
+            CacheRefs();
+            return simulator != null ? simulator.rightBrakeSignal : 0f;
+        }
+
+        public bool IsBrakeActive()
+        {
+            if (GetLeftBrake() > brakeDeadzone || GetRightBrake() > brakeDeadzone)
+                return true;
+            return Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.Space);
         }
 
         public float MaxSpeedMps

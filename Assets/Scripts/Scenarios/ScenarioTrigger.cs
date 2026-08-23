@@ -35,6 +35,13 @@ namespace CyclingExperiment.Scenarios
             _hasTriggered = false;
         }
 
+        public void Configure(string id, Color color)
+        {
+            if (!string.IsNullOrEmpty(id))
+                scenarioId = id;
+            gizmoColor = color;
+        }
+
         private void Awake()
         {
             _collider = GetComponent<Collider>();
@@ -66,6 +73,7 @@ namespace CyclingExperiment.Scenarios
 
         private void OnTriggerEnter(Collider other)
         {
+            if (ExperimentBuildSession.IsTestRun) return;
             if (oneShot && _hasTriggered) return;
 
             if (IsPlayer(other))
@@ -84,6 +92,8 @@ namespace CyclingExperiment.Scenarios
 
         private void OnTriggerExit(Collider other)
         {
+            if (ExperimentBuildSession.IsTestRun) return;
+
             if (IsPlayer(other))
             {
                 Debug.Log($"[ScenarioTrigger] Player exited trigger: {gameObject.name} (Scenario: {scenarioId})");

@@ -2,6 +2,14 @@
 
 Working notes for current development. The project map lives in [PROJECT_MINDMAP.md](PROJECT_MINDMAP.md).
 
+## 23 Aug 2026 — Run log sync, Route 2 path, brakes
+
+[`ExperimentRunLogger`](../Assets/Scripts/Logging/ExperimentRunLogger.cs) writes `timestamp_utc` and `unix_time_ms` on every CSV row (keep relative `t`). Operator **F9** = `SYNC_PRE`, **F10** = `SYNC_POST` in the same run CSV. Sampling is a phase-locked 20 Hz unscaled grid; late frames skip rather than duplicate rows.
+
+Route 2 now uses `route2PathTracker` (`Route2_ReferencePath`) for `deviation_from_path`. Segments C2/C3 come from `Route2_Trigger_C2` / `Route2_Trigger_C3` at the construction chute, not world Z. CSV also has `brake_left`, `brake_right`, `brake_active` from SimBike Arduino / keyboard.
+
+**Editor:** **Cycling Experiment → Ensure Experiment Run Logger**, then save MainScene so the Route 2 path and triggers persist.
+
 ## 20 Aug 2026 — Client play HUD, bus timing, sign, run log
 
 Participant Play has no speed HUD, scenario banner, toasts, or persistent M/T buttons. Press **M** for the operator modal only when the participant lock is off.

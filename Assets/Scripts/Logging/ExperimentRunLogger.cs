@@ -1,12 +1,14 @@
 using System;
 using System.Globalization;
 using System.IO;
+using CyclingExperiment.Scenarios;
 using UnityEngine;
 
 namespace CyclingExperiment.Logging
 {
     /// <summary>
     /// 20 Hz experiment CSV matching the client run-log schema (no LOD).
+    /// Every row has wall-clock timestamps for EdaMove / Movesense sync.
     /// </summary>
     [DefaultExecutionOrder(20)]
     public class ExperimentRunLogger : MonoBehaviour
@@ -32,6 +34,10 @@ namespace CyclingExperiment.Logging
         [SerializeField] private float implausibleMinY = -5f;
         [SerializeField] private float implausibleMaxY = 20f;
 
+        [Header("Operator sync")]
+        [SerializeField] private KeyCode syncPreKey = KeyCode.F9;
+        [SerializeField] private KeyCode syncPostKey = KeyCode.F10;
+
         private ICyclistMotion _cyclist;
         private string _scenarioName = "Route1_BusStop_RightTurn";
         private string _segmentId = "C1";
@@ -48,16 +54,20 @@ namespace CyclingExperiment.Logging
         private string _runFilePath;
         private StreamWriter _writer;
         private bool _isLogging;
-        private float _startTime;
-        private float _nextLogTime;
-        private float _nextFlushTime;
+        private DateTimeOffset _runStartUtc;
+        private float _nextLogUnscaled;
+        private float _nextFlushUnscaled;
 
         private Vector3 _lastBikePos;
-        private float _lastBikePosTime;
+        private DateTimeOffset _lastSampleUtc;
         private float _smoothedSpeedKph;
         private Vector3 _lastVelocityWorld;
+        private Vector3 _lastAccelWorld;
         private float _lastHeadingDeg;
+        private float _lastYawRateDegS;
         private float _lastSteeringAngleDeg;
+        private float _lastSteeringRateDegS;
+        private float _lastMovementDirDeg;
         private float _steeringZeroOffset;
 
         public bool IsLogging => _isLogging;
@@ -84,28 +94,31 @@ namespace CyclingExperiment.Logging
             if (bikeTransform != null)
             {
                 _lastBikePos = bikeTransform.position;
-                _lastBikePosTime = Time.time;
+                _lastSampleUtc = DateTimeOffset.UtcNow;
                 _lastHeadingDeg = bikeTransform.eulerAngles.y;
             }
         }
 
         private void Update()
         {
+            PollSyncKeys();
+
             if (!_isLogging || bikeTransform == null)
                 return;
 
-            MaybeAdvanceRoute2Segment();
-
-            if (Time.time >= _nextLogTime)
+            float interval = 1f / Mathf.Max(1, logHz);
+            if (Time.unscaledTime >= _nextLogUnscaled)
             {
                 WriteSampleRow();
-                _nextLogTime = Time.time + (1f / Mathf.Max(1, logHz));
+                _nextLogUnscaled += interval;
+                if (_nextLogUnscaled < Time.unscaledTime)
+                    _nextLogUnscaled = Time.unscaledTime;
             }
 
-            if (Time.time >= _nextFlushTime)
+            if (Time.unscaledTime >= _nextFlushUnscaled)
             {
                 _writer?.Flush();
-                _nextFlushTime = Time.time + 1f;
+                _nextFlushUnscaled = Time.unscaledTime + 1f;
             }
         }
 
@@ -129,8 +142,6 @@ namespace CyclingExperiment.Logging
                 if (bikeTransform == null) bikeTransform = refs.bicycleTransform;
                 if (cyclistMotion == null && refs.Cyclist != null)
                     cyclistMotion = refs.Cyclist as MonoBehaviour;
-                if (referencePathTracker == null)
-                    referencePathTracker = refs.route1PathTracker;
             }
 
             _cyclist = cyclistMotion as ICyclistMotion;
@@ -157,6 +168,10 @@ namespace CyclingExperiment.Logging
             _scriptedPhase = "NONE";
             _closePassEvent = "NONE";
             ClearEventVehicleData();
+            BindReferencePathForScenario();
+
+            if (IsRoute2(_scenarioName))
+                ExperimentSceneRefs.ResetRoute2SegmentTriggers();
 
             if (_cyclist != null)
                 maxBikeSpeedKph = Mathf.Max(maxBikeSpeedKph, _cyclist.MaxSpeedMps * 3.6f);
@@ -176,27 +191,31 @@ namespace CyclingExperiment.Logging
             _writer = new StreamWriter(_runFilePath, false);
             _writer.AutoFlush = false;
 
-            _startTime = Time.time;
-            _nextLogTime = Time.time;
-            _nextFlushTime = Time.time + 1f;
+            _runStartUtc = DateTimeOffset.UtcNow;
+            _nextLogUnscaled = Time.unscaledTime;
+            _nextFlushUnscaled = Time.unscaledTime + 1f;
             _lastBikePos = bikeTransform.position;
-            _lastBikePosTime = Time.time;
+            _lastSampleUtc = _runStartUtc;
             _smoothedSpeedKph = 0f;
             _lastVelocityWorld = Vector3.zero;
+            _lastAccelWorld = Vector3.zero;
             _lastHeadingDeg = bikeTransform.eulerAngles.y;
+            _lastYawRateDegS = 0f;
+            _lastMovementDirDeg = float.NaN;
             _steeringZeroOffset = GetRawSteeringAngleDeg();
             if (float.IsNaN(_steeringZeroOffset))
                 _steeringZeroOffset = 0f;
             _lastSteeringAngleDeg = 0f;
+            _lastSteeringRateDegS = float.NaN;
 
             WriteMetadataBlock();
             _writer.WriteLine(
-                "run_id,participant_id,scenario_name,segment_id,task_context,t,event,event_phase,x,y,z,speed_kph,vel_x,vel_z,accel_x,accel_z,heading_deg,movement_dir_deg,yaw_rate_deg_s,steering_angle_deg,steering_rate_deg_s,deviation_from_path,event_vehicle_x,event_vehicle_z,event_vehicle_speed_kph,fps,frame_time_ms,technical_issue_flag");
+                "run_id,participant_id,scenario_name,segment_id,task_context,t,timestamp_utc,unix_time_ms,event,event_phase,x,y,z,speed_kph,vel_x,vel_z,accel_x,accel_z,heading_deg,movement_dir_deg,yaw_rate_deg_s,steering_angle_deg,steering_rate_deg_s,brake_left,brake_right,brake_active,deviation_from_path,event_vehicle_x,event_vehicle_z,event_vehicle_speed_kph,fps,frame_time_ms,technical_issue_flag");
             _writer.Flush();
 
             _isLogging = true;
-            WriteRow("RUN_START");
-            WriteRow("START");
+            WriteEventRow("RUN_START");
+            WriteEventRow("START");
             _writer.Flush();
             Debug.Log($"[ExperimentRunLogger] Logging started: {_runFilePath}");
         }
@@ -206,8 +225,8 @@ namespace CyclingExperiment.Logging
             if (!_isLogging)
                 return;
 
-            WriteRow("FINISH");
-            WriteRow("RUN_END");
+            WriteEventRow("FINISH");
+            WriteEventRow("RUN_END");
             _isLogging = false;
             _writer?.Flush();
             _writer?.Close();
@@ -261,13 +280,63 @@ namespace CyclingExperiment.Logging
             if (string.IsNullOrEmpty(markerName))
                 return;
 
-            WriteRow(markerName);
+            WriteEventRow(markerName);
             _writer.Flush();
+        }
+
+        private void PollSyncKeys()
+        {
+            if (Input.GetKeyDown(syncPreKey))
+                TryWriteSyncMarker("SYNC_PRE");
+            if (Input.GetKeyDown(syncPostKey))
+                TryWriteSyncMarker("SYNC_POST");
+        }
+
+        private void TryWriteSyncMarker(string markerName)
+        {
+            if (!_isLogging)
+            {
+                Debug.LogWarning($"[ExperimentRunLogger] {markerName} ignored: logging is not running.");
+                return;
+            }
+
+            long unixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (EventMarkerLogger.Instance != null)
+                EventMarkerLogger.Instance.LogEvent(markerName);
+            else
+                MarkEvent(markerName);
+
+            Debug.Log($"[ExperimentRunLogger] {markerName} unix_time_ms={unixMs}");
+        }
+
+        private void BindReferencePathForScenario()
+        {
+            var refs = ExperimentSceneRefs.Instance;
+            if (refs == null)
+                return;
+
+            referencePathTracker = IsRoute2(_scenarioName)
+                ? refs.route2PathTracker
+                : refs.route1PathTracker;
+
+            if (referencePathTracker != null && bikeTransform != null)
+                referencePathTracker.bikeTransform = bikeTransform;
+        }
+
+        private static bool IsRoute2(string scenarioName)
+        {
+            return !string.IsNullOrEmpty(scenarioName) &&
+                   scenarioName.IndexOf("Route2", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private void WriteSampleRow()
         {
-            WriteRow(CurrentEventName());
+            WriteRow(CurrentEventName(), updateKinematics: true);
+        }
+
+        private void WriteEventRow(string eventValue)
+        {
+            WriteRow(eventValue, updateKinematics: false);
         }
 
         private string CurrentEventName()
@@ -290,45 +359,71 @@ namespace CyclingExperiment.Logging
             return "NONE";
         }
 
-        private void WriteRow(string eventValue)
+        private void WriteRow(string eventValue, bool updateKinematics)
         {
             if (_writer == null || bikeTransform == null)
                 return;
 
-            float t = Time.time - _startTime;
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            float t = (float)(now - _runStartUtc).TotalSeconds;
+            string timestampUtc = now.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
+            long unixMs = now.ToUnixTimeMilliseconds();
+
             Vector3 p = bikeTransform.position;
-
-            float dt = Time.time - _lastBikePosTime;
-            if (dt <= 0.0001f)
-                dt = 0.0001f;
-
-            Vector3 delta = p - _lastBikePos;
-            Vector3 velocityWorld = delta / dt;
-            Vector3 accelWorld = (velocityWorld - _lastVelocityWorld) / dt;
-
-            float rawSpeedKph = (delta.magnitude / dt) * 3.6f;
-            if (t < ignoreFirstSeconds)
-                rawSpeedKph = 0f;
-
-            rawSpeedKph = Mathf.Min(rawSpeedKph, maxBikeSpeedKph);
-            _smoothedSpeedKph = Mathf.Lerp(_smoothedSpeedKph, rawSpeedKph, speedSmoothing);
-
             float headingDeg = bikeTransform.eulerAngles.y;
-            float yawRateDegS = Mathf.DeltaAngle(_lastHeadingDeg, headingDeg) / dt;
-
-            float movementDirDeg = float.NaN;
-            Vector3 flatVel = new Vector3(velocityWorld.x, 0f, velocityWorld.z);
-            if (flatVel.sqrMagnitude > 0.0001f)
-                movementDirDeg = Mathf.Atan2(flatVel.x, flatVel.z) * Mathf.Rad2Deg;
-
             float steeringAngleDeg = GetSteeringAngleDeg();
-            float steeringRateDegS = float.NaN;
-            if (!float.IsNaN(steeringAngleDeg))
-                steeringRateDegS = (steeringAngleDeg - _lastSteeringAngleDeg) / dt;
+
+            Vector3 velocityWorld = _lastVelocityWorld;
+            Vector3 accelWorld = _lastAccelWorld;
+            float movementDirDeg = _lastMovementDirDeg;
+            float yawRateDegS = _lastYawRateDegS;
+            float steeringRateDegS = _lastSteeringRateDegS;
+
+            if (updateKinematics)
+            {
+                float dt = (float)(now - _lastSampleUtc).TotalSeconds;
+                if (dt <= 0.0001f)
+                    dt = 0.0001f;
+
+                Vector3 delta = p - _lastBikePos;
+                velocityWorld = delta / dt;
+                accelWorld = (velocityWorld - _lastVelocityWorld) / dt;
+
+                float rawSpeedKph = (delta.magnitude / dt) * 3.6f;
+                if (t < ignoreFirstSeconds)
+                    rawSpeedKph = 0f;
+
+                rawSpeedKph = Mathf.Min(rawSpeedKph, maxBikeSpeedKph);
+                _smoothedSpeedKph = Mathf.Lerp(_smoothedSpeedKph, rawSpeedKph, speedSmoothing);
+
+                yawRateDegS = Mathf.DeltaAngle(_lastHeadingDeg, headingDeg) / dt;
+
+                movementDirDeg = float.NaN;
+                Vector3 flatVel = new Vector3(velocityWorld.x, 0f, velocityWorld.z);
+                if (flatVel.sqrMagnitude > 0.0001f)
+                    movementDirDeg = Mathf.Atan2(flatVel.x, flatVel.z) * Mathf.Rad2Deg;
+
+                steeringRateDegS = float.NaN;
+                if (!float.IsNaN(steeringAngleDeg))
+                    steeringRateDegS = (steeringAngleDeg - _lastSteeringAngleDeg) / dt;
+
+                _lastBikePos = p;
+                _lastSampleUtc = now;
+                _lastVelocityWorld = velocityWorld;
+                _lastAccelWorld = accelWorld;
+                _lastHeadingDeg = headingDeg;
+                _lastYawRateDegS = yawRateDegS;
+                _lastMovementDirDeg = movementDirDeg;
+                if (!float.IsNaN(steeringAngleDeg))
+                    _lastSteeringAngleDeg = steeringAngleDeg;
+                _lastSteeringRateDegS = steeringRateDegS;
+            }
 
             float deviation = float.NaN;
             if (referencePathTracker != null)
                 deviation = referencePathTracker.currentDeviation;
+
+            GetBrakeInputs(out float brakeLeft, out float brakeRight, out int brakeActive);
 
             float fps = Time.unscaledDeltaTime > 0.0001f ? 1f / Time.unscaledDeltaTime : 0f;
             float frameMs = Time.unscaledDeltaTime * 1000f;
@@ -343,6 +438,8 @@ namespace CyclingExperiment.Logging
                 Safe(_segmentId),
                 Safe(_taskContext),
                 F(t),
+                timestampUtc,
+                unixMs.ToString(CultureInfo.InvariantCulture),
                 Safe(string.IsNullOrEmpty(eventValue) ? "NONE" : eventValue),
                 Safe(CurrentEventPhase()),
                 F(p.x),
@@ -358,6 +455,9 @@ namespace CyclingExperiment.Logging
                 FV(yawRateDegS),
                 FV(steeringAngleDeg),
                 FV(steeringRateDegS),
+                F(brakeLeft),
+                F(brakeRight),
+                brakeActive.ToString(CultureInfo.InvariantCulture),
                 FV(deviation),
                 FV(_eventVehicleX),
                 FV(_eventVehicleZ),
@@ -366,25 +466,19 @@ namespace CyclingExperiment.Logging
                 F(frameMs),
                 issue.ToString(CultureInfo.InvariantCulture)
             ));
-
-            _lastBikePos = p;
-            _lastBikePosTime = Time.time;
-            _lastVelocityWorld = velocityWorld;
-            _lastHeadingDeg = headingDeg;
-            if (!float.IsNaN(steeringAngleDeg))
-                _lastSteeringAngleDeg = steeringAngleDeg;
         }
 
-        private void MaybeAdvanceRoute2Segment()
+        private void GetBrakeInputs(out float left, out float right, out int active)
         {
-            if (bikeTransform == null)
+            left = 0f;
+            right = 0f;
+            active = 0;
+            if (_cyclist == null)
                 return;
-            if (_scenarioName == null || _scenarioName.IndexOf("Route2", StringComparison.OrdinalIgnoreCase) < 0)
-                return;
-            if (_segmentId == "C2")
-                return;
-            if (bikeTransform.position.z >= 110f)
-                SetSegment("C2", "interaction");
+
+            left = _cyclist.GetLeftBrake();
+            right = _cyclist.GetRightBrake();
+            active = _cyclist.IsBrakeActive() ? 1 : 0;
         }
 
         private float GetRawSteeringAngleDeg()
@@ -423,6 +517,8 @@ namespace CyclingExperiment.Logging
             _writer.WriteLine($"# Log Frequency (Hz): {logHz}");
             _writer.WriteLine($"# Created: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             _writer.WriteLine($"# Simulation Start Time MS: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
+            _writer.WriteLine($"# Simulation Start UTC: {_runStartUtc.UtcDateTime:yyyy-MM-ddTHH:mm:ss.fffZ}");
+            _writer.WriteLine($"# Simulation Start Unix MS: {_runStartUtc.ToUnixTimeMilliseconds()}");
             _writer.WriteLine($"# Log Path: {_runFilePath}");
             _writer.WriteLine("# ------------------------------------------------------------");
         }

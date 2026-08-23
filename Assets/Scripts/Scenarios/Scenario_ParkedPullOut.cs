@@ -44,6 +44,12 @@ namespace CyclingExperiment.Scenarios
                 return;
             }
 
+            if (!ExperimentBuildSession.AllowsScriptedVehicles)
+            {
+                Debug.Log("[Scenario_ParkedPullOut] Traffic disabled / test run: Skipping pull out.");
+                return;
+            }
+
             if (parkedVehicle == null || pullOutPath == null)
             {
                 Debug.LogWarning("[Scenario_ParkedPullOut] Missing parked vehicle or pull-out path.");

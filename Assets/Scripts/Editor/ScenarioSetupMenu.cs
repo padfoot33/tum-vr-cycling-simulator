@@ -239,17 +239,21 @@ namespace CyclingExperiment.Editor
             if (trigger != null) refs.busStopTrigger = trigger.transform;
             var rightTurn = GameObject.Find("Trigger_Scenario1_RightTurn");
             if (rightTurn != null) refs.rightTurnTrigger = rightTurn.transform;
+            refs.route1CyclistSpawn = EnsureCyclistSpawnRoute1();
+            refs.route2CyclistSpawn = EnsureCyclistSpawnRoute2();
             refs.EnsureRightTurnSign();
             refs.EnsureRoute1ReferencePath();
+            refs.EnsureRoute2ReferencePath();
+            refs.EnsureRoute2SegmentTriggers();
             refs.EnsureRunLogger();
             AssignSerializedRef(refs, "runLogger", refs.runLogger);
             AssignSerializedRef(refs, "rightTurnSign", refs.rightTurnSign);
             AssignSerializedRef(refs, "route1PathTracker", refs.route1PathTracker);
+            AssignSerializedRef(refs, "route2PathTracker", refs.route2PathTracker);
+            AssignSerializedRef(refs, "route2TriggerC2", refs.route2TriggerC2);
+            AssignSerializedRef(refs, "route2TriggerC3", refs.route2TriggerC3);
             AssignSerializedRef(refs.runLogger, "bikeTransform", refs.bicycleTransform);
             AssignSerializedRef(refs.runLogger, "cyclistMotion", refs.Cyclist as MonoBehaviour);
-            AssignSerializedRef(refs.runLogger, "referencePathTracker", refs.route1PathTracker);
-            refs.route1CyclistSpawn = EnsureCyclistSpawnRoute1();
-            refs.route2CyclistSpawn = EnsureCyclistSpawnRoute2();
             refs.cityTrafficPaths = GameObject.Find("City_Traffic_Paths");
             refs.campusTrafficPaths = CampusTrafficPathMenu.EnsureRoot();
             refs.trafficDestinations = EnsureTrafficDestinations();
@@ -725,7 +729,7 @@ namespace CyclingExperiment.Editor
             EnsureExperimentSceneRefs();
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             EditorUtility.DisplayDialog("Cycling Experiment",
-                "ExperimentRunLogger, close-pass tracker, Route 1 reference path, and right-turn sign are on Experiment_Scene_Refs.\nLogs write to Logs/<participant>/ next to the project.\nSave the scene.",
+                "ExperimentRunLogger, close-pass tracker, Route 1/2 reference paths, Route 2 C2/C3 triggers, and right-turn sign are on Experiment_Scene_Refs.\nLogs write to Logs/<participant>/ next to the project.\nSave the scene.",
                 "OK");
         }
     }

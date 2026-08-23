@@ -55,11 +55,18 @@ namespace CyclingExperiment
 
         [Header("Route 2")]
         public Transform route2CyclistSpawn;
+        public ReferencePathTracker route2PathTracker;
+        public Transform route2TriggerC2;
+        public Transform route2TriggerC3;
+
+        public const string Route2ReferencePathName = "Route2_ReferencePath";
+        public const string Route2TriggerC2Name = "Route2_Trigger_C2";
+        public const string Route2TriggerC3Name = "Route2_Trigger_C3";
 
         [Header("Locked participant run (set before Build)")]
         [Tooltip("When on, Play/Build starts only this route, hides M/T/1/2, and applies traffic. Leave off for editor testing.")]
         public bool lockParticipantRun;
-        [Tooltip("1 = Route 1 (bus + right-turn), 2 = Route 2 (construction).")]
+        [Tooltip("1 = Route 1 (bus + right-turn), 2 = Route 2 (construction), 3 = Test Run (free roam, no traffic, no scenarios).")]
         public int lockedRouteIndex = 1;
         public bool lockedTrafficEnabled = true;
 
@@ -90,8 +97,10 @@ namespace CyclingExperiment
         public void SetLockedRun(bool lockRun, int routeIndex, bool trafficEnabled)
         {
             lockParticipantRun = lockRun;
-            lockedRouteIndex = routeIndex < 2 ? 1 : 2;
-            lockedTrafficEnabled = trafficEnabled;
+            lockedRouteIndex = ExperimentBuildSession.NormalizeRouteIndex(routeIndex);
+            lockedTrafficEnabled = lockedRouteIndex == ExperimentBuildSession.TestRunRouteIndex
+                ? false
+                : trafficEnabled;
         }
 
         private void OnDestroy()
@@ -225,6 +234,8 @@ namespace CyclingExperiment
 
             EnsureRightTurnSign();
             EnsureRoute1ReferencePath();
+            EnsureRoute2ReferencePath();
+            EnsureRoute2SegmentTriggers();
             EnsureRunLogger();
         }
 
@@ -285,6 +296,152 @@ namespace CyclingExperiment
                 CreatePathPoint(root.transform, "P_03", turn);
             }
         }
+
+        public void EnsureRoute2ReferencePath()
+        {
+            if (route2PathTracker != null) return;
+
+            var existing = GameObject.Find(Route2ReferencePathName);
+            GameObject root = existing;
+            if (root == null)
+            {
+                root = new GameObject(Route2ReferencePathName);
+                var scenario2 = GameObject.Find("Scenario_2");
+                if (scenario2 != null) root.transform.SetParent(scenario2.transform, true);
+            }
+
+            route2PathTracker = root.GetComponent<ReferencePathTracker>() ?? root.AddComponent<ReferencePathTracker>();
+            route2PathTracker.bikeTransform = bicycleTransform;
+            route2PathTracker.autoCollectChildren = true;
+
+            if (root.transform.childCount < 2)
+            {
+                ClearNamedPathChildren(root.transform);
+                Vector3 spawn = route2CyclistSpawn != null
+                    ? route2CyclistSpawn.position
+                    : Scenario3_ConstructionNarrowing.ApproachPosition;
+                Vector3 chute = Scenario3_ConstructionNarrowing.ChuteCenter;
+                Vector3 along = chute - spawn;
+                along.y = 0f;
+                if (along.sqrMagnitude < 0.01f)
+                    along = Vector3.forward;
+                else
+                    along.Normalize();
+
+                Vector3 mid = Vector3.Lerp(spawn, chute, 0.5f);
+                mid.y = spawn.y;
+                Vector3 past = chute + along * 25f;
+                past.y = chute.y;
+
+                CreatePathPoint(root.transform, "P_00", spawn);
+                CreatePathPoint(root.transform, "P_01", mid);
+                CreatePathPoint(root.transform, "P_02", chute);
+                CreatePathPoint(root.transform, "P_03", past);
+            }
+        }
+
+        public void EnsureRoute2SegmentTriggers()
+        {
+            Vector3 spawn = route2CyclistSpawn != null
+                ? route2CyclistSpawn.position
+                : Scenario3_ConstructionNarrowing.ApproachPosition;
+            Vector3 chute = Scenario3_ConstructionNarrowing.ChuteCenter;
+            Vector3 along = chute - spawn;
+            along.y = 0f;
+            if (along.sqrMagnitude < 0.01f)
+                along = Vector3.forward;
+            else
+                along.Normalize();
+
+            Vector3 c2 = chute - along * 12f;
+            Vector3 c3 = chute + along * 20f;
+            c2.y = 0.2f;
+            c3.y = 0.2f;
+            Quaternion facing = Quaternion.LookRotation(along);
+
+            if (route2TriggerC2 == null)
+                route2TriggerC2 = FindOrCreateRoute2Trigger(
+                    Route2TriggerC2Name, c2, facing, "Route2_C2", "C2", "interaction",
+                    new Color(1f, 0.45f, 0.1f));
+            if (route2TriggerC3 == null)
+                route2TriggerC3 = FindOrCreateRoute2Trigger(
+                    Route2TriggerC3Name, c3, facing, "Route2_C3", "C3", "approach",
+                    new Color(0.2f, 0.85f, 1f));
+        }
+
+        public static void ResetRoute2SegmentTriggers()
+        {
+            var refs = Instance;
+            if (refs == null) return;
+            ResetTrigger(refs.route2TriggerC2);
+            ResetTrigger(refs.route2TriggerC3);
+        }
+
+        private static void ResetTrigger(Transform triggerTransform)
+        {
+            if (triggerTransform == null) return;
+            var trigger = triggerTransform.GetComponent<ScenarioTrigger>();
+            if (trigger != null)
+                trigger.ResetTrigger();
+        }
+
+        private Transform FindOrCreateRoute2Trigger(
+            string objectName, Vector3 position, Quaternion rotation,
+            string scenarioId, string segmentId, string taskContext, Color gizmoColor)
+        {
+            var existing = GameObject.Find(objectName);
+            GameObject go = existing;
+            if (go == null)
+            {
+                go = new GameObject(objectName);
+                var scenario2 = GameObject.Find("Scenario_2");
+                if (scenario2 != null) go.transform.SetParent(scenario2.transform, true);
+                go.transform.SetPositionAndRotation(position, rotation);
+
+                var box = go.AddComponent<BoxCollider>();
+                box.isTrigger = true;
+                box.size = new Vector3(18f, 8f, 4f);
+                box.center = new Vector3(0f, 3f, 0f);
+            }
+
+            var scenarioTrigger = go.GetComponent<ScenarioTrigger>() ?? go.AddComponent<ScenarioTrigger>();
+            scenarioTrigger.Configure(scenarioId, gizmoColor);
+
+            var segment = go.GetComponent<Route2SegmentTrigger>() ?? go.AddComponent<Route2SegmentTrigger>();
+            segment.Configure(segmentId, taskContext);
+#if UNITY_EDITOR
+            PersistRoute2TriggerFields(scenarioTrigger, scenarioId, gizmoColor);
+            PersistRoute2SegmentFields(segment, segmentId, taskContext);
+            UnityEditor.EditorUtility.SetDirty(go);
+#endif
+            return go.transform;
+        }
+
+#if UNITY_EDITOR
+        private static void PersistRoute2TriggerFields(ScenarioTrigger trigger, string scenarioId, Color gizmoColor)
+        {
+            if (trigger == null) return;
+            var so = new UnityEditor.SerializedObject(trigger);
+            var idProp = so.FindProperty("scenarioId");
+            var colorProp = so.FindProperty("gizmoColor");
+            if (idProp != null) idProp.stringValue = scenarioId;
+            if (colorProp != null) colorProp.colorValue = gizmoColor;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            UnityEditor.EditorUtility.SetDirty(trigger);
+        }
+
+        private static void PersistRoute2SegmentFields(Route2SegmentTrigger segment, string segmentId, string taskContext)
+        {
+            if (segment == null) return;
+            var so = new UnityEditor.SerializedObject(segment);
+            var idProp = so.FindProperty("segmentId");
+            var contextProp = so.FindProperty("taskContext");
+            if (idProp != null) idProp.stringValue = segmentId;
+            if (contextProp != null) contextProp.stringValue = taskContext;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            UnityEditor.EditorUtility.SetDirty(segment);
+        }
+#endif
 
         private static void ClearNamedPathChildren(Transform root)
         {

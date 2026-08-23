@@ -20,6 +20,9 @@ namespace CyclingExperiment.Editor
         [MenuItem("Cycling Experiment/Lock Run/Scenario 2 No Traffic", false, 24)]
         public static void LockScenario2NoTraffic() => ApplyLock(true, 2, false);
 
+        [MenuItem("Cycling Experiment/Lock Run/Test Run", false, 25)]
+        public static void LockTestRun() => ApplyLock(true, CyclingExperiment.Scenarios.ExperimentBuildSession.TestRunRouteIndex, false);
+
         [MenuItem("Cycling Experiment/Lock Run/Unlock for editor Play", false, 26)]
         public static void UnlockForEditorPlay() => ApplyLock(false, 1, true);
 
@@ -39,10 +42,20 @@ namespace CyclingExperiment.Editor
             EditorUtility.SetDirty(refs);
             EditorSceneManager.MarkSceneDirty(refs.gameObject.scene);
 
-            string msg = lockRun
-                ? "Locked Route " + refs.lockedRouteIndex + (refs.lockedTrafficEnabled ? " with traffic" : " without traffic") +
-                  ".\nSave MainScene, then File → Build Settings → Build."
-                : "Unlocked. Editor Play will show the scenario menu again. Save MainScene.";
+            string msg;
+            if (!lockRun)
+            {
+                msg = "Unlocked. Editor Play will show the scenario menu again. Save MainScene.";
+            }
+            else if (refs.lockedRouteIndex == CyclingExperiment.Scenarios.ExperimentBuildSession.TestRunRouteIndex)
+            {
+                msg = "Locked Test Run (free roam, no traffic, no scenarios).\nSave MainScene, then File → Build Settings → Build.";
+            }
+            else
+            {
+                msg = "Locked Route " + refs.lockedRouteIndex + (refs.lockedTrafficEnabled ? " with traffic" : " without traffic") +
+                      ".\nSave MainScene, then File → Build Settings → Build.";
+            }
             Debug.Log("[CyclingExperiment] " + msg.Replace("\n", " "));
             EditorUtility.DisplayDialog("Lock Run", msg, "OK");
         }
