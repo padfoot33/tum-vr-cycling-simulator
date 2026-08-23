@@ -46,6 +46,9 @@ namespace CyclingExperiment.Logging
         private string _scriptedPhase = "NONE";
         private string _closePassEvent = "NONE";
 
+        private int _trafficEnabled = -1;
+        private string _conditionId = "UNKNOWN";
+
         private float _eventVehicleX = float.NaN;
         private float _eventVehicleZ = float.NaN;
         private float _eventVehicleSpeedKph = float.NaN;
@@ -168,6 +171,9 @@ namespace CyclingExperiment.Logging
             _scriptedPhase = "NONE";
             _closePassEvent = "NONE";
             ClearEventVehicleData();
+
+            CaptureConditionInfo();
+
             BindReferencePathForScenario();
 
             if (IsRoute2(_scenarioName))
@@ -210,7 +216,7 @@ namespace CyclingExperiment.Logging
 
             WriteMetadataBlock();
             _writer.WriteLine(
-                "run_id,participant_id,scenario_name,segment_id,task_context,t,timestamp_utc,unix_time_ms,event,event_phase,x,y,z,speed_kph,vel_x,vel_z,accel_x,accel_z,heading_deg,movement_dir_deg,yaw_rate_deg_s,steering_angle_deg,steering_rate_deg_s,brake_left,brake_right,brake_active,deviation_from_path,event_vehicle_x,event_vehicle_z,event_vehicle_speed_kph,fps,frame_time_ms,technical_issue_flag");
+                "run_id,participant_id,scenario_name,condition_id,traffic_enabled,segment_id,task_context,t,timestamp_utc,unix_time_ms,event,event_phase,x,y,z,speed_kph,vel_x,vel_z,accel_x,accel_z,heading_deg,movement_dir_deg,yaw_rate_deg_s,steering_angle_deg,steering_rate_deg_s,brake_left,brake_right,brake_active,deviation_from_path,event_vehicle_x,event_vehicle_z,event_vehicle_speed_kph,fps,frame_time_ms,technical_issue_flag");
             _writer.Flush();
 
             _isLogging = true;
@@ -322,6 +328,42 @@ namespace CyclingExperiment.Logging
             if (referencePathTracker != null && bikeTransform != null)
                 referencePathTracker.bikeTransform = bikeTransform;
         }
+
+private void CaptureConditionInfo()
+{
+    var refs = ExperimentSceneRefs.Instance;
+
+    if (ExperimentBuildSession.IsActive)
+    {
+        _trafficEnabled = ExperimentBuildSession.TrafficEnabled ? 1 : 0;
+    }
+    else if (refs != null && refs.cityTraffic != null)
+    {
+        _trafficEnabled = refs.cityTraffic.IsTrafficEnabled ? 1 : 0;
+    }
+    else
+    {
+        _trafficEnabled = -1;
+    }
+
+    if (IsRoute2(_scenarioName))
+    {
+        _conditionId = _trafficEnabled == 1 ? "S2_T"
+                     : _trafficEnabled == 0 ? "S2_NT"
+                     : "S2_UNKNOWN";
+    }
+    else if (!string.IsNullOrEmpty(_scenarioName) &&
+             _scenarioName.IndexOf("Route1", StringComparison.OrdinalIgnoreCase) >= 0)
+    {
+        _conditionId = _trafficEnabled == 1 ? "S1_T"
+                     : _trafficEnabled == 0 ? "S1_NT"
+                     : "S1_UNKNOWN";
+    }
+    else
+    {
+        _conditionId = "OTHER";
+    }
+}
 
         private static bool IsRoute2(string scenarioName)
         {
@@ -435,6 +477,8 @@ namespace CyclingExperiment.Logging
                 Safe(_runId),
                 Safe(participantId),
                 Safe(_scenarioName),
+                Safe(_conditionId),
+                _trafficEnabled.ToString(CultureInfo.InvariantCulture),
                 Safe(_segmentId),
                 Safe(_taskContext),
                 F(t),
@@ -508,6 +552,8 @@ namespace CyclingExperiment.Logging
             _writer.WriteLine($"# Trial Index: {trialIndex}");
             _writer.WriteLine($"# Run ID: {_runId}");
             _writer.WriteLine($"# Scenario: {_scenarioName}");
+            _writer.WriteLine($"# Condition ID: {_conditionId}");
+            _writer.WriteLine($"# Traffic Enabled: {_trafficEnabled}");
             _writer.WriteLine($"# Initial Segment ID: {_segmentId}");
             _writer.WriteLine($"# Initial Task Context: {_taskContext}");
             _writer.WriteLine("# Initial Event Phase: NONE");
