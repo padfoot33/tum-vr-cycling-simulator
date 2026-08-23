@@ -8401,7 +8401,7 @@ Transform:
   m_GameObject: {fileID: 230667164}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.54354066, z: -0, w: 0.8393828}
-  m_LocalPosition: {x: 416.63, y: 1.2, z: -16.56}
+  m_LocalPosition: {x: 430.67, y: 1.2, z: -23.57}
   m_LocalScale: {x: 0.99999994, y: 1, z: 0.99999994}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -27662,7 +27662,7 @@ Transform:
   m_GameObject: {fileID: 710469308}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 790, y: 0.2, z: -177.2}
+  m_LocalPosition: {x: 806.58, y: 0.2, z: -178.89}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -33822,7 +33822,7 @@ Transform:
   m_GameObject: {fileID: 891295611}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 2, y: 0, z: 37.8}
+  m_LocalPosition: {x: 1.98, y: 0, z: 36.8}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -35206,6 +35206,10 @@ PrefabInstance:
       propertyPath: m_RequestedTrackingOriginMode
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 3265212776253508089, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4307708336145152465, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_UseGravity
       value: 0
@@ -35213,6 +35217,10 @@ PrefabInstance:
     - target: {fileID: 4307708336145152471, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_Name
       value: SimBike
+      objectReference: {fileID: 0}
+    - target: {fileID: 5816394066632121617, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: m_Enabled
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7131291131850236548, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_IsActive
@@ -35230,6 +35238,10 @@ PrefabInstance:
       propertyPath: scenario2Spawn
       value: 
       objectReference: {fileID: 1157012269}
+    - target: {fileID: 9159146155081454362, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      propertyPath: steeringInput
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -35237,6 +35249,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4307708336145152471, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1662763194}
+    - targetCorrespondingSourceObject: {fileID: 4307708336145152471, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1662763204}
   m_SourcePrefab: {fileID: 100100000, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
 --- !u!1 &930684128 stripped
 GameObject:
@@ -45126,13 +45141,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1157012268}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.17084345, y: -0.5366131, z: 0.097052835, w: 0.8206337}
-  m_LocalPosition: {x: 757.2, y: 0.2, z: 113.5}
+  m_LocalRotation: {x: -0.17016244, y: -0.530877, z: 0.098242015, w: 0.8243561}
+  m_LocalPosition: {x: 759.897, y: 0.214, z: 116.955}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2072538841}
-  m_LocalEulerAnglesHint: {x: -10.151, y: -68.19, z: 20.371}
+  m_LocalEulerAnglesHint: {x: -10.151, y: -67.391, z: 20.371}
 --- !u!114 &1157012270
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -63848,6 +63863,27 @@ AudioListener:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1662763182}
   m_Enabled: 1
+--- !u!114 &1662763204
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1662763182}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 643c36b4649144713a1d031233487573, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CyclingExperiment.AI.SmartBicycleSafetyAssistant
+  enableAutoBrake: 1
+  criticalBrakeDistance: 10
+  maxLateralOffset: 1
+  obstacleLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  enableLateralNudge: 1
+  criticalLateralDistance: 1.2
+  nudgeStrength: 1.2
 --- !u!1 &1662797213
 GameObject:
   m_ObjectHideFlags: 0
