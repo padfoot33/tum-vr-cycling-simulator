@@ -35164,7 +35164,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 632.11
+      value: 249.24788
       objectReference: {fileID: 0}
     - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_LocalPosition.y
@@ -35172,23 +35172,23 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 610.99
+      value: 53.43618
       objectReference: {fileID: 0}
     - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.84798014
+      value: 0.550196
       objectReference: {fileID: 0}
     - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0.0088886125
+      value: -0.0050575063
       objectReference: {fileID: 0}
     - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0.5299313
+      value: 0.8349743
       objectReference: {fileID: 0}
     - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0.004844882
+      value: 0.008769377
       objectReference: {fileID: 0}
     - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -35196,7 +35196,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: -784.006
+      value: -606.765
       objectReference: {fileID: 0}
     - target: {fileID: 778209127066195845, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
@@ -85420,9 +85420,12 @@ MonoBehaviour:
   route2PlayArea: {fileID: 977575444}
   playAreaConstraint: {fileID: 2024471567}
   route2CyclistSpawn: {fileID: 1157012269}
+  route2PathTracker: {fileID: 0}
+  route2TriggerC2: {fileID: 0}
+  route2TriggerC3: {fileID: 0}
   lockParticipantRun: 1
-  lockedRouteIndex: 2
-  lockedTrafficEnabled: 1
+  lockedRouteIndex: 3
+  lockedTrafficEnabled: 0
 --- !u!4 &2024471566
 Transform:
   m_ObjectHideFlags: 0
