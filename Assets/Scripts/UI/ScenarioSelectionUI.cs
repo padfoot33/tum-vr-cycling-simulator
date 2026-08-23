@@ -38,6 +38,9 @@ namespace CyclingExperiment.UI
         private Canvas _canvas;
         private bool _isModalOpen;
         private Text _trafficBtnText;
+        private OperatorSessionPanel _operatorPanel;
+
+        public bool IsModalOpen => _isModalOpen;
 
         private ExperimentRefs Refs => sceneRefs != null ? sceneRefs : ExperimentRefs.Instance;
 
@@ -55,6 +58,8 @@ namespace CyclingExperiment.UI
                 scenario2Position = Scenario3_ConstructionNarrowing.ApproachPosition;
                 scenario2Heading = Scenario3_ConstructionNarrowing.ApproachHeading;
             }
+
+            EnsureOperatorSessionPanel();
 
             bool locked = ExperimentBuildSession.LocksParticipantUi;
             if (!locked)
@@ -112,8 +117,21 @@ namespace CyclingExperiment.UI
                 _modalPanel.SetActive(show);
             }
 
-            Cursor.lockState = show ? CursorLockMode.None : CursorLockMode.Locked;
-            Cursor.visible = show;
+            if (_operatorPanel != null)
+                _operatorPanel.ApplyCursor();
+            else
+            {
+                Cursor.lockState = show ? CursorLockMode.None : CursorLockMode.Locked;
+                Cursor.visible = show;
+            }
+        }
+
+        private void EnsureOperatorSessionPanel()
+        {
+            if (_operatorPanel == null)
+                _operatorPanel = GetComponent<OperatorSessionPanel>();
+            if (_operatorPanel == null)
+                _operatorPanel = gameObject.AddComponent<OperatorSessionPanel>();
         }
 
         private void CreateScenarioUI()

@@ -682,12 +682,20 @@ namespace SBPScripts.Simulator
             return tcp_bike_connection != null && tcp_bike_connection.IsConnected();
         }
 
+        static bool GameplaySpaceHeld()
+        {
+            if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)
+                || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand))
+                return false;
+            return Input.GetKey(KeyCode.Space);
+        }
+
         bool HasRiderDriveInput()
         {
             if (IsWahooConnected())
                 return true;
             if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S)
-                || Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.Space)
+                || Input.GetKey(KeyCode.D) || GameplaySpaceHeld()
                 || Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.DownArrow)
                 || Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.RightArrow))
                 return true;
@@ -1200,7 +1208,7 @@ namespace SBPScripts.Simulator
                         rightBrakeSignal = 0.0f;
                         CustomInput("Vertical", ref customAccelerationAxis, 1, 1, false);
                         CustomInput("Vertical", ref rawCustomAccelerationAxis, 1, 1, true);
-                        if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.Space))
+                        if (Input.GetKey(KeyCode.S) || GameplaySpaceHeld())
                         {
                             customAccelerationAxis = Mathf.Min(customAccelerationAxis, -1f);
                             rawCustomAccelerationAxis = customAccelerationAxis;
@@ -1346,7 +1354,7 @@ namespace SBPScripts.Simulator
         {
             leftBrakeSignal = 0.0f;
             rightBrakeSignal = 0.0f;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.Space))
+            if (Input.GetKey(KeyCode.S) || GameplaySpaceHeld())
             {
                 acceleration -= brakeSensitivity;
                 velocity *= Mathf.Clamp01(1f - Time.deltaTime * 4f);

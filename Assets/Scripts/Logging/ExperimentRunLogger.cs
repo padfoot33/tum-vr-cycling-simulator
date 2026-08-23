@@ -73,9 +73,17 @@ namespace CyclingExperiment.Logging
         private float _lastMovementDirDeg;
         private float _steeringZeroOffset;
 
+        public const string ParticipantIdPrefKey = "CyclingExperiment.ParticipantId";
+        public const string TrialIndexPrefKey = "CyclingExperiment.TrialIndex";
+
         public bool IsLogging => _isLogging;
         public string RunId => _runId;
         public string ScenarioName => _scenarioName;
+        public string ParticipantId => participantId;
+        public int TrialIndex => trialIndex;
+        public string SegmentId => _segmentId;
+        public string TaskContext => _taskContext;
+        public string RunFilePath => _runFilePath;
         public bool HasScriptedEvent =>
             !string.IsNullOrEmpty(_scriptedEvent) &&
             !string.Equals(_scriptedEvent, "NONE", StringComparison.Ordinal);
@@ -89,6 +97,7 @@ namespace CyclingExperiment.Logging
             }
 
             Instance = this;
+            LoadPersistedSession();
         }
 
         private void Start()
@@ -135,6 +144,43 @@ namespace CyclingExperiment.Logging
         private void OnApplicationQuit()
         {
             StopLogging();
+        }
+
+        public void SetParticipantId(string id)
+        {
+            participantId = SanitizeParticipantId(id);
+            PersistSession();
+        }
+
+        public void SetTrialIndex(int index)
+        {
+            trialIndex = Mathf.Max(1, index);
+            PersistSession();
+        }
+
+        public void IncrementParticipant()
+        {
+            SetParticipantId(StepParticipantId(participantId, 1));
+        }
+
+        public void DecrementParticipant()
+        {
+            SetParticipantId(StepParticipantId(participantId, -1));
+        }
+
+        public void IncrementTrial()
+        {
+            SetTrialIndex(trialIndex + 1);
+        }
+
+        public void DecrementTrial()
+        {
+            SetTrialIndex(trialIndex - 1);
+        }
+
+        public void RestartLogging()
+        {
+            StartLogging(_scenarioName, _segmentId, _taskContext);
         }
 
         public void BindRefs()
@@ -584,6 +630,51 @@ namespace CyclingExperiment.Logging
             if (string.IsNullOrEmpty(value))
                 return "";
             return value.Replace(",", "_");
+        }
+
+        private void LoadPersistedSession()
+        {
+            if (PlayerPrefs.HasKey(ParticipantIdPrefKey))
+                participantId = SanitizeParticipantId(PlayerPrefs.GetString(ParticipantIdPrefKey));
+            if (PlayerPrefs.HasKey(TrialIndexPrefKey))
+                trialIndex = Mathf.Max(1, PlayerPrefs.GetInt(TrialIndexPrefKey));
+        }
+
+        private void PersistSession()
+        {
+            PlayerPrefs.SetString(ParticipantIdPrefKey, participantId);
+            PlayerPrefs.SetInt(TrialIndexPrefKey, trialIndex);
+            PlayerPrefs.Save();
+        }
+
+        internal static string SanitizeParticipantId(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                return "P0";
+            return id.Trim().Replace(",", "_");
+        }
+
+        internal static string StepParticipantId(string id, int delta)
+        {
+            id = SanitizeParticipantId(id);
+            int digitStart = id.Length;
+            while (digitStart > 0 && char.IsDigit(id[digitStart - 1]))
+                digitStart--;
+
+            string prefix = digitStart > 0 ? id.Substring(0, digitStart) : "P";
+            if (string.IsNullOrEmpty(prefix))
+                prefix = "P";
+
+            string digits = digitStart < id.Length ? id.Substring(digitStart) : "";
+            int number = 0;
+            int width = digits.Length;
+            if (digits.Length > 0)
+                int.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out number);
+
+            number = Mathf.Max(0, number + delta);
+            if (width > 0)
+                return prefix + number.ToString(new string('0', width), CultureInfo.InvariantCulture);
+            return prefix + number.ToString(CultureInfo.InvariantCulture);
         }
     }
 }

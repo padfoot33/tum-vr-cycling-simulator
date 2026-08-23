@@ -1,3 +1,4 @@
+using CyclingExperiment.UI;
 using SBPScripts.Simulator;
 using UnityEngine;
 
@@ -57,7 +58,7 @@ namespace CyclingExperiment
         {
             if (GetLeftBrake() > brakeDeadzone || GetRightBrake() > brakeDeadzone)
                 return true;
-            return Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.Space);
+            return Input.GetKey(KeyCode.S) || GameplaySpaceHeld();
         }
 
         public float MaxSpeedMps
@@ -224,6 +225,11 @@ namespace CyclingExperiment
             transform.SetPositionAndRotation(position, rotation);
             Physics.SyncTransforms();
             simulator?.HaltIntegratedVelocity();
+        }
+
+        private static bool GameplaySpaceHeld()
+        {
+            return Input.GetKey(KeyCode.Space) && !OperatorSessionPanel.BlocksGameplaySpace;
         }
     }
 }
