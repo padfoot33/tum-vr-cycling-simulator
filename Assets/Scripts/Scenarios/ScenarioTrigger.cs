@@ -28,11 +28,13 @@ namespace CyclingExperiment.Scenarios
         public UnityEvent OnPlayerExited = new UnityEvent();
 
         private bool _hasTriggered = false;
+        private bool _hasExited = false;
         private Collider _collider;
 
         public void ResetTrigger()
         {
             _hasTriggered = false;
+            _hasExited = false;
         }
 
         public void Configure(string id, Color color)
@@ -94,8 +96,12 @@ namespace CyclingExperiment.Scenarios
         {
             if (ExperimentBuildSession.IsTestRun) return;
 
+            if (oneShot && (!_hasTriggered || _hasExited)) return;
+
             if (IsPlayer(other))
             {
+                if (oneShot) _hasExited = true;
+
                 Debug.Log($"[ScenarioTrigger] Player exited trigger: {gameObject.name} (Scenario: {scenarioId})");
 
                 if (EventMarkerLogger.Instance != null)

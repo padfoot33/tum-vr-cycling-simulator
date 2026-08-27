@@ -20,6 +20,7 @@ namespace CyclingExperiment.Logging
 
         private Transform _bike;
         private TrackedTrafficVehicle _activeVehicle;
+        private string _lastRunId = "";
         private readonly Dictionary<int, float> _cooldownUntil = new Dictionary<int, float>(32);
 
         public static void Register(TrackedTrafficVehicle vehicle)
@@ -40,6 +41,13 @@ namespace CyclingExperiment.Logging
             var logger = ExperimentRunLogger.Instance;
             if (logger == null || !logger.IsLogging)
                 return;
+            
+            if (_lastRunId != logger.RunId)
+            {
+                _lastRunId = logger.RunId;
+                _activeVehicle = null;
+                _cooldownUntil.Clear();
+            }
 
             if (_bike == null)
             {

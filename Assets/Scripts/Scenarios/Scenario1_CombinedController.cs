@@ -279,7 +279,7 @@ namespace CyclingExperiment.Scenarios
         {
             var logger = ExperimentRunLogger.Instance;
 
-            if (_busOvertakeTriggered && _spawnedBus != null)
+            if (_busOvertakeTriggered && !_busClearedByCyclist && _spawnedBus != null)
             {
                 PushEventVehicle(_spawnedBus, _spawnedBusFollower);
 
@@ -304,7 +304,7 @@ namespace CyclingExperiment.Scenarios
 
             CompleteBusStageIfCleared(false);
 
-            if (_rightTurnTriggered && _spawnedOvertakingCar != null)
+            if (_rightTurnTriggered && !_carPassedPlayer && _spawnedOvertakingCar != null)
                 PushEventVehicle(_spawnedOvertakingCar, _spawnedOvertakingCarFollower);
 
             if (_rightTurnTriggered && !_carPassedPlayer && _spawnedOvertakingCar != null && playerTransform != null)

@@ -201,6 +201,13 @@ namespace CyclingExperiment.Logging
         public void StartLogging(string scenarioName, string segmentId = "C1", string taskContext = "approach")
         {
             BindRefs();
+
+            if (ExperimentBuildSession.IsActive)
+            {
+                SetParticipantId(ExperimentBuildSession.ParticipantId);
+                SetTrialIndex(ExperimentBuildSession.TrialIndex);
+            }
+
             if (bikeTransform == null)
             {
                 Debug.LogError("[ExperimentRunLogger] Bike Transform is not assigned.");
@@ -262,7 +269,7 @@ namespace CyclingExperiment.Logging
 
             WriteMetadataBlock();
             _writer.WriteLine(
-                "run_id,participant_id,scenario_name,condition_id,traffic_enabled,segment_id,task_context,t,timestamp_utc,unix_time_ms,event,event_phase,x,y,z,speed_kph,vel_x,vel_z,accel_x,accel_z,heading_deg,movement_dir_deg,yaw_rate_deg_s,steering_angle_deg,steering_rate_deg_s,brake_left,brake_right,brake_active,deviation_from_path,event_vehicle_x,event_vehicle_z,event_vehicle_speed_kph,fps,frame_time_ms,technical_issue_flag");
+                "run_id,participant_id,scenario_name,condition_id,traffic_enabled,segment_id,task_context,t,timestamp_utc,unix_time_ms,event,event_phase,x,y,z,speed_kph,vel_x,vel_z,heading_deg,movement_dir_deg,yaw_rate_deg_s,steering_angle_deg,brake_left,brake_right,brake_active,deviation_from_path,event_vehicle_x,event_vehicle_z,event_vehicle_speed_kph,fps,technical_issue_flag");
             _writer.Flush();
 
             _isLogging = true;
@@ -362,18 +369,25 @@ namespace CyclingExperiment.Logging
         }
 
         private void BindReferencePathForScenario()
-        {
-            var refs = ExperimentSceneRefs.Instance;
-            if (refs == null)
-                return;
+{
+    var refs = ExperimentSceneRefs.Instance;
+    if (refs == null)
+        return;
 
-            referencePathTracker = IsRoute2(_scenarioName)
-                ? refs.route2PathTracker
-                : refs.route1PathTracker;
+    if (IsRoute2(_scenarioName))
+    {
+        refs.EnsureRoute2ReferencePath();
+        referencePathTracker = refs.route2PathTracker;
+    }
+    else
+    {
+        refs.EnsureRoute1ReferencePath();
+        referencePathTracker = refs.route1PathTracker;
+    }
 
-            if (referencePathTracker != null && bikeTransform != null)
-                referencePathTracker.bikeTransform = bikeTransform;
-        }
+    if (referencePathTracker != null && bikeTransform != null)
+        referencePathTracker.bikeTransform = bikeTransform;
+}
 
         private void CaptureConditionInfo()
         {
@@ -538,13 +552,10 @@ namespace CyclingExperiment.Logging
                 F(_smoothedSpeedKph),
                 F(velocityWorld.x),
                 F(velocityWorld.z),
-                F(accelWorld.x),
-                F(accelWorld.z),
                 F(headingDeg),
                 FV(movementDirDeg),
                 FV(yawRateDegS),
                 FV(steeringAngleDeg),
-                FV(steeringRateDegS),
                 F(brakeLeft),
                 F(brakeRight),
                 brakeActive.ToString(CultureInfo.InvariantCulture),
@@ -553,7 +564,6 @@ namespace CyclingExperiment.Logging
                 FV(_eventVehicleZ),
                 FV(_eventVehicleSpeedKph),
                 F(fps),
-                F(frameMs),
                 issue.ToString(CultureInfo.InvariantCulture)
             ));
         }
@@ -608,7 +618,7 @@ namespace CyclingExperiment.Logging
             _writer.WriteLine("# Event Vehicle Enabled: True");
             _writer.WriteLine($"# Log Frequency (Hz): {logHz}");
             _writer.WriteLine($"# Created: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            _writer.WriteLine($"# Simulation Start Time MS: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
+            _writer.WriteLine($"# Simulation Start Local: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
             _writer.WriteLine($"# Simulation Start UTC: {_runStartUtc.UtcDateTime:yyyy-MM-ddTHH:mm:ss.fffZ}");
             _writer.WriteLine($"# Simulation Start Unix MS: {_runStartUtc.ToUnixTimeMilliseconds()}");
             _writer.WriteLine($"# Log Path: {_runFilePath}");

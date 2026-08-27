@@ -150,22 +150,6 @@ namespace SBPScripts.Simulator
         // todo: local project filepath method
         public float globalSteeringGain= 60f;
 
-        [Header("Unity 6 Simulator Steering")]
-        [Tooltip("Physical wheelbase measured from the SimBike front/rear physics-wheel transforms.")]
-        [SerializeField] private float simulatorWheelBase = 1.577622f;
-        [Tooltip("Maximum effective steering angle used by the chassis yaw model. Visual handlebar steering is unchanged.")]
-        [SerializeField] private float simulatorEffectiveMaxSteerDeg = 15f;
-        [Tooltip("How quickly the chassis steering follows the Fanatec input. Higher = faster response.")]
-        [SerializeField] private float simulatorSteeringResponse = 4f;
-        [Tooltip("How quickly chassis yaw-rate follows the bicycle-model target. Higher = faster response.")]
-        [SerializeField] private float simulatorYawResponse = 6f;
-        [Tooltip("Safety cap for chassis yaw rate in degrees/second.")]
-        [SerializeField] private float simulatorMaxYawRateDeg = 35f;
-        [Tooltip("Minimum signed forward speed before simulator yaw steering is applied.")]
-        [SerializeField] private float simulatorSteeringMinSpeed = 0.15f;
-
-        private float simulatorSmoothedSteerAxis = 0f;
-
         // speed controller for simulator bike (Wahoo)
         private PIController piControllerSpeedWahoo;
         public float proportionalTermWahoo = 2125.0f;
@@ -868,21 +852,14 @@ namespace SBPScripts.Simulator
                 return;
             }
 
-            // Steering architecture:
-            // - SUMO / non-simulator bikes keep the original physics-wheel steering.
-            // - The CAVE simulator bike does NOT directly rotate the dynamic front-wheel
-            //   Rigidbody/Transform. In Unity 6 that legacy technique causes solver jitter.
-            //   The physical wheel therefore stays naturally aligned by its joint, while
-            //   the visual handlebar/fork still show the rider's steering input below.
-            if (!isSimulatorVehicle)
-            {
-                fPhysicsWheel.transform.rotation = Quaternion.Euler(
-                    transform.rotation.eulerAngles.x,
-                    transform.rotation.eulerAngles.y
-                        + customSteerAxis * steerAngle.Evaluate(rb.linearVelocity.magnitude)
-                        + oscillationSteerEffect,
-                    0f);
-            }
+            // Physics based Steering Control.
+            fPhysicsWheel.transform.rotation = Quaternion.Euler(
+                transform.rotation.eulerAngles.x,
+                transform.rotation.eulerAngles.y
+                    - customSteerAxis * steerAngle.Evaluate(rb.linearVelocity.magnitude)
+                    + oscillationSteerEffect,
+                0
+            );
 
             fPhysicsWheelConfigJoint.axis = new Vector3(1, 0, 0);
 
@@ -1077,18 +1054,9 @@ namespace SBPScripts.Simulator
                 //Pre-version 1.5
                 transform.rotation = Quaternion.Euler(transform.rotation.eulerAngles.x, transform.rotation.eulerAngles.y, turnLeanAmount + cycleOscillation + GroundConformity(groundConformity));
             }
-
-            // Unity 6 CAVE steering: apply only a controlled yaw-rate to the root
-            // Rigidbody after the legacy upright/lean code has run. We deliberately do
-            // not teleport or MoveRotation the three connected rigidbodies; the joints
-            // remain fully physics-driven, which removes the scene/camera shaking.
-            if (isSimulatorVehicle && !isAirborne && !isBunnyHopping)
-            {
-                ApplyUnity6SimulatorSteering(currentSpeed);
-            }
-
+            
             //Wheelie
-            if(!isAirborne && wheelieInput && rawCustomAccelerationAxis>0)
+            if (!isAirborne && wheelieInput && rawCustomAccelerationAxis>0)
             {
                 rb.angularDamping = 15;
                 wheeliePower = customAccelerationAxis*150*System.Convert.ToInt32(wheelieToggle);
@@ -1099,71 +1067,6 @@ namespace SBPScripts.Simulator
             {
                 rb.angularDamping = 1;
             }
-        }
-
-        /// <summary>
-        /// Unity 6-safe CAVE steering.
-        ///
-        /// The original Unity-2022 implementation steers by directly changing the
-        /// Transform rotation of a dynamic front-wheel Rigidbody that is connected to
-        /// the frame with a ConfigurableJoint. In Unity 6 that solver interaction is the
-        /// source of the weak/unstable steering seen on the lab PC.
-        ///
-        /// For the simulator vehicle we therefore leave the physical wheel/joints fully
-        /// physics-driven and command only the root Rigidbody's Y angular velocity. The
-        /// target yaw-rate comes from a bicycle model, but is smoothed and capped so that
-        /// Fanatec saturation cannot make the CAVE camera over-responsive.
-        /// </summary>
-        private void ApplyUnity6SimulatorSteering(float currentSpeed)
-        {
-            if (rb == null || simulatorWheelBase <= 0.01f)
-                return;
-
-            Vector3 horizontalVelocity = Vector3.ProjectOnPlane(rb.linearVelocity, Vector3.up);
-            float signedForwardSpeed = Vector3.Dot(horizontalVelocity, transform.forward);
-
-            // Smooth the already-clamped Fanatec steering command. This removes tiny
-            // hardware changes from becoming instant chassis-yaw changes in the CAVE.
-            float steerStep = Mathf.Max(0.01f, simulatorSteeringResponse) * Time.fixedDeltaTime;
-            simulatorSmoothedSteerAxis = Mathf.MoveTowards(
-                simulatorSmoothedSteerAxis,
-                customSteerAxis,
-                steerStep);
-
-            float targetYawRateRad = 0f;
-
-            if (Mathf.Abs(signedForwardSpeed) >= simulatorSteeringMinSpeed)
-            {
-                // Preserve the Akhilesh left/right sign. The visual steering curve may be
-                // 25-30 degrees; for chassis dynamics we cap the effective steering angle
-                // to avoid an unrealistically tight response in the CAVE.
-                float visualSteerDeg =
-                    -simulatorSmoothedSteerAxis * steerAngle.Evaluate(currentSpeed);
-
-                float effectiveLimit = Mathf.Clamp(simulatorEffectiveMaxSteerDeg, 1f, 35f);
-                float effectiveSteerDeg = Mathf.Clamp(
-                    visualSteerDeg,
-                    -effectiveLimit,
-                    effectiveLimit);
-
-                float steerRad = effectiveSteerDeg * Mathf.Deg2Rad;
-                targetYawRateRad =
-                    (signedForwardSpeed / simulatorWheelBase) * Mathf.Tan(steerRad);
-
-                float maxYawRad = Mathf.Max(1f, simulatorMaxYawRateDeg) * Mathf.Deg2Rad;
-                targetYawRateRad = Mathf.Clamp(targetYawRateRad, -maxYawRad, maxYawRad);
-            }
-
-            // Angular velocity is the correct physics-level command here: it lets PhysX
-            // integrate the connected root/front/rear rigidbodies normally instead of us
-            // moving every body manually each FixedUpdate.
-            Vector3 av = rb.angularVelocity;
-            float response = Mathf.Max(0.01f, simulatorYawResponse);
-            av.y = Mathf.MoveTowards(
-                av.y,
-                targetYawRateRad,
-                response * Time.fixedDeltaTime);
-            rb.angularVelocity = av;
         }
 
         void ApplyCustomInput()

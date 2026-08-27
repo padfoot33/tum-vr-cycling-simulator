@@ -8,19 +8,19 @@ namespace CyclingExperiment.Editor
 {
     public static class ExperimentLockRunMenu
     {
-        [MenuItem("Cycling Experiment/Lock Run/Scenario 1 With Traffic", false, 21)]
+        [MenuItem("Cycling Experiment/Lock Run/S1_T — Route 1, With Traffic", false, 21)]
         public static void LockScenario1WithTraffic() => ApplyLock(true, 1, true);
 
-        [MenuItem("Cycling Experiment/Lock Run/Scenario 1 No Traffic", false, 22)]
+        [MenuItem("Cycling Experiment/Lock Run/S1_NT — Route 1, No Traffic", false, 22)]
         public static void LockScenario1NoTraffic() => ApplyLock(true, 1, false);
 
-        [MenuItem("Cycling Experiment/Lock Run/Scenario 2 With Traffic", false, 23)]
+        [MenuItem("Cycling Experiment/Lock Run/S2_T — Route 2, With Traffic", false, 23)]
         public static void LockScenario2WithTraffic() => ApplyLock(true, 2, true);
 
-        [MenuItem("Cycling Experiment/Lock Run/Scenario 2 No Traffic", false, 24)]
+        [MenuItem("Cycling Experiment/Lock Run/S2_NT — Route 2, No Traffic", false, 24)]
         public static void LockScenario2NoTraffic() => ApplyLock(true, 2, false);
 
-        [MenuItem("Cycling Experiment/Lock Run/Test Run", false, 25)]
+        [MenuItem("Cycling Experiment/Lock Run/TEST — Familiarization / Test Run", false, 25)]
         public static void LockTestRun() => ApplyLock(true, CyclingExperiment.Scenarios.ExperimentBuildSession.TestRunRouteIndex, false);
 
         [MenuItem("Cycling Experiment/Lock Run/Unlock for editor Play", false, 26)]

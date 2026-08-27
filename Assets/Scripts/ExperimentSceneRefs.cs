@@ -87,7 +87,7 @@ namespace CyclingExperiment
 
         private void Awake()
         {
-            if (lockParticipantRun)
+            if (lockParticipantRun && !ExperimentBuildSession.IsActive)
                 ExperimentBuildSession.Apply(lockedRouteIndex, lockedTrafficEnabled, true);
 
             Instance = this;
@@ -174,6 +174,8 @@ namespace CyclingExperiment
                 if (trigger != null) rightTurnTrigger = trigger.transform;
             }
 
+            EnsureRoute1SegmentTriggers();
+
             if (route1CyclistSpawn == null)
             {
                 var spawn = GameObject.Find("Cyclist_Spawn_Route1");
@@ -258,12 +260,49 @@ namespace CyclingExperiment
             if (rightTurnSign == null)
                 rightTurnSign = Route1RightTurnSign.Ensure(rightTurnTrigger);
         }
+        
+        public void EnsureRoute1SegmentTriggers()
+        {
+            if (busStopTrigger != null)
+            {
+                var trigger = busStopTrigger.GetComponent<ScenarioTrigger>();
+                if (trigger != null)
+                {
+                    var segment = busStopTrigger.GetComponent<Route1SegmentTrigger>()
+                                  ?? busStopTrigger.gameObject.AddComponent<Route1SegmentTrigger>();
 
+                    segment.Configure(
+                        "C2",
+                        "interaction",
+                        "BUS_ZONE",
+                        "C3",
+                        "approach"
+                    );
+                }
+            }
+
+            if (rightTurnTrigger != null)
+            {
+                var trigger = rightTurnTrigger.GetComponent<ScenarioTrigger>();
+                if (trigger != null)
+                {
+                    var segment = rightTurnTrigger.GetComponent<Route1SegmentTrigger>()
+                                  ?? rightTurnTrigger.gameObject.AddComponent<Route1SegmentTrigger>();
+
+                    segment.Configure(
+                        "C4",
+                        "interaction",
+                        "RIGHT_TURN_ZONE"
+                    );
+                }
+            }
+        }
+        
         public void EnsureRoute1ReferencePath()
         {
             if (route1PathTracker != null) return;
 
-            var existing = GameObject.Find("Route1_ReferencePath");
+            var existing = GameObject.Find("ExperimentSceneRefsRoute1_ReferencePath");
             GameObject root = existing;
             if (root == null)
             {
@@ -278,22 +317,34 @@ namespace CyclingExperiment
             if (root.transform.childCount < 2)
             {
                 ClearNamedPathChildren(root.transform);
-                Vector3 spawn = route1CyclistSpawn != null ? route1CyclistSpawn.position : new Vector3(403.72f, 0.26f, -11.11f);
-                Vector3 bus = busStopTrigger != null ? busStopTrigger.position : spawn;
-                Vector3 bay = bus;
-                var busPath = GameObject.Find("Bus_Overtake_Path");
-                if (busPath != null)
-                {
-                    var path = busPath.GetComponent<WaypointPath>();
-                    if (path != null && path.WaypointCount > 0)
-                        bay = path.GetWaypoint(path.WaypointCount - 1);
-                }
+                
+                Vector3 p00 = new Vector3(403.72f, 0.2f, -11.11f);
+                Vector3 p01 = new Vector3(430.67f, 0.2f, -23.57f);
+                Vector3 p02 = new Vector3(485.7323f, 0.2f, -45.7662f);
+                Vector3 p03 = new Vector3(528.69f, 0.2f, -63.76f);
+                Vector3 p04 = new Vector3(584.26f, 0.2f, -87.12f);
+                Vector3 p05 = new Vector3(635.07f, 0.2f, -111.73f);
+                Vector3 p06 = new Vector3(702.79f, 0.2f, -140.60f);
+                Vector3 p07 = new Vector3(747.59f, 0.2f, -159.39f);
+                Vector3 p08 = new Vector3(805.67f, 0.2f, -184.07f);
+                Vector3 p09 = new Vector3(812.58f, 0.2f, -187.89f);
+                Vector3 p10 = new Vector3(810.23f, 0.2f, -201.66f);
+                Vector3 p11 = new Vector3(799.65f, 0.2f, -224.50f);
+                Vector3 p12 = new Vector3(789.87f, 0.2f, -247.10f);
 
-                Vector3 turn = rightTurnTrigger != null ? rightTurnTrigger.position : new Vector3(790f, 0.2f, -177.2f);
-                CreatePathPoint(root.transform, "P_00", spawn);
-                CreatePathPoint(root.transform, "P_01", bus);
-                CreatePathPoint(root.transform, "P_02", bay);
-                CreatePathPoint(root.transform, "P_03", turn);
+                CreatePathPoint(root.transform, "P_00", p00);
+                CreatePathPoint(root.transform, "P_01", p01);
+                CreatePathPoint(root.transform, "P_02", p02);
+                CreatePathPoint(root.transform, "P_03", p03);
+                CreatePathPoint(root.transform, "P_04", p04);
+                CreatePathPoint(root.transform, "P_05", p05);
+                CreatePathPoint(root.transform, "P_06", p06);
+                CreatePathPoint(root.transform, "P_07", p07);
+                CreatePathPoint(root.transform, "P_08", p08);
+                CreatePathPoint(root.transform, "P_09", p09);
+                CreatePathPoint(root.transform, "P_10", p10);
+                CreatePathPoint(root.transform, "P_11", p11);
+                CreatePathPoint(root.transform, "P_12", p12);
             }
         }
 
@@ -317,26 +368,28 @@ namespace CyclingExperiment
             if (root.transform.childCount < 2)
             {
                 ClearNamedPathChildren(root.transform);
-                Vector3 spawn = route2CyclistSpawn != null
-                    ? route2CyclistSpawn.position
-                    : Scenario3_ConstructionNarrowing.ApproachPosition;
-                Vector3 chute = Scenario3_ConstructionNarrowing.ChuteCenter;
-                Vector3 along = chute - spawn;
-                along.y = 0f;
-                if (along.sqrMagnitude < 0.01f)
-                    along = Vector3.forward;
-                else
-                    along.Normalize();
 
-                Vector3 mid = Vector3.Lerp(spawn, chute, 0.5f);
-                mid.y = spawn.y;
-                Vector3 past = chute + along * 25f;
-                past.y = chute.y;
+                Vector3 p00 = new Vector3(759.897f, 0.2f, 116.955f);
+                Vector3 p01 = new Vector3(741.5235f, 0.2f, 125.71f);
+                Vector3 p02 = new Vector3(723.15f, 0.2f, 130.93f);
+                Vector3 p03 = new Vector3(699.2225f, 0.2f, 141.40f);
+                Vector3 p04 = new Vector3(683.04f, 0.2f, 150.29f);
+                Vector3 p05 = new Vector3(663.61f, 0.2f, 158.71f);
+                Vector3 p06 = new Vector3(635.34f, 0.2f, 171.09f);
+                Vector3 p07 = new Vector3(612.86f, 0.2f, 178.87f);
+                Vector3 p08 = new Vector3(602.28f, 0.2f, 181.39f);
+                Vector3 p09 = new Vector3(564.86f, 0.2f, 197.00f);
 
-                CreatePathPoint(root.transform, "P_00", spawn);
-                CreatePathPoint(root.transform, "P_01", mid);
-                CreatePathPoint(root.transform, "P_02", chute);
-                CreatePathPoint(root.transform, "P_03", past);
+                CreatePathPoint(root.transform, "P_00", p00);
+                CreatePathPoint(root.transform, "P_01", p01);
+                CreatePathPoint(root.transform, "P_02", p02);
+                CreatePathPoint(root.transform, "P_03", p03);
+                CreatePathPoint(root.transform, "P_04", p04);
+                CreatePathPoint(root.transform, "P_05", p05);
+                CreatePathPoint(root.transform, "P_06", p06);
+                CreatePathPoint(root.transform, "P_07", p07);
+                CreatePathPoint(root.transform, "P_08", p08);
+                CreatePathPoint(root.transform, "P_09", p09);
             }
         }
 
@@ -353,10 +406,8 @@ namespace CyclingExperiment
             else
                 along.Normalize();
 
-            Vector3 c2 = chute - along * 12f;
-            Vector3 c3 = chute + along * 20f;
-            c2.y = 0.2f;
-            c3.y = 0.2f;
+            Vector3 c2 = new Vector3(625.50f, 0.20f, 170.50f);
+            Vector3 c3 = new Vector3(596.42f, 0.20f, 180.16f);
             Quaternion facing = Quaternion.LookRotation(along);
 
             if (route2TriggerC2 == null)

@@ -400,8 +400,19 @@ namespace CyclingExperiment.UI
         private void BeginRunLog(string scenarioName, string segmentId, string taskContext)
         {
             var logger = ExperimentRunLogger.Instance;
-            if (logger == null && Refs != null) logger = Refs.runLogger;
-            if (logger == null) return;
+
+            if (logger == null && Refs != null)
+            {
+                Refs.EnsureRunLogger();
+                logger = Refs.runLogger;
+            }
+
+            if (logger == null)
+            {
+                Debug.LogError("[ScenarioSelectionUI] ExperimentRunLogger could not be created.");
+                return;
+            }
+
             logger.StartLogging(scenarioName, segmentId, taskContext);
         }
 

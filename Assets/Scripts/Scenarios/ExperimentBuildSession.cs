@@ -1,4 +1,7 @@
 using CyclingExperiment.AI;
+using System;
+using UnityEngine;
+using CyclingExperiment.AI;
 
 namespace CyclingExperiment.Scenarios
 {
@@ -14,6 +17,9 @@ namespace CyclingExperiment.Scenarios
         public static int RouteIndex { get; private set; }
         public static bool TrafficEnabled { get; private set; }
         public static bool LockParticipantUi { get; private set; }
+        
+        public static string ParticipantId { get; private set; } = "P01";
+        public static int TrialIndex { get; private set; } = 1;
 
         static bool _playTestRun;
 
@@ -66,7 +72,60 @@ namespace CyclingExperiment.Scenarios
             TrafficEnabled = RouteIndex == TestRunRouteIndex ? false : trafficEnabled;
             LockParticipantUi = lockParticipantUi;
         }
+        
+        public static void SetParticipantTrial(string participantId, int trialIndex)
+        {
+            ParticipantId = string.IsNullOrWhiteSpace(participantId) ? "P01" : participantId.Trim();
+            TrialIndex = trialIndex < 1 ? 1 : trialIndex;
+        }
+        
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void LoadCommandLineSession()
+        {
+            string[] args = Environment.GetCommandLineArgs();
 
+            string participant = null;
+            int trial = 1;
+            int route = 0;
+            bool traffic = false;
+
+            for (int i = 0; i < args.Length; i++)
+            {
+                string arg = args[i].ToLowerInvariant();
+
+                if (arg == "--participant" && i + 1 < args.Length)
+                {
+                    participant = args[++i];
+                }
+                else if (arg == "--trial" && i + 1 < args.Length)
+                {
+                    int.TryParse(args[++i], out trial);
+                }
+                else if (arg == "--route" && i + 1 < args.Length)
+                {
+                    int.TryParse(args[++i], out route);
+                }
+                else if (arg == "--traffic" && i + 1 < args.Length)
+                {
+                    string value = args[++i].ToLowerInvariant();
+                    traffic = value == "1" || value == "true" || value == "on";
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(participant))
+            {
+                SetParticipantTrial(participant, trial);
+            }
+
+            if (route == 1 || route == 2 || route == TestRunRouteIndex)
+            {
+                Apply(route, traffic, true);
+
+                Debug.Log(
+                    $"[ExperimentBuildSession] Participant={ParticipantId}, Trial={TrialIndex}, Route={RouteIndex}, Traffic={TrafficEnabled}");
+            }
+        }
+        
         public static void SetPlayTestRun(bool enabled)
         {
             _playTestRun = enabled;
