@@ -325,7 +325,7 @@ namespace CyclingExperiment.Editor
         public static void AddCyclistSpawnRoute2Only()
         {
             Transform spawn = EnsureCyclistSpawnRoute2();
-            var refs = Object.FindFirstObjectByType<ExperimentRefs>();
+            var refs = Object.FindObjectOfType<ExperimentRefs>();
             if (refs != null)
             {
                 refs.route2CyclistSpawn = spawn;

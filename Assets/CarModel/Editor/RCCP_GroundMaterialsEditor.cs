@@ -57,7 +57,7 @@ public class RCC_GroundMaterialsEditor : Editor {
             EditorGUILayout.Space();
             EditorGUILayout.BeginHorizontal();
 
-            prop.frictions[i].groundMaterial = (PhysicsMaterial)EditorGUILayout.ObjectField("Physic Material", prop.frictions[i].groundMaterial, typeof(PhysicsMaterial), false, GUILayout.Width(250f));
+            prop.frictions[i].groundMaterial = (PhysicMaterial)EditorGUILayout.ObjectField("Physic Material", prop.frictions[i].groundMaterial, typeof(PhysicMaterial), false, GUILayout.Width(250f));
             prop.frictions[i].forwardStiffness = EditorGUILayout.FloatField("Forward Stiffness", prop.frictions[i].forwardStiffness, GUILayout.Width(150f));
 
             EditorGUILayout.EndHorizontal();

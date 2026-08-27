@@ -46,7 +46,7 @@ public class BikeLogger : MonoBehaviour
         nextLogTime = t + (1f / Mathf.Max(1f, logHz));
 
         Vector3 p = bikeRoot.position;
-        float speed = bikeRigidbody.linearVelocity.magnitude;
+        float speed = bikeRigidbody.velocity.magnitude;
         float speedKmh = speed * 3.6f;
 
         float yaw = bikeRoot.eulerAngles.y;

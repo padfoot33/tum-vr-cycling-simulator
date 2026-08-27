@@ -155,7 +155,7 @@ public class SimBikeSpawnController : MonoBehaviour
             if (rb == null) continue;
             rb.isKinematic = true;
             rb.useGravity = false;
-            rb.linearVelocity = Vector3.zero;
+            rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
         }
 
@@ -184,7 +184,7 @@ public class SimBikeSpawnController : MonoBehaviour
             if (rb == null) continue;
             rb.isKinematic = false;
             rb.useGravity = true;
-            rb.linearVelocity = Vector3.zero;
+            rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
         }
 
@@ -200,7 +200,7 @@ public class SimBikeSpawnController : MonoBehaviour
         foreach (var body in allRigidbodies)
         {
             if (body == null) continue;
-            body.linearVelocity = Vector3.zero;
+            body.velocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
         }
     }

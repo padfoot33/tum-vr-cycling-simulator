@@ -26,11 +26,11 @@ namespace SBPScripts.Simulator
         // Update is called once per frame
         void Update()
         {
-            if (bicycleController.rb.linearVelocity.magnitude > 2f)
+            if (bicycleController.rb.velocity.magnitude > 2f)
             {
                 if (bicycleController.rawCustomAccelerationAxis > 0 && !bicycleController.isAirborne)
                 {
-                    pedallingAudioSource.pitch = Mathf.Clamp(1 + bicycleController.rb.linearVelocity.magnitude * 0.05f,1,3);
+                    pedallingAudioSource.pitch = Mathf.Clamp(1 + bicycleController.rb.velocity.magnitude * 0.05f,1,3);
                     pedallingAudioSource.volume = 0.5f + bicycleController.customAccelerationAxis;
                 }
 
@@ -41,7 +41,7 @@ namespace SBPScripts.Simulator
                 }
                 if (bicycleController.rawCustomAccelerationAxis < 1 || bicycleController.isAirborne)
                 {
-                    freeWheelAudioSource.pitch = Mathf.Clamp(1 + bicycleController.rb.linearVelocity.magnitude * 0.05f, 1,3);
+                    freeWheelAudioSource.pitch = Mathf.Clamp(1 + bicycleController.rb.velocity.magnitude * 0.05f, 1,3);
                     freeWheelAudioSource.volume += Time.deltaTime * 2;
                 }
                 else
@@ -51,8 +51,8 @@ namespace SBPScripts.Simulator
             }
             else
             {
-                pedallingAudioSource.volume = bicycleController.rb.linearVelocity.magnitude * 0.25f;
-                freeWheelAudioSource.volume = bicycleController.rb.linearVelocity.magnitude * 0.25f;
+                pedallingAudioSource.volume = bicycleController.rb.velocity.magnitude * 0.25f;
+                freeWheelAudioSource.volume = bicycleController.rb.velocity.magnitude * 0.25f;
             }
 
             if(bicycleController.bunnyHopInputState == 1)

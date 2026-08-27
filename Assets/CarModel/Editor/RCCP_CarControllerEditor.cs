@@ -106,8 +106,8 @@ public class RCCP_CarControllerEditor : Editor {
 
                 Rigidbody rigid = pivot.GetComponent<Rigidbody>();
                 rigid.mass = 1350f;
-                rigid.linearDamping = .01f;
-                rigid.angularDamping = .25f;
+                rigid.drag = .01f;
+                rigid.angularDrag = .25f;
                 rigid.interpolation = RigidbodyInterpolation.Interpolate;
                 rigid.collisionDetectionMode = CollisionDetectionMode.Discrete;
 
@@ -122,8 +122,8 @@ public class RCCP_CarControllerEditor : Editor {
 
                 Rigidbody rigid = selectedVehicle.GetComponent<Rigidbody>();
                 rigid.mass = 1350f;
-                rigid.linearDamping = .01f;
-                rigid.angularDamping = .25f;
+                rigid.drag = .01f;
+                rigid.angularDrag = .25f;
                 rigid.interpolation = RigidbodyInterpolation.Interpolate;
                 rigid.collisionDetectionMode = CollisionDetectionMode.Discrete;
 

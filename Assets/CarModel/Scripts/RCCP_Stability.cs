@@ -290,7 +290,7 @@ public class RCCP_Stability : MonoBehaviour {
 
             float turnadjust = (transform.eulerAngles.y - oldRotation) * (steerHelperStrength / 2f);
             Quaternion velRotation = Quaternion.AngleAxis(turnadjust, Vector3.up);
-            CarController.Rigid.linearVelocity = (velRotation * CarController.Rigid.linearVelocity);
+            CarController.Rigid.velocity = (velRotation * CarController.Rigid.velocity);
 
         }
 
@@ -315,7 +315,7 @@ public class RCCP_Stability : MonoBehaviour {
             return;
 
         //  Getting velocity of the vehicle and taking dot of the velocity with transform.up ref.
-        Vector3 velocity = CarController.Rigid.linearVelocity;
+        Vector3 velocity = CarController.Rigid.velocity;
         velocity -= transform.up * Vector3.Dot(velocity, transform.up);
         velocity.Normalize();
 
@@ -334,7 +334,7 @@ public class RCCP_Stability : MonoBehaviour {
     /// </summary>
     private void AngularDragHelper() {
 
-        CarController.Rigid.angularDamping = Mathf.Lerp(0f, 10f, (Mathf.Abs(CarController.speed) * angularDragHelperStrength) / 1000f);
+        CarController.Rigid.angularDrag = Mathf.Lerp(0f, 10f, (Mathf.Abs(CarController.speed) * angularDragHelperStrength) / 1000f);
 
     }
 
@@ -376,7 +376,7 @@ public class RCCP_Stability : MonoBehaviour {
 
         //  Getting angular velocity of the vehicle, and converting it to degree. And then assigning rotations of the velocity and steering directions. 
         Vector3 v = CarController.Rigid.angularVelocity;
-        velocityAngle = (v.y * Mathf.Sign(transform.InverseTransformDirection(CarController.Rigid.linearVelocity).z)) * Mathf.Rad2Deg;
+        velocityAngle = (v.y * Mathf.Sign(transform.InverseTransformDirection(CarController.Rigid.velocity).z)) * Mathf.Rad2Deg;
         velocityDirection.localRotation = Quaternion.Lerp(velocityDirection.localRotation, Quaternion.AngleAxis(Mathf.Clamp(velocityAngle / 3f, -45f, 45f), Vector3.up), Time.fixedDeltaTime * 5f);
         steeringDirection.localRotation = Quaternion.Euler(0f, CarController.FrontAxle.steerAngle, 0f);
 
@@ -390,7 +390,7 @@ public class RCCP_Stability : MonoBehaviour {
         float angle2 = Quaternion.Angle(velocityDirection.localRotation, steeringDirection.localRotation) * (normalizer);
 
         //  Applies relative torque to the vehicle based on velocity - steering direction angles.
-        CarController.Rigid.AddRelativeTorque(Vector3.up * ((angle2 * (Mathf.Clamp(transform.InverseTransformDirection(CarController.Rigid.linearVelocity).z, -10f, 10f) / 5000f)) * turnHelperStrength), ForceMode.VelocityChange);
+        CarController.Rigid.AddRelativeTorque(Vector3.up * ((angle2 * (Mathf.Clamp(transform.InverseTransformDirection(CarController.Rigid.velocity).z, -10f, 10f) / 5000f)) * turnHelperStrength), ForceMode.VelocityChange);
 
     }
 

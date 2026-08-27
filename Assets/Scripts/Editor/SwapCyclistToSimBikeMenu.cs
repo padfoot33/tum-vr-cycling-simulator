@@ -151,7 +151,7 @@ namespace CyclingExperiment.Editor
                 EditorUtility.SetDirty(refs.route1);
             }
 
-            var logger = Object.FindFirstObjectByType<EventMarkerLogger>();
+            var logger = Object.FindObjectOfType<EventMarkerLogger>();
             if (logger != null)
             {
                 var so = new SerializedObject(logger);

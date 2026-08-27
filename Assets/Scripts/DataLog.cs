@@ -455,7 +455,7 @@ public class DataLog : MonoBehaviour
     {
         if (simBike == null) return;
         
-        Vector3 currentVelocity = simBikeRigidbody != null ? simBikeRigidbody.linearVelocity : Vector3.zero;
+        Vector3 currentVelocity = simBikeRigidbody != null ? simBikeRigidbody.velocity : Vector3.zero;
         float forwardSpeed = simBikeRigidbody != null ? Vector3.Dot(currentVelocity, simBike.transform.forward) : 0f;
         long unixTimestamp = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         

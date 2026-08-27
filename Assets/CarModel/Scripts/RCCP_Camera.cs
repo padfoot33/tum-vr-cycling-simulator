@@ -380,8 +380,8 @@ public class RCCP_Camera : MonoBehaviour {
 
         CheckIfOccluded();
 
-        acceleration = (cameraTarget.playerVehicle.transform.InverseTransformDirection(cameraTarget.playerVehicle.Rigid.linearVelocity) - lastVelocity) / Time.fixedDeltaTime;
-        lastVelocity = cameraTarget.playerVehicle.transform.InverseTransformDirection(cameraTarget.playerVehicle.Rigid.linearVelocity);
+        acceleration = (cameraTarget.playerVehicle.transform.InverseTransformDirection(cameraTarget.playerVehicle.Rigid.velocity) - lastVelocity) / Time.fixedDeltaTime;
+        lastVelocity = cameraTarget.playerVehicle.transform.InverseTransformDirection(cameraTarget.playerVehicle.Rigid.velocity);
 
         acceleration.x = 0f;
         acceleration.y = 0f;
@@ -629,7 +629,7 @@ public class RCCP_Camera : MonoBehaviour {
         targetFieldOfView = Mathf.Lerp(TPSMinimumFOV, TPSMaximumFOV, Mathf.Abs(cameraTarget.playerVehicle.speed) / 150f);
 
         // Rotates camera by Z axis for tilt effect.
-        TPSTiltAngle = TPSTiltMaximum * (Mathf.Clamp(cameraTarget.playerVehicle.Rigid.linearVelocity.x, -1f, 1f) * Mathf.Abs(cameraTarget.playerVehicle.Rigid.linearVelocity.x) / 250f);
+        TPSTiltAngle = TPSTiltMaximum * (Mathf.Clamp(cameraTarget.playerVehicle.Rigid.velocity.x, -1f, 1f) * Mathf.Abs(cameraTarget.playerVehicle.Rigid.velocity.x) / 250f);
         TPSTiltAngle *= -TPSTiltMultiplier;
 
         //  Checks occlusion if it's enabled.

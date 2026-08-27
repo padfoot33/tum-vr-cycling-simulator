@@ -7,7 +7,7 @@
 
 - **Institution**: Technical University of Munich (TUM) | Chair of Traffic Engineering and Control
 - **Study Title**: *VR Cycling Stress Response using Biometrics and Behavioural Data*
-- **Platform**: Unity 6 / Universal Render Pipeline (URP) on macOS & Windows
+- **Platform**: Unity 2022.3.62f3 / Universal Render Pipeline (URP) on macOS & Windows
 - **Core Objective**: Measure cyclist stress, physiological reactions (Electrodermal Activity - EDA, Heart Rate - ECG/HRV, Temperature), and behavioral responses (speed deceleration, steering variability, lateral position deviation) across distinct urban infrastructure and traffic conflict scenarios in a realistic virtual model of the TUM Munich campus.
 
 ---

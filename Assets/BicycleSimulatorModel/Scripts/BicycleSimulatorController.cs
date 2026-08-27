@@ -73,7 +73,7 @@ namespace SBPScripts.Simulator
     [System.Serializable]
     public class WheelFrictionSettings
     {
-        public PhysicsMaterial fPhysicMaterial, rPhysicMaterial;
+        public PhysicMaterial fPhysicMaterial, rPhysicMaterial;
         public Vector2 fFriction, rFriction;
     }
     // Way Point System Class - Replay Ghosting system
@@ -678,7 +678,7 @@ namespace SBPScripts.Simulator
         public float GetSpeedMps()
         {
             if (rb == null) return 0f;
-            Vector3 v = rb.linearVelocity;
+            Vector3 v = rb.velocity;
             v.y = 0f;
             return v.magnitude;
         }
@@ -743,7 +743,7 @@ namespace SBPScripts.Simulator
         static void ZeroRigidbody(Rigidbody body)
         {
             if (body == null) return;
-            body.linearVelocity = Vector3.zero;
+            body.velocity = Vector3.zero;
             body.angularVelocity = Vector3.zero;
         }
 
@@ -879,7 +879,7 @@ namespace SBPScripts.Simulator
                 fPhysicsWheel.transform.rotation = Quaternion.Euler(
                     transform.rotation.eulerAngles.x,
                     transform.rotation.eulerAngles.y
-                        + customSteerAxis * steerAngle.Evaluate(rb.linearVelocity.magnitude)
+                        + customSteerAxis * steerAngle.Evaluate(rb.velocity.magnitude)
                         + oscillationSteerEffect,
                     0f);
             }
@@ -889,7 +889,7 @@ namespace SBPScripts.Simulator
             //Power Control. Wheel Torque + Acceleration curves
 
             //cache rb velocity
-            float currentSpeed = rb.linearVelocity.magnitude;
+            float currentSpeed = rb.velocity.magnitude;
             // Debug.Log("currentSpeed:"+currentSpeed);
 
 
@@ -914,7 +914,7 @@ namespace SBPScripts.Simulator
                 rb.AddForce(-transform.forward * accelerationCurve.Evaluate(customAccelerationAxis) * 0.5f);
             }
 
-            if (transform.InverseTransformDirection(rb.linearVelocity).z < 0){
+            if (transform.InverseTransformDirection(rb.velocity).z < 0){
                 // Debug.Log("4444");
                 isReversing = true;
             }
@@ -1005,21 +1005,21 @@ namespace SBPScripts.Simulator
             if (Physics.Raycast(fPhysicsWheel.transform.position, Vector3.down, out hit, Mathf.Infinity))
                 if (hit.distance < 0.5f)
                 {
-                    Vector3 velf = fPhysicsWheel.transform.InverseTransformDirection(fWheelRb.linearVelocity);
+                    Vector3 velf = fPhysicsWheel.transform.InverseTransformDirection(fWheelRb.velocity);
                     velf.x *= Mathf.Clamp01(1 / (wheelFrictionSettings.fFriction.x + wheelFrictionSettings.fFriction.y));
-                    fWheelRb.linearVelocity = fPhysicsWheel.transform.TransformDirection(velf);
+                    fWheelRb.velocity = fPhysicsWheel.transform.TransformDirection(velf);
                 }
             if (Physics.Raycast(rPhysicsWheel.transform.position, Vector3.down, out hit, Mathf.Infinity))
                 if (hit.distance < 0.5f)
                 {
-                    Vector3 velr = rPhysicsWheel.transform.InverseTransformDirection(rWheelRb.linearVelocity);
+                    Vector3 velr = rPhysicsWheel.transform.InverseTransformDirection(rWheelRb.velocity);
                     velr.x *= Mathf.Clamp01(1 / (wheelFrictionSettings.rFriction.x + wheelFrictionSettings.rFriction.y));
-                    rWheelRb.linearVelocity = rPhysicsWheel.transform.TransformDirection(velr);
+                    rWheelRb.velocity = rPhysicsWheel.transform.TransformDirection(velr);
                 }
 
             //Impact sensing
-            deceleration = (fWheelRb.linearVelocity - lastVelocity) / Time.fixedDeltaTime;
-            lastVelocity = fWheelRb.linearVelocity;
+            deceleration = (fWheelRb.velocity - lastVelocity) / Time.fixedDeltaTime;
+            lastVelocity = fWheelRb.velocity;
             impactFrames--;
             impactFrames = Mathf.Clamp(impactFrames, 0, 15);
             if (deceleration.y > 200 && lastDeceleration.y < -1)
@@ -1029,8 +1029,8 @@ namespace SBPScripts.Simulator
 
             if (impactFrames > 0 && inelasticCollision)
             {
-                fWheelRb.linearVelocity = new Vector3(fWheelRb.linearVelocity.x, -Mathf.Abs(fWheelRb.linearVelocity.y), fWheelRb.linearVelocity.z);
-                rWheelRb.linearVelocity = new Vector3(rWheelRb.linearVelocity.x, -Mathf.Abs(rWheelRb.linearVelocity.y), rWheelRb.linearVelocity.z);
+                fWheelRb.velocity = new Vector3(fWheelRb.velocity.x, -Mathf.Abs(fWheelRb.velocity.y), fWheelRb.velocity.z);
+                rWheelRb.velocity = new Vector3(rWheelRb.velocity.x, -Mathf.Abs(rWheelRb.velocity.y), rWheelRb.velocity.z);
             }
 
             //AirControl
@@ -1090,14 +1090,14 @@ namespace SBPScripts.Simulator
             //Wheelie
             if(!isAirborne && wheelieInput && rawCustomAccelerationAxis>0)
             {
-                rb.angularDamping = 15;
+                rb.angularDrag = 15;
                 wheeliePower = customAccelerationAxis*150*System.Convert.ToInt32(wheelieToggle);
                 var rot = Quaternion.FromToRotation(transform.forward, new Vector3(transform.forward.x,0.75f,transform.forward.z));
                 rb.AddTorque(new Vector3(rot.x, rot.y, rot.z) * wheeliePower, ForceMode.Acceleration);
             }
             else
             {
-                rb.angularDamping = 1;
+                rb.angularDrag = 1;
             }
         }
 
@@ -1119,7 +1119,7 @@ namespace SBPScripts.Simulator
             if (rb == null || simulatorWheelBase <= 0.01f)
                 return;
 
-            Vector3 horizontalVelocity = Vector3.ProjectOnPlane(rb.linearVelocity, Vector3.up);
+            Vector3 horizontalVelocity = Vector3.ProjectOnPlane(rb.velocity, Vector3.up);
             float signedForwardSpeed = Vector3.Dot(horizontalVelocity, transform.forward);
 
             // Smooth the already-clamped Fanatec steering command. This removes tiny
@@ -1261,7 +1261,7 @@ namespace SBPScripts.Simulator
                             customAccelerationAxis = 0; 
                             rawCustomAccelerationAxis = 0;
 
-                            rb.linearVelocity = new Vector3(0, 0, 5);
+                            rb.velocity = new Vector3(0, 0, 5);
 
                             rb = Vehicle.SumoVehicleTeleport(ref sock, id, rb, steeringGain, ref pidControllerSpeed, ref pidControllerDist, ref lookAheadMarker);
                             rb.isKinematic = true;
@@ -1277,7 +1277,7 @@ namespace SBPScripts.Simulator
                     bool fanatecOk = steeringInput != null && steeringInput.HasSteeringDevice;
                     bool arduinoOk = arduinoConnected && sp != null && sp.IsOpen;
 
-                    actual_velocity_unity_bike = rb.linearVelocity.magnitude;
+                    actual_velocity_unity_bike = rb.velocity.magnitude;
 
                     if (useConstantVelocity || wahooOk)
                     {
@@ -1311,7 +1311,7 @@ namespace SBPScripts.Simulator
                         if (velocity < 0.1f)
                         {
                             float stopGain = 0.5f;
-                            rb.linearVelocity = Vector3.Lerp(rb.linearVelocity, Vector3.zero, Time.deltaTime * stopGain);
+                            rb.velocity = Vector3.Lerp(rb.velocity, Vector3.zero, Time.deltaTime * stopGain);
                             rb.angularVelocity = Vector3.Lerp(rb.angularVelocity, Vector3.zero, Time.deltaTime * stopGain);
                         }
 

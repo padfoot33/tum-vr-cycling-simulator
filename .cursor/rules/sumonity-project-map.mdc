@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Sumonity Unity Base
 
-VR cycling research simulator (Unity 6000.4.2f1, TUM): SUMO + TUM campus + bicycle for stress-response experiments. Primary scene: `Assets/Scenes/MainScene.unity`.
+VR cycling research simulator (Unity 2022.3.62f3, TUM): SUMO + TUM campus + bicycle for stress-response experiments. Primary scene: `Assets/Scenes/MainScene.unity`.
 
 Read [docs/PROJECT_MINDMAP.md](docs/PROJECT_MINDMAP.md) before adding systems. Current work notes: [docs/SESSION.md](docs/SESSION.md).
 

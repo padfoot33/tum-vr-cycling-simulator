@@ -161,7 +161,7 @@ namespace CyclingExperiment.Editor
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
             if (prefab == null) return;
 
-            var combined = Object.FindFirstObjectByType<Scenario1_CombinedController>();
+            var combined = Object.FindObjectOfType<Scenario1_CombinedController>();
             if (combined != null)
             {
                 var so = new SerializedObject(combined);

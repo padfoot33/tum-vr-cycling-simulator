@@ -218,7 +218,7 @@ public class ScenarioSpawnApplier : MonoBehaviour
         {
             rb.position = finalPos;
             rb.rotation = finalRot;
-            rb.linearVelocity = Vector3.zero;
+            rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
             Debug.Log($"[ScenarioSpawnApplier] 📌 RB position set to: {rb.position} (Y={rb.position.y})");
         }
@@ -235,7 +235,7 @@ public class ScenarioSpawnApplier : MonoBehaviour
         {
             yield return new WaitForSeconds(settleSeconds);
 
-            rb.linearVelocity = Vector3.zero;
+            rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
 
             rb.isKinematic = oldKinematic;

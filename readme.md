@@ -18,7 +18,7 @@ Everything needed to run the simulator in the Unity Editor is committed here, in
 1. Get the project, either way works:
    - **Download ZIP**: use the green **Code** button above, then **Download ZIP**, and unpack it.
    - **Clone**: `git lfs install` first, then `git clone https://github.com/padfoot33/tum-vr-cycling-simulator.git`. Without Git LFS installed, the large files arrive as small text pointers.
-2. Open the folder in Unity **6000.4.2f1** (the version pinned in `ProjectSettings/ProjectVersion.txt`).
+2. Open the folder in Unity **2022.3.62f3** (the version pinned in `ProjectSettings/ProjectVersion.txt`).
 3. Wait for the first import. It processes about 1.4 GB of assets and can take a long time. `Library/` is deliberately not shipped because it is large and not portable between machines.
 4. Open `Assets/Scenes/MainScene.unity` and press Play.
 
@@ -29,7 +29,7 @@ x
 - Windows 10/11
 - Python 3.11 
 - Git Bash
-- Unity 6000.4.2f1 (the version recorded in `ProjectSettings/ProjectVersion.txt`)
+- Unity 2022.3.62f3 (the version recorded in `ProjectSettings/ProjectVersion.txt`)
 
 ## Automatic installation
 

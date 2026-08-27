@@ -69,7 +69,7 @@ namespace CyclingExperiment.Scenarios
             // MainScene uses Scenario1_CombinedController as the authoritative Route 1 flow.
             // Keep this legacy component as a standalone fallback, but never let the same
             // trigger create a second bus when the combined controller is present.
-            if (FindFirstObjectByType<Scenario1_CombinedController>() != null)
+            if (FindObjectOfType<Scenario1_CombinedController>() != null)
             {
                 Debug.Log("[Scenario1_BusOvertake] Combined Scenario 1 is active; legacy bus spawn skipped.");
                 return;

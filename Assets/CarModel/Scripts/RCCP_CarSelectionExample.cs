@@ -156,7 +156,7 @@ public class RCCP_CarSelectionExample : MonoBehaviour {
 
         // Resets the velocity of the vehicle.
         spawnedVehicles[selectedIndex].GetComponent<Rigidbody>().ResetInertiaTensor();
-        spawnedVehicles[selectedIndex].GetComponent<Rigidbody>().linearVelocity = Vector3.zero;
+        spawnedVehicles[selectedIndex].GetComponent<Rigidbody>().velocity = Vector3.zero;
         spawnedVehicles[selectedIndex].GetComponent<Rigidbody>().angularVelocity = Vector3.zero;
 
         // If RCCP Camera is choosen, it wil enable RCCP_CameraCarSelection script. This script was used for orbiting camera.

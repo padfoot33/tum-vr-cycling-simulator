@@ -372,7 +372,7 @@ public class RCCP_Recorder : MonoBehaviour {
 
         for (int i = 0; i < recorded.rigids.Length && mode == Mode.Play; i++) {
 
-            CarController.Rigid.linearVelocity = recorded.rigids[i].velocity;
+            CarController.Rigid.velocity = recorded.rigids[i].velocity;
             CarController.Rigid.angularVelocity = recorded.rigids[i].angularVelocity;
 
             yield return new WaitForFixedUpdate();
@@ -406,7 +406,7 @@ public class RCCP_Recorder : MonoBehaviour {
 
                 Inputs.Add(new VehicleInput(CarController.throttleInput_V, CarController.brakeInput_V, CarController.steerInput_V, CarController.handbrakeInput_V, CarController.clutchInput_V, CarController.nosInput_V, CarController.direction, CarController.currentGear, CarController.shiftingNow, CarController.lowBeamLights, CarController.highBeamLights, CarController.indicatorsLeftLights, CarController.indicatorsRightLights, CarController.indicatorsAllLights));
                 Transforms.Add(new VehicleTransform(CarController.transform.position, CarController.transform.rotation));
-                Rigidbodies.Add(new VehicleVelocity(CarController.Rigid.linearVelocity, CarController.Rigid.angularVelocity));
+                Rigidbodies.Add(new VehicleVelocity(CarController.Rigid.velocity, CarController.Rigid.angularVelocity));
 
                 break;
 

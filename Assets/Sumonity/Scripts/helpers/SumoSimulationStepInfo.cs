@@ -325,7 +325,7 @@ namespace tumvt.sumounity
             Vector2 rotatedPointLongitudinalControl = RotateVectorByAngle(translatedPointLongitudinalControl, unityAngle);
 
             
-            float currentVelocity = rb.linearVelocity.magnitude;
+            float currentVelocity = rb.velocity.magnitude;
             float desiredVelocity = currentVehicleState.speed;
 
             // distnace based speed control
@@ -401,8 +401,8 @@ namespace tumvt.sumounity
             float magicValue = 1.0f;
 
             Vector3 newVelocity = rb.transform.forward * currentVehicleState.speed*magicValue; 
-            rb.linearVelocity = newVelocity;
-            float currentVelocity = rb.linearVelocity.magnitude;
+            rb.velocity = newVelocity;
+            float currentVelocity = rb.velocity.magnitude;
             float desiredVelocity = currentVehicleState.speed;
 
             // distnace based speed control

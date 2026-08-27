@@ -826,7 +826,7 @@ public class RCCP_CarController : MonoBehaviour, IVehicleController {
         }
 
         //  Calculating speed as km/h unit.
-        speed = transform.InverseTransformDirection(Rigid.linearVelocity).z * 3.6f;
+        speed = transform.InverseTransformDirection(Rigid.velocity).z * 3.6f;
 
         //  Converting traction wheel rpm to engine rpm.
         tractionWheelRPM2EngineRPM = (averagePowerWheelRPM * differentialRatio * currentGearRatio) * (1f - clutchInput_V) * gearInput_V;
@@ -1181,7 +1181,7 @@ public class RCCP_CarController : MonoBehaviour, IVehicleController {
         RCCP_Settings.BehaviorType currentBehaviorType = RCCP_Settings.Instance.SelectedBehaviorType;
 
         //  Setting angular drag of the rigidbody.
-        Rigid.angularDamping = currentBehaviorType.angularDrag;
+        Rigid.angularDrag = currentBehaviorType.angularDrag;
 
         //  Setting stability settings if attached to the vehicle.
         if (Stability) {
@@ -1289,8 +1289,8 @@ public class RCCP_CarController : MonoBehaviour, IVehicleController {
 
         Rigidbody rigidbody = GetComponent<Rigidbody>();
         rigidbody.mass = 1350f;
-        rigidbody.linearDamping = .01f;
-        rigidbody.angularDamping = .25f;
+        rigidbody.drag = .01f;
+        rigidbody.angularDrag = .25f;
         rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
         rigidbody.collisionDetectionMode = CollisionDetectionMode.Discrete;
 

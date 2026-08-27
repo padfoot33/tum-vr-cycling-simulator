@@ -176,7 +176,7 @@ namespace CyclingExperiment.AI
                 {
                     if (!rb.isKinematic)
                     {
-                        rb.linearVelocity = Vector3.zero;
+                        rb.velocity = Vector3.zero;
                     }
                     rb.isKinematic = true;
                     rb.useGravity = false;

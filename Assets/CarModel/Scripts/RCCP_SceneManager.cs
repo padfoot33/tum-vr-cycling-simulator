@@ -35,7 +35,7 @@ public class RCCP_SceneManager : RCCP_Singleton<RCCP_SceneManager> {
         //	Terrain data.
         public Terrain terrain;
         public TerrainData mTerrainData;
-        public PhysicsMaterial terrainCollider;
+        public PhysicMaterial terrainCollider;
         public int alphamapWidth;
         public int alphamapHeight;
 
@@ -327,7 +327,7 @@ public class RCCP_SceneManager : RCCP_Singleton<RCCP_SceneManager> {
 
         if (activePlayerVehicle) {
 
-            activePlayerVehicle.Rigid.linearVelocity = Vector3.zero;
+            activePlayerVehicle.Rigid.velocity = Vector3.zero;
             activePlayerVehicle.Rigid.angularVelocity = Vector3.zero;
 
             activePlayerVehicle.transform.SetPositionAndRotation(position, rotation);
@@ -356,7 +356,7 @@ public class RCCP_SceneManager : RCCP_Singleton<RCCP_SceneManager> {
 
         if (vehicle) {
 
-            vehicle.Rigid.linearVelocity = Vector3.zero;
+            vehicle.Rigid.velocity = Vector3.zero;
             vehicle.Rigid.angularVelocity = Vector3.zero;
 
             vehicle.transform.SetPositionAndRotation(position, rotation);

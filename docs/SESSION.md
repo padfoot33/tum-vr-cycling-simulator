@@ -2,6 +2,16 @@
 
 Working notes for current development. The project map lives in [PROJECT_MINDMAP.md](PROJECT_MINDMAP.md).
 
+## 27 Aug 2026 — Fresh Unity 2022.3.62f3 project reset
+
+Created a clean editor project (`Sumonity-Unity2022-Fresh`), copied `Assets`, applied 2022.3 package pins + URP Global Settings / material version **8**, merged gameplay `ProjectSettings`, batch-validated MainScene (SimBike + `High_PipelineAsset`), then promoted `Assets` / `Packages` / `ProjectSettings` back into this repo.
+
+## 27 Aug 2026 — Downgrade to Unity 2022.3.62f3
+
+Editor/project version is **2022.3.62f3** (client SimBike-compatible). Packages pinned for 2022.3 LTS (URP/HDRP/SG **14.0.12**, AI Nav **1.1.7**, Animation Rigging **1.3.1**, ugui **1.0.0**, TMP **3.0.7**). Unity 6 physics APIs (`linearVelocity` → `velocity`, etc.) and `FindFirstObjectByType` reverted. Removed Unity 6-only packages (`multiplayer.center`, `modules.accessibility`/`adaptiveperformance`/`vectorgraphics`, broken `collab-proxy` 2.12.4). Batchmode compile clean; MainScene still has SimBike + `BicycleSimulatorController`.
+
+**Editor hang fix:** Unity 6 left `ProjectSettings/URPProjectSettings.asset` at material version **10**; URP 14 only has **8** upgraders, so the editor reimported every material every frame. Set version to **8**, replaced Unity 6 `UniversalRenderPipelineGlobalSettings` with a URP 14 asset, capped pipeline `k_AssetVersion` at **11**.
+
 ## 23 Aug 2026 — Run log sync, Route 2 path, brakes
 
 [`ExperimentRunLogger`](../Assets/Scripts/Logging/ExperimentRunLogger.cs) writes `timestamp_utc` and `unix_time_ms` on every CSV row (keep relative `t`). Operator **F9** = `SYNC_PRE`, **F10** = `SYNC_POST` in the same run CSV. Sampling is a phase-locked 20 Hz unscaled grid; late frames skip rather than duplicate rows.

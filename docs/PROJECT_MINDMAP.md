@@ -1,6 +1,6 @@
 # Sumonity Unity Base Project — Mind Map
 
-Unity **6000.4.2f1** VR cycling research simulator (TUM Chair of Traffic Engineering): SUMO microscopic traffic + TUM Main Campus 3D + bicycle (keyboard/VR or hardware trainer) for controlled stress-response experiments.
+Unity **2022.3.62f3** VR cycling research simulator (TUM Chair of Traffic Engineering): SUMO microscopic traffic + TUM Main Campus 3D + bicycle (keyboard/VR or hardware trainer) for controlled stress-response experiments.
 
 Primary scene: `Assets/Scenes/MainScene.unity`.
 

@@ -49,7 +49,7 @@ public class BikeSimulatorDataLogger : MonoBehaviour
             TargetVelocityWahooBike = ((float)tcp_bike_connection.targetOutputVelocity / 3.6f) * globalSpeedGainSimBike;
         }
 
-        actual_velocity_unity_bike = GetComponent<Rigidbody>().linearVelocity.magnitude;
+        actual_velocity_unity_bike = GetComponent<Rigidbody>().velocity.magnitude;
 
 
 

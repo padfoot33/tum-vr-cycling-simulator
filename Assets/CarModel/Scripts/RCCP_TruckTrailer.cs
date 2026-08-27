@@ -156,7 +156,7 @@ public class RCCP_TruckTrailer : MonoBehaviour {
     private void Update() {
 
         //	If trailer is not moving, enable sleeping mode.
-        if (rigid.linearVelocity.magnitude < .01f && Mathf.Abs(rigid.angularVelocity.magnitude) < .01f)
+        if (rigid.velocity.magnitude < .01f && Mathf.Abs(rigid.angularVelocity.magnitude) < .01f)
             isSleeping = true;
         else
             isSleeping = false;

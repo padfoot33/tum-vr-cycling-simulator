@@ -23,7 +23,7 @@ namespace CyclingExperiment
         public float GetSpeedMps()
         {
             if (rootBody == null) return 0f;
-            Vector3 v = rootBody.linearVelocity;
+            Vector3 v = rootBody.velocity;
             v.y = 0f;
             return v.magnitude;
         }
@@ -187,7 +187,7 @@ namespace CyclingExperiment
             {
                 if (body == null) continue;
                 body.position += delta;
-                body.linearVelocity = Vector3.zero;
+                body.velocity = Vector3.zero;
                 body.angularVelocity = Vector3.zero;
             }
 
@@ -203,10 +203,10 @@ namespace CyclingExperiment
             foreach (var body in _bodies)
             {
                 if (body == null) continue;
-                Vector3 v = body.linearVelocity;
+                Vector3 v = body.velocity;
                 v.x = 0f;
                 v.z = 0f;
-                body.linearVelocity = v;
+                body.velocity = v;
                 body.angularVelocity = Vector3.zero;
             }
 
@@ -218,7 +218,7 @@ namespace CyclingExperiment
             foreach (var body in _bodies)
             {
                 if (body == null) continue;
-                body.linearVelocity = Vector3.zero;
+                body.velocity = Vector3.zero;
                 body.angularVelocity = Vector3.zero;
             }
 

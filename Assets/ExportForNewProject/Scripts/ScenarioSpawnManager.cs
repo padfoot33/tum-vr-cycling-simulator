@@ -49,7 +49,7 @@ public class ScenarioSpawnManager : MonoBehaviour
         if (rb != null)
         {
             rb.position = targetSpawn.position;
-            rb.linearVelocity = Vector3.zero;
+            rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
         }
         else

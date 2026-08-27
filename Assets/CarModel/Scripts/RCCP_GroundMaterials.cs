@@ -24,7 +24,7 @@ public class RCCP_GroundMaterials : ScriptableObject {
     [System.Serializable]
     public class GroundMaterialFrictions {
 
-        public PhysicsMaterial groundMaterial;       //  Physic material.
+        public PhysicMaterial groundMaterial;       //  Physic material.
 
         public float forwardStiffness = 1f;     //  Forward stiffness.
         public float sidewaysStiffness = 1f;        //  Sideways stiffness.
@@ -47,7 +47,7 @@ public class RCCP_GroundMaterials : ScriptableObject {
     [System.Serializable]
     public class TerrainFrictions {
 
-        public PhysicsMaterial groundMaterial;
+        public PhysicMaterial groundMaterial;
 
         [System.Serializable]
         public class SplatmapIndexes {

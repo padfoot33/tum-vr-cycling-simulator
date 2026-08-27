@@ -12,7 +12,7 @@ namespace CyclingExperiment.Editor
         [MenuItem("Cycling Experiment/Create Route Play Areas", false, 8)]
         public static void CreateRoutePlayAreas()
         {
-            var refs = Object.FindFirstObjectByType<ExperimentRefs>();
+            var refs = Object.FindObjectOfType<ExperimentRefs>();
             if (refs == null)
                 refs = ExperimentRefs.EnsureExists();
 

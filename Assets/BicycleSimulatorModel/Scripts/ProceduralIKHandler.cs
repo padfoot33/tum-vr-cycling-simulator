@@ -168,7 +168,7 @@ public class ProceduralIKHandler : MonoBehaviour
 
         //Head Target Position
         if(bicycleController.isAirborne && bicycleController.airTimeSettings.freestyle)
-        stuntModeHead = transform.InverseTransformDirection(bicycleController.rb.linearVelocity);
+        stuntModeHead = transform.InverseTransformDirection(bicycleController.rb.velocity);
         else
         stuntModeHead = Vector3.Lerp(stuntModeHead,Vector3.zero,Time.deltaTime*10);
         wheelieFactor += bicycleController.wheelieInput&&bicycleController.wheeliePower>100?Time.deltaTime*2:-Time.deltaTime;

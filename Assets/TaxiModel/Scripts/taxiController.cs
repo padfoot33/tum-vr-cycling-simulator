@@ -289,7 +289,7 @@ namespace tum_car_controller
         void ApplyPhysics()
         {
             Vector3 velocity = transform.forward * currentSpeed;
-            rb.linearVelocity = new Vector3(velocity.x, rb.linearVelocity.y, velocity.z);
+            rb.velocity = new Vector3(velocity.x, rb.velocity.y, velocity.z);
         }
 
         public void SetTeleportOnlyMode(bool value)

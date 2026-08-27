@@ -353,10 +353,10 @@ public class RCCP_WheelCollider : MonoBehaviour {
         if (totalSlip > RCCP_GroundMaterials.Instance.frictions[groundIndex].slip) {
 
             //  Getting the exact skid point based on wheel hit and little bit advantage of the vehicle velocity.
-            Vector3 skidPoint = wheelHit.point + (CarController.Rigid.linearVelocity * Time.deltaTime);
+            Vector3 skidPoint = wheelHit.point + (CarController.Rigid.velocity * Time.deltaTime);
 
             //  If vehicle velocity is not 0, and we have a wheelhit, add skidmarks. And increase the lastSkidmark counter. Otherwise set it to -1.
-            if (CarController.Rigid.linearVelocity.magnitude > .1f && isGrounded && wheelHit.normal != Vector3.zero && wheelHit.point != Vector3.zero && skidPoint != Vector3.zero && Mathf.Abs(skidPoint.x) > 1f && Mathf.Abs(skidPoint.z) > 1f)
+            if (CarController.Rigid.velocity.magnitude > .1f && isGrounded && wheelHit.normal != Vector3.zero && wheelHit.point != Vector3.zero && skidPoint != Vector3.zero && Mathf.Abs(skidPoint.x) > 1f && Mathf.Abs(skidPoint.z) > 1f)
                 lastSkidmark = RCCP_SkidmarksManager.Instance.AddSkidMark(skidPoint, wheelHit.normal, totalSlip - RCCP_GroundMaterials.Instance.frictions[groundIndex].slip, width, lastSkidmark, groundIndex);
             else
                 lastSkidmark = -1;
@@ -509,7 +509,7 @@ public class RCCP_WheelCollider : MonoBehaviour {
                 skidAudioSource.Play();
 
             // If vehicle is moving, set volume and pitch. Otherwise set them to 0.
-            if (CarController.Rigid.linearVelocity.magnitude > .1f) {
+            if (CarController.Rigid.velocity.magnitude > .1f) {
 
                 skidAudioSource.volume = Mathf.Lerp(0f, skidVolume, totalSlip - RCCP_GroundMaterials.Instance.frictions[groundIndex].slip);
                 skidAudioSource.pitch = Mathf.Lerp(1f, .8f, skidAudioSource.volume);
@@ -752,7 +752,7 @@ public class RCCP_WheelCollider : MonoBehaviour {
     /// </summary>
     private void Drift() {
 
-        Vector3 relativeVelocity = transform.InverseTransformDirection(CarController.Rigid.linearVelocity);
+        Vector3 relativeVelocity = transform.InverseTransformDirection(CarController.Rigid.velocity);
         sqrVel = Mathf.Lerp(sqrVel, (relativeVelocity.x * relativeVelocity.x) / 50f, Time.fixedDeltaTime * 10f);
 
         if (wheelHit.forwardSlip > 0)

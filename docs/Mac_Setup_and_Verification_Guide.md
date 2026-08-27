@@ -40,7 +40,7 @@ Verify installed packages:
 
 1. Open **Unity Hub** on macOS.
 2. Click **Add project from disk** and select `/Users/admin/Documents/GitHub/Sumonity-UnityBaseProject`.
-3. Open the project using **Unity 6000.4.2f1** (the checked-in project version, or a compatible Unity 6 release).
+3. Open the project using **Unity 2022.3.62f3** (the checked-in project version).
 4. In Unity Project window, navigate to `Assets/Scenes/MainScene.unity` and double-click to open.
 5. Press **Play** ▶️.
 
