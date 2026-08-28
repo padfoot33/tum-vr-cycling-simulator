@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Text;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -10,395 +9,459 @@ using System.Globalization;
 
 using tumvt.sumounity;
 
-    // namespace DebugStuff
-    // {
-    //     public class ConsoleToGUI : MonoBehaviour
-    //     {
-    // //#if !UNITY_EDITOR
-    //         static string myLog = "";
-    //         private string output;
-    //         private string stack;
-    
-    //         void OnEnable()
-    //         {
-    //             Application.logMessageReceived += Log;
-    //         }
-    
-    //         void OnDisable()
-    //         {
-    //             Application.logMessageReceived -= Log;
-    //         }
-    
-    //         public void Log(string logString, string stackTrace, LogType type)
-    //         {
-    //             output = logString;
-    //             stack = stackTrace;
-    //             myLog = output + "" + myLog;
-    //             if (myLog.Length > 5000)
-    //             {
-    //             myLog = myLog.Substring(0, 4000);
-    //             }
-    //             }
-
-    //         void OnGUI()
-    //         {
-    //             //if (!Application.isEditor) //Do not display in editor ( or you can use the UNITY_EDITOR macro to also disable the rest)
-    //             {
-    //                 myLog = GUI.TextArea(new Rect(10, 10, Screen.width - 10, Screen.height - 10), myLog);
-    //             }
-    //         }
-    // //#endif
-    //     }
-    // }
-
-// Please use using SBPScripts; directive to refer to or append the SBP library
 namespace SBPScripts.Simulator
 {
-// Cycle Geometry Class - Holds Gameobjects pertaining to the specific bicycle
     [System.Serializable]
     public class CycleGeometry
     {
-        public GameObject handles, lowerFork, fWheelVisual, RWheel, crank, lPedal, rPedal, fGear, rGear;
+        public GameObject handles;
+        public GameObject lowerFork;
+        public GameObject fWheelVisual;
+        public GameObject RWheel;
+        public GameObject crank;
+        public GameObject lPedal;
+        public GameObject rPedal;
+        public GameObject fGear;
+        public GameObject rGear;
     }
-    //Pedal Adjustments Class - Manipulates pedals and their positioning.  
+
     [System.Serializable]
     public class PedalAdjustments
     {
         public float crankRadius;
-        public Vector3 lPedalOffset, rPedalOffset;
+        public Vector3 lPedalOffset;
+        public Vector3 rPedalOffset;
         public float pedalingSpeed;
     }
-    // Wheel Friction Settings Class - Uses Physics Materials and Physics functions to control the 
-    // static / dynamic slipping of the wheels 
+
     [System.Serializable]
     public class WheelFrictionSettings
     {
-        public PhysicMaterial fPhysicMaterial, rPhysicMaterial;
-        public Vector2 fFriction, rFriction;
+        // Unity 2022.3 API
+        public PhysicMaterial fPhysicMaterial;
+        public PhysicMaterial rPhysicMaterial;
+
+        public Vector2 fFriction;
+        public Vector2 rFriction;
     }
-    // Way Point System Class - Replay Ghosting system
+
     [System.Serializable]
     public class WayPointSystem
     {
-        public enum RecordingState { DoNothing, Record, Playback };
+        public enum RecordingState
+        {
+            DoNothing,
+            Record,
+            Playback
+        }
+
         public RecordingState recordingState = RecordingState.DoNothing;
+
         [Range(1, 10)]
         public int frameIncrement;
+
         [HideInInspector]
         public List<Vector3> bicyclePositionTransform;
+
         [HideInInspector]
         public List<Quaternion> bicycleRotationTransform;
+
         [HideInInspector]
         public List<Vector2Int> movementInstructionSet;
+
         [HideInInspector]
         public List<bool> sprintInstructionSet;
+
         [HideInInspector]
         public List<int> bHopInstructionSet;
     }
+
     [System.Serializable]
     public class AirTimeSettings
     {
         public bool freestyle;
         public float airTimeRotationSensitivity;
-        [Range(0.5f, 10)]
+
+        [Range(0.5f, 10f)]
         public float heightThreshold;
+
         public float groundSnapSensitivity;
     }
-    public class BicycleSimulatorController : MonoBehaviour, IVehicleController 
+
+    public class BicycleSimulatorController : MonoBehaviour, IVehicleController
     {
-        ///for brake
+        // ==========================================================
+        // Arduino
+        // ==========================================================
+
         [Header("Arduino Configuration")]
         [SerializeField] private string defaultComPort = "COM3";
         [SerializeField] private int baudRate = 9600;
-        [SerializeField] private int readTimeoutMs = 500; // Increased timeout for build mode
+        [SerializeField] private int readTimeoutMs = 500;
         [SerializeField] private bool autoDetectComPort = true;
         [SerializeField] private bool enableArduinoDebugLogs = true;
-        
-        SerialPort sp;
+
+        private SerialPort sp;
+
         private bool arduinoConnected = false;
         private string arduinoErrorMessage = "";
         private string actualComPort = "";
-        
-        // Public properties to access Arduino connection status
+
         public bool IsArduinoConnected => arduinoConnected;
         public string ArduinoErrorMessage => arduinoErrorMessage;
         public string ActualComPort => actualComPort;
-        public float leftBrakeSignal = 0.0f;   // left
-        public float rightBrakeSignal = 0.0f;  // right
-        public float brakeSensitivity = 10.0f;
-        public float mass_kg = 80.0f; // mass of the bike + rider in kg
-        float velocity = 0.0f; // velocity of the bike in m/s
-        float acceleration = 0.0f; // acceleration of the bike in m/s^2  
-        /// 
-    	public bool useCommandLineInput = false;
-        private bool useConstantVelocity = false;
-        private float constantSimVelocity = 0.0f;
 
-        public string id { get; set; } // SUMO identifier in Vehicle Dictionary
-        public bool isSumoVehicle = true;   // TUM Used for sumo integration
+        public float leftBrakeSignal = 0f;
+        public float rightBrakeSignal = 0f;
+        public float brakeSensitivity = 10f;
+
+        public float mass_kg = 80f;
+
+        private float velocity = 0f;
+        private float acceleration = 0f;
+
+        public bool useCommandLineInput = false;
+
+        private bool useConstantVelocity = false;
+        private float constantSimVelocity = 0f;
+
+        // ==========================================================
+        // SUMO
+        // ==========================================================
+
+        public string id { get; set; }
+
+        public bool isSumoVehicle = true;
+
+        private bool allowSumoTeleport = true;
+        private string sumoTeleportDisabledReason = "";
+        private int sumoTeleportDisableCount = 0;
+
+        private bool allowWayPointPlayback = true;
+        private string wayPointPlaybackDisabledReason = "";
+        private int wayPointPlaybackDisableCount = 0;
+
+        // ==========================================================
+        // Simulator / Wahoo / Fanatec
+        // ==========================================================
 
         [Header("Wahoo Simulator")]
-        public bool isSimulatorVehicle = false;   // TUM Used for simulator integration
-        // public InputActionAsset wahooInputActions;
-        // InputActionMap inputBikerActionMap;
-        // InputAction steeringAction;
-        float target_velocity_wahoo_bike;
-        float actual_velocity_unity_bike;
+        public bool isSimulatorVehicle = false;
+
         public GameObject BikeConnectorTCP;
+
         private tcp_client tcp_bike_connection;
-        // [Header("CSV File")]
-        // todo: local project filepath method
-        public float globalSteeringGain= 60f;
 
-        [Header("Unity 6 Simulator Steering")]
-        [Tooltip("Physical wheelbase measured from the SimBike front/rear physics-wheel transforms.")]
-        [SerializeField] private float simulatorWheelBase = 1.577622f;
-        [Tooltip("Maximum effective steering angle used by the chassis yaw model. Visual handlebar steering is unchanged.")]
-        [SerializeField] private float simulatorEffectiveMaxSteerDeg = 15f;
-        [Tooltip("How quickly the chassis steering follows the Fanatec input. Higher = faster response.")]
-        [SerializeField] private float simulatorSteeringResponse = 4f;
-        [Tooltip("How quickly chassis yaw-rate follows the bicycle-model target. Higher = faster response.")]
-        [SerializeField] private float simulatorYawResponse = 6f;
-        [Tooltip("Safety cap for chassis yaw rate in degrees/second.")]
-        [SerializeField] private float simulatorMaxYawRateDeg = 35f;
-        [Tooltip("Minimum signed forward speed before simulator yaw steering is applied.")]
-        [SerializeField] private float simulatorSteeringMinSpeed = 0.15f;
+        private float target_velocity_wahoo_bike;
+        private float actual_velocity_unity_bike;
 
-        private float simulatorSmoothedSteerAxis = 0f;
+        // IMPORTANT:
+        // Inspector serialized value for your real SimBike should remain 8.
+        public float globalSteeringGain = 60f;
 
-        // speed controller for simulator bike (Wahoo)
         private PIController piControllerSpeedWahoo;
-        public float proportionalTermWahoo = 2125.0f;
+
+        public float proportionalTermWahoo = 2125f;
         public float globalSpeedGainSimBike = 0.5f;
         public float globalaccGainSimBike = 0.03f;
-        
-        // ============================================
-        // SUMO Teleport Spawn Lock (prevent overwrite)
-        // ============================================
-        private bool allowSumoTeleport = true;  // Default: allow; disabled during spawn
-        private string sumoTeleportDisabledReason = "";  // Track why it's disabled
-        private int sumoTeleportDisableCount = 0;  // Reference count (support nested disable/enable)
-        
-        // ============================================
-        // WayPoint Playback Spawn Lock (prevent overwrite)
-        // ============================================
-        private bool allowWayPointPlayback = true;  // Default: allow; disabled during spawn
-        private string wayPointPlaybackDisabledReason = "";  // Track why it's disabled
-        private int wayPointPlaybackDisableCount = 0;  // Reference count (support nested disable/enable)
-        
-        private bool toggle = false;
 
-        private Vector2 rbMarker;
-        private Vector2 SUMOMarker;
+        private float steeringValueFanatec;
 
+        private FFBInspectorBike steeringInput;
 
-        float steeringValueFanatec;
-        FFBInspectorBike steeringInput;
-        SimBikeSpawnController spawnController;
+        // ==========================================================
+        // Bicycle setup
+        // ==========================================================
 
         public CycleGeometry cycleGeometry;
-        public GameObject fPhysicsWheel, rPhysicsWheel;
+
+        public GameObject fPhysicsWheel;
+        public GameObject rPhysicsWheel;
+
         public WheelFrictionSettings wheelFrictionSettings;
-        // Curve of Power Exerted over Input time by the cyclist
-        // This class sets the physics materials on to the
-        // tires of the bicycle. F Friction pertains to the front tire friction and R Friction to
-        // the rear. They are of the Vector2 type. X field edits the static friction
-        // information and Y edits the dynamic friction. Please keep the values over 0.5.
-        // For more information, please read the commented scripts.
+
         public AnimationCurve accelerationCurve;
+
         [Tooltip("Steer Angle over Speed")]
         public AnimationCurve steerAngle;
+
         public float axisAngle;
-        // Defines the leaning curve of the bicycle
+
         public AnimationCurve leanCurve;
-        // The slider refers to the ratio of Relaxed mode to Top Speed. 
-        // Torque is a physics based function which acts as the actual wheel driving force.
-        public float torque, topSpeed;
+
+        public float torque;
+        public float topSpeed;
+
         [Range(0.1f, 0.9f)]
         [Tooltip("Ratio of Relaxed mode to Top Speed")]
         public float relaxedSpeed;
+
         public float reversingSpeed;
+
         public Vector3 centerOfMassOffset;
+
         [HideInInspector]
-        public bool isReversing, isAirborne, stuntMode;
-        // Controls Cycle sway from left to right.
-        // The degree of cycle waddling side to side upon pedaling.
-        // Higher values correspond to higher waddling. This property also affects
-        // character IK. 
+        public bool isReversing;
 
-        [Range(0, 8)]
+        [HideInInspector]
+        public bool isAirborne;
+
+        [HideInInspector]
+        public bool stuntMode;
+
+        [Range(0f, 8f)]
         public float oscillationAmount;
-        // Following the natural movement of a cyclist, the
-        // oscillation of the cycle from side to side also affects the steering to a certain
-        // extent. This value refers to the counter steer upon cycle oscillation. Higher
-        // values correspond to a higher percentage of the oscillation being transferred
-        // to the steering handles. 
 
-        [Range(0, 1)]
+        [Range(0f, 1f)]
         public float oscillationAffectSteerRatio;
-        float oscillationSteerEffect;
+
+        private float oscillationSteerEffect;
+
         [HideInInspector]
         public float cycleOscillation;
+
         [HideInInspector]
-        public Rigidbody rb, fWheelRb, rWheelRb;
-        float turnAngle;
-        float xQuat, zQuat;
+        public Rigidbody rb;
+
         [HideInInspector]
-        public float crankSpeed, crankCurrentQuat, crankLastQuat, restingCrank;
+        public Rigidbody fWheelRb;
+
+        [HideInInspector]
+        public Rigidbody rWheelRb;
+
+        private float xQuat;
+        private float zQuat;
+
+        [HideInInspector]
+        public float crankSpeed;
+
+        [HideInInspector]
+        public float crankCurrentQuat;
+
+        [HideInInspector]
+        public float crankLastQuat;
+
+        [HideInInspector]
+        public float restingCrank;
+
         public PedalAdjustments pedalAdjustments;
+
         [HideInInspector]
         public float turnLeanAmount;
-        RaycastHit hit;
+
+        private RaycastHit hit;
+
         [HideInInspector]
-        public float customSteerAxis, customLeanAxis, customAccelerationAxis, rawCustomAccelerationAxis;
-        bool isRaw, sprint;
+        public float customSteerAxis;
+
+        [HideInInspector]
+        public float customLeanAxis;
+
+        [HideInInspector]
+        public float customAccelerationAxis;
+
+        [HideInInspector]
+        public float rawCustomAccelerationAxis;
+
+        private bool sprint;
+
         [HideInInspector]
         public bool wheelieInput;
+
         [HideInInspector]
         public float wheeliePower;
+
         public bool wheelieToggle;
+
         [HideInInspector]
         public int bunnyHopInputState;
+
         [HideInInspector]
-        public float currentTopSpeed, pickUpSpeed;
-        Quaternion initialLowerForkLocalRotaion, initialHandlesRotation;
-        ConfigurableJoint fPhysicsWheelConfigJoint, rPhysicsWheelConfigJoint;
-        // Ground Conformity refers to vehicles that do not need a gyroscopic force to keep them upright.
-        // For non-gyroscopic wheel systems like the tricycle,
-        // enabling ground conformity ensures that the tricycle is not always upright and
-        // follows the curvature of the terrain. 
+        public float currentTopSpeed;
+
+        [HideInInspector]
+        public float pickUpSpeed;
+
+        private Quaternion initialLowerForkLocalRotaion;
+        private Quaternion initialHandlesRotation;
+
+        private ConfigurableJoint fPhysicsWheelConfigJoint;
+        private ConfigurableJoint rPhysicsWheelConfigJoint;
+
         public bool groundConformity;
-        RaycastHit hitGround;
-        Vector3 theRay;
-        float groundZ;
-        JointDrive fDrive, rYDrive, rZDrive;
-        // Attempts to Reduce/eliminate bouncing of the bicycle after a fall impact 
+
+        private float groundZ;
+
         public bool inelasticCollision;
+
         [HideInInspector]
-        public Vector3 lastVelocity, deceleration, lastDeceleration;
-        int impactFrames;
-        bool isBunnyHopping;
+        public Vector3 lastVelocity;
+
+        [HideInInspector]
+        public Vector3 deceleration;
+
+        [HideInInspector]
+        public Vector3 lastDeceleration;
+
+        private int impactFrames;
+        private bool isBunnyHopping;
+
         [HideInInspector]
         public float bunnyHopAmount;
-        // The upward force the rider can bunny hop with. 
+
         public float bunnyHopStrength;
+
         public WayPointSystem wayPointSystem;
         public AirTimeSettings airTimeSettings;
 
-        // for sumo integration
-        SumoSocketClient sock;
+        // ==========================================================
+        // SUMO control
+        // ==========================================================
+
+        private SumoSocketClient sock;
+
         private PIDController pidControllerSpeed;
         private PIDController pidControllerDist;
 
         private bool bDrawGizmo;
+
         private Vector2 lookAheadMarker;
-        private float steeringValue;
+        private Vector2 rbMarker;
+        private Vector2 SUMOMarker;
+
+        // ==========================================================
+        // Logging
+        // ==========================================================
 
         private float simulationTime;
         private string filePath;
 
-        void GetConstantVelocityUsageFromCommandLine()
+        // ==========================================================
+        // Command line
+        // ==========================================================
+
+        private void GetConstantVelocityUsageFromCommandLine()
         {
-            var args = Environment.GetCommandLineArgs();
-            string text = "";
-            bool enableFFB = false;
+            string[] args = Environment.GetCommandLineArgs();
 
             for (int i = 0; i < args.Length; i++)
             {
-                if(args[i] == "--velocity" && i<args.Length-1)
+                if (args[i] == "--velocity" && i < args.Length - 1)
                 {
-                    int payload = int.Parse(args[i+1]);
-                    useConstantVelocity = true;
-                    constantSimVelocity = (float)payload/3.6f; // convert to m/s
+                    if (int.TryParse(args[i + 1], out int payload))
+                    {
+                        useConstantVelocity = true;
+                        constantSimVelocity = payload / 3.6f;
+                    }
                 }
             }
-
-            return;
         }
 
-        /// <summary>
-        /// Initialize or reinitialize Arduino serial connection.
-        /// Called from Start() and OnEnable() to ensure connection after script re-enable.
-        /// </summary>
-        void InitializeArduinoConnection()
+        // ==========================================================
+        // Arduino
+        // ==========================================================
+
+        private void InitializeArduinoConnection()
         {
-            // Skip if already connected
             if (sp != null && sp.IsOpen)
             {
-                Debug.Log($"[BicycleSimulatorController] Arduino already connected on {actualComPort}");
+                Debug.Log(
+                    $"[BicycleSimulatorController] Arduino already connected on {actualComPort}"
+                );
+
                 return;
             }
 
-            // Determine which COM port to use
             if (autoDetectComPort)
-            {
                 actualComPort = DetectArduinoComPort();
-            }
             else
-            {
                 actualComPort = defaultComPort;
-            }
 
             if (!ArduinoPortIsAvailable(actualComPort))
             {
                 arduinoConnected = false;
-                arduinoErrorMessage = "Arduino port " + actualComPort + " is not present. Keyboard brake fallback.";
+
+                arduinoErrorMessage =
+                    "Arduino port " +
+                    actualComPort +
+                    " is not present. Keyboard brake fallback.";
+
                 return;
             }
 
-            // Initialize SerialPort with detected/configured port
-            sp = new SerialPort(actualComPort, baudRate);
-            
             try
             {
+                sp = new SerialPort(actualComPort, baudRate);
+
                 sp.Open();
+
                 sp.ReadTimeout = readTimeoutMs;
                 sp.WriteTimeout = readTimeoutMs;
 
                 if (sp.BytesToRead > 0)
-                {
-                    string initialData = sp.ReadExisting();
-                }
-                
+                    sp.ReadExisting();
+
                 arduinoConnected = true;
                 arduinoErrorMessage = "";
-                Debug.Log($"[BicycleSimulatorController] ✅ Arduino connected successfully on {actualComPort}");
+
+                Debug.Log(
+                    $"[BicycleSimulatorController] Arduino connected successfully on {actualComPort}"
+                );
             }
-            catch (TimeoutException ex)
+            catch (TimeoutException)
             {
                 arduinoConnected = false;
-                arduinoErrorMessage = "Arduino connection timeout: The operation has timed out. Please check if the Arduino is properly connected to " + actualComPort + ".";
-                Debug.LogWarning($"[BicycleSimulatorController] {arduinoErrorMessage}");
+
+                arduinoErrorMessage =
+                    "Arduino connection timeout on " +
+                    actualComPort;
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
                 arduinoConnected = false;
-                arduinoErrorMessage = "Arduino access denied: Another application may be using " + actualComPort + ". Please close other applications using the serial port.";
-                Debug.LogWarning($"[BicycleSimulatorController] {arduinoErrorMessage}");
+
+                arduinoErrorMessage =
+                    "Arduino access denied on " +
+                    actualComPort;
             }
-            catch (System.IO.IOException ex)
+            catch (System.IO.IOException)
             {
                 arduinoConnected = false;
-                arduinoErrorMessage = "Arduino connection failed: The specified port " + actualComPort + " was not found. Please check if the Arduino is connected to the correct port.";
-                Debug.LogWarning($"[BicycleSimulatorController] {arduinoErrorMessage}");
+
+                arduinoErrorMessage =
+                    "Arduino connection failed on " +
+                    actualComPort;
             }
             catch (Exception ex)
             {
                 arduinoConnected = false;
-                arduinoErrorMessage = "Arduino connection error: " + ex.Message;
-                Debug.LogWarning($"[BicycleSimulatorController] {arduinoErrorMessage}");
+
+                arduinoErrorMessage =
+                    "Arduino connection error: " +
+                    ex.Message;
             }
         }
 
-        static bool ArduinoPortIsAvailable(string portName)
+        private static bool ArduinoPortIsAvailable(string portName)
         {
-            if (string.IsNullOrEmpty(portName)) return false;
+            if (string.IsNullOrEmpty(portName))
+                return false;
+
             try
             {
-                string[] availablePorts = SerialPort.GetPortNames();
-                if (availablePorts == null || availablePorts.Length == 0) return false;
-                return Array.Exists(availablePorts, port =>
-                    port.Equals(portName, StringComparison.OrdinalIgnoreCase));
+                string[] ports =
+                    SerialPort.GetPortNames();
+
+                if (ports == null || ports.Length == 0)
+                    return false;
+
+                return Array.Exists(
+                    ports,
+                    p => p.Equals(
+                        portName,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                );
             }
             catch
             {
@@ -406,180 +469,213 @@ namespace SBPScripts.Simulator
             }
         }
 
-        /// <summary>
-        /// Automatically detects available COM ports and tries to find Arduino
-        /// </summary>
-        string DetectArduinoComPort()
+        private string DetectArduinoComPort()
         {
             try
             {
-                string[] availablePorts = SerialPort.GetPortNames();
-                if (availablePorts == null || availablePorts.Length == 0)
-                    return defaultComPort;
+                string[] ports =
+                    SerialPort.GetPortNames();
 
-                // First, try the default COM port
-                if (Array.Exists(availablePorts, port => port.Equals(defaultComPort, StringComparison.OrdinalIgnoreCase)))
+                if (ports == null ||
+                    ports.Length == 0)
                 {
-                    // if (enableArduinoDebugLogs)
-                      //  Debug.Log("Default COM port " + defaultComPort + " is available, trying it first.");
                     return defaultComPort;
                 }
 
-                // If default port is not available, try other common Arduino ports
-                string[] commonArduinoPorts = { "COM3", "COM4", "COM5", "COM6", "COM7", "COM8" };
-                foreach (string testPort in commonArduinoPorts)
+                if (Array.Exists(
+                    ports,
+                    p => p.Equals(
+                        defaultComPort,
+                        StringComparison.OrdinalIgnoreCase
+                    )))
                 {
-                    if (Array.Exists(availablePorts, port => port.Equals(testPort, StringComparison.OrdinalIgnoreCase)))
-                        return testPort;
+                    return defaultComPort;
                 }
 
-                for (int i = 0; i < availablePorts.Length; i++)
+                string[] commonPorts =
                 {
-                    if (LooksLikeArduinoPort(availablePorts[i]))
-                        return availablePorts[i];
-                }
+                    "COM3",
+                    "COM4",
+                    "COM5",
+                    "COM6",
+                    "COM7",
+                    "COM8"
+                };
 
-                return defaultComPort;
-            }
-            catch (Exception)
-            {
-                return defaultComPort;
-            }
-        }
-
-        static bool LooksLikeArduinoPort(string portName)
-        {
-            if (string.IsNullOrEmpty(portName)) return false;
-            if (portName.StartsWith("COM", StringComparison.OrdinalIgnoreCase) && portName.Length > 3)
-                return true;
-            string lower = portName.ToLowerInvariant();
-            return lower.Contains("usbmodem")
-                   || lower.Contains("usbserial")
-                   || lower.Contains("arduino")
-                   || lower.Contains("ttyacm")
-                   || lower.Contains("ttyusb");
-        }
-
-        /// <summary>
-        /// Tests if a COM port can be opened and might have an Arduino
-        /// </summary>
-        bool TestComPortConnection(string portName)
-        {
-            try
-            {
-                using (SerialPort testPort = new SerialPort(portName, baudRate))
+                foreach (string port in commonPorts)
                 {
-                    testPort.ReadTimeout = 1000; // Longer timeout for testing
-                    testPort.WriteTimeout = 1000;
-                    testPort.Open();
-                    
-                    // Try to read some data or send a simple command
-                    System.Threading.Thread.Sleep(100); // Give Arduino time to respond
-                    
-                    if (testPort.BytesToRead > 0)
+                    if (Array.Exists(
+                        ports,
+                        p => p.Equals(
+                            port,
+                            StringComparison.OrdinalIgnoreCase
+                        )))
                     {
-                        string testData = testPort.ReadExisting();
-                        // if (enableArduinoDebugLogs)
-                          //  Debug.Log("Test data from " + portName + ": " + testData);
-                        return true;
+                        return port;
                     }
-                    
-                    return true; // Port opened successfully, assume it's good
                 }
+
+                foreach (string port in ports)
+                {
+                    if (LooksLikeArduinoPort(port))
+                        return port;
+                }
+
+                return defaultComPort;
             }
             catch
             {
-                return false;
+                return defaultComPort;
             }
         }
 
-
-        void setCsvFile()
+        private static bool LooksLikeArduinoPort(string portName)
         {
-            // Clear CSV file
-            // File.WriteAllText(csvFilePath,string.Empty);
+            if (string.IsNullOrEmpty(portName))
+                return false;
 
-            // Add header target, actual
-            // using (StreamWriter outputFile = File.AppendText(csvFilePath))
-            // {
-            //     outputFile.WriteLine("target_speed,actual_speed,torque," + proportionalTermWahoo);
-            // }
+            if (portName.StartsWith(
+                "COM",
+                StringComparison.OrdinalIgnoreCase
+            ))
+            {
+                return true;
+            }
+
+            string lower =
+                portName.ToLowerInvariant();
+
+            return
+                lower.Contains("usbmodem") ||
+                lower.Contains("usbserial") ||
+                lower.Contains("arduino") ||
+                lower.Contains("ttyacm") ||
+                lower.Contains("ttyusb");
         }
-        
-        /// <summary>
-        /// Helper method to get the full parent hierarchy path for debugging.
-        /// Example output: "SimBike(Clone)/Handles/..."
-        /// </summary>
+
+        // ==========================================================
+        // Hierarchy helper
+        // ==========================================================
+
         private string GetFullHierarchyPath()
         {
-            System.Collections.Generic.List<string> path = new System.Collections.Generic.List<string>();
-            Transform current = transform;
+            List<string> path =
+                new List<string>();
+
+            Transform current =
+                transform;
+
             while (current != null)
             {
                 path.Add(current.name);
                 current = current.parent;
             }
+
             path.Reverse();
+
             return string.Join("/", path);
         }
 
-        void Awake()
-        {
-            string parentPath = GetFullHierarchyPath();
-            Debug.Log($"[BicycleSimulatorController] 🎯 AWAKE: Scene='{gameObject.scene.name}' | GameObject='{gameObject.name}' | Path='{parentPath}'");
-            
-            transform.rotation = Quaternion.Euler(0, transform.rotation.eulerAngles.y, 0);
-            spawnController = GetComponent<SimBikeSpawnController>();
-            Debug.Log($"[BicycleSimulatorController] FLAGS isSumoVehicle={isSumoVehicle}, isSimulatorVehicle={isSimulatorVehicle}, id={id}");
+        // ==========================================================
+        // Unity lifecycle
+        // ==========================================================
 
-            // Input from bike
-            // inputBikerActionMap = wahooInputActions.FindActionMap("Biker");
-            // steeringAction = inputBikerActionMap.FindAction("SteeringWindows");
+        private void Awake()
+        {
+            string parentPath =
+                GetFullHierarchyPath();
+
+            Debug.Log(
+                $"[BicycleSimulatorController] AWAKE Scene='{gameObject.scene.name}' Path='{parentPath}'"
+            );
+
+            // Start upright but preserve spawn yaw.
+            transform.rotation =
+                Quaternion.Euler(
+                    0f,
+                    transform.rotation.eulerAngles.y,
+                    0f
+                );
+
+            Debug.Log(
+                $"[BicycleSimulatorController] FLAGS isSumoVehicle={isSumoVehicle}, isSimulatorVehicle={isSimulatorVehicle}, id={id}"
+            );
         }
 
-        void Start()
+        private void Start()
         {
-            string parentPath = GetFullHierarchyPath();
-            Debug.Log($"[BicycleSimulatorController] 🚀 START: Scene='{gameObject.scene.name}' | GameObject='{gameObject.name}' | Path='{parentPath}' | Active={gameObject.activeInHierarchy}");
-            
-            // Initialize Arduino connection for brake input
             InitializeArduinoConnection();
 
             bool logData = false;
-            if (logData){
-                filePath = "C:\\Users\\TUBVVTK-VTSIM14\\Downloads\\BikeData.csv";
 
-                // Create the CSV file and write the header
-                using (StreamWriter writer = new StreamWriter(filePath, false))
+            if (logData)
+            {
+                filePath =
+                    "C:\\Users\\TUBVVTK-VTSIM14\\Downloads\\BikeData.csv";
+
+                using (
+                    StreamWriter writer =
+                        new StreamWriter(
+                            filePath,
+                            false
+                        ))
                 {
-                    writer.WriteLine("SimulationTime,TargetVelocityWahooBike,ActualVelocityUnityBike,TorqueInput");
+                    writer.WriteLine(
+                        "SimulationTime,TargetVelocityWahooBike,ActualVelocityUnityBike,TorqueInput"
+                    );
                 }
 
-                // Start the coroutine to log data
                 StartCoroutine(LogData());
             }
 
-            rb = GetComponent<Rigidbody>();
-            rb.constraints &= ~(RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ);
-            rb.maxAngularVelocity = Mathf.Infinity;
-            spawnController = GetComponent<SimBikeSpawnController>();
+            rb =
+                GetComponent<Rigidbody>();
+            /*
+ * IMPORTANT:
+ * Do NOT permanently freeze X/Z here.
+ * SimBikeSpawnController performs the short
+ * startup stabilization separately.
+ */
+            rb.constraints &=
+                ~(RigidbodyConstraints.FreezeRotationX |
+                  RigidbodyConstraints.FreezeRotationZ);
 
-            fWheelRb = fPhysicsWheel.GetComponent<Rigidbody>();
-            fWheelRb.maxAngularVelocity = Mathf.Infinity;
-            
-            rWheelRb = rPhysicsWheel.GetComponent<Rigidbody>();
-            rWheelRb.maxAngularVelocity = Mathf.Infinity;
 
-            currentTopSpeed = topSpeed;
+            rb.maxAngularVelocity =
+                Mathf.Infinity;
 
-            initialHandlesRotation = cycleGeometry.handles.transform.localRotation;
-            initialLowerForkLocalRotaion = cycleGeometry.lowerFork.transform.localRotation;
+            fWheelRb =
+                fPhysicsWheel.GetComponent<Rigidbody>();
 
-            fPhysicsWheelConfigJoint = fPhysicsWheel.GetComponent<ConfigurableJoint>();
-            rPhysicsWheelConfigJoint = rPhysicsWheel.GetComponent<ConfigurableJoint>();
+            fWheelRb.maxAngularVelocity =
+                Mathf.Infinity;
 
-            //Recording is set to 0 to remove the recording previous data if not set to playback
-            if (wayPointSystem.recordingState == WayPointSystem.RecordingState.Record || wayPointSystem.recordingState == WayPointSystem.RecordingState.DoNothing)
+            rWheelRb =
+                rPhysicsWheel.GetComponent<Rigidbody>();
+
+            rWheelRb.maxAngularVelocity =
+                Mathf.Infinity;
+
+            currentTopSpeed =
+                topSpeed;
+
+            initialHandlesRotation =
+                cycleGeometry.handles.transform.localRotation;
+
+            initialLowerForkLocalRotaion =
+                cycleGeometry.lowerFork.transform.localRotation;
+
+            fPhysicsWheelConfigJoint =
+                fPhysicsWheel.GetComponent<ConfigurableJoint>();
+
+            rPhysicsWheelConfigJoint =
+                rPhysicsWheel.GetComponent<ConfigurableJoint>();
+
+            if (
+                wayPointSystem.recordingState ==
+                    WayPointSystem.RecordingState.Record ||
+                wayPointSystem.recordingState ==
+                    WayPointSystem.RecordingState.DoNothing)
             {
                 wayPointSystem.bicyclePositionTransform.Clear();
                 wayPointSystem.bicycleRotationTransform.Clear();
@@ -588,1093 +684,2059 @@ namespace SBPScripts.Simulator
                 wayPointSystem.bHopInstructionSet.Clear();
             }
 
-            // get the socketclient with the step info
-            // sock = GameObject.FindWithTag("GameController").GetComponent<SumoSocketClient>();
-            sock = GameObject.FindObjectOfType<SumoSocketClient>();
+            sock =
+                GameObject.FindObjectOfType<SumoSocketClient>();
 
-            // velocity controller
-            pidControllerDist = new PIDController(15.0f, 0.0f, 0.0f); 
-            pidControllerSpeed = new PIDController(1.0f, 0.0f, 0.0f); 
-            bDrawGizmo = true;
-            
-            Debug.Log($"[BicycleSimulatorController] Start() completed - Position after initialization: {transform.position}, Y={transform.position.y}");
+            pidControllerDist =
+                new PIDController(
+                    15f,
+                    0f,
+                    0f
+                );
 
-            piControllerSpeedWahoo = new PIController(proportionalTermWahoo, 0.000000f); // PIController(P,I)
-            // P - reaktiongeschw des reglers !!!!
+            pidControllerSpeed =
+                new PIDController(
+                    1f,
+                    0f,
+                    0f
+                );
 
-            // get TCP Bike Connector Object
-            if(isSimulatorVehicle)
+            bDrawGizmo =
+                true;
+
+            piControllerSpeedWahoo =
+                new PIController(
+                    proportionalTermWahoo,
+                    0f
+                );
+
+            if (isSimulatorVehicle)
             {
                 if (BikeConnectorTCP != null)
-                    tcp_bike_connection = BikeConnectorTCP.GetComponent<tcp_client>();
-                steeringInput = GetComponent<FFBInspectorBike>();
-            }
-
-            // get the constant velocity from command line
-            GetConstantVelocityUsageFromCommandLine();
-           
-        }
-        
-        /// <summary>
-        /// Disable SUMO teleport to prevent overwriting spawn or other critical operations.
-        /// Can be nested (multiple disable calls require equal enable calls).
-        /// </summary>
-        public void DisableSumoTeleport(string reason)
-        {
-            sumoTeleportDisableCount++;
-            sumoTeleportDisabledReason = reason;
-            allowSumoTeleport = false;
-            Debug.Log($"[BicycleSimulatorController] 🔐 SUMO teleport DISABLED ({sumoTeleportDisableCount}x): {reason}");
-        }
-        
-        /// <summary>
-        /// Enable SUMO teleport after spawn or critical operation is complete.
-        /// Decrements reference count; only enables if count reaches 0.
-        /// </summary>
-        public void EnableSumoTeleport(string reason)
-        {
-            sumoTeleportDisableCount = Mathf.Max(0, sumoTeleportDisableCount - 1);
-            if (sumoTeleportDisableCount == 0)
-            {
-                allowSumoTeleport = true;
-                Debug.Log($"[BicycleSimulatorController] 🔓 SUMO teleport ENABLED: {reason}");
-            }
-            else
-            {
-                Debug.Log($"[BicycleSimulatorController] ⏱️ SUMO teleport still disabled ({sumoTeleportDisableCount} nested): {reason}");
-            }
-        }
-        
-        /// <summary>
-        /// Disable WayPoint playback to prevent overwriting spawn or other critical operations.
-        /// Can be nested (multiple disable calls require equal enable calls).
-        /// </summary>
-        public void DisableWayPointPlayback(string reason)
-        {
-            wayPointPlaybackDisableCount++;
-            wayPointPlaybackDisabledReason = reason;
-            allowWayPointPlayback = false;
-            Debug.Log($"[BicycleSimulatorController] 🔐 WayPoint playback DISABLED ({wayPointPlaybackDisableCount}x): {reason}");
-        }
-        
-        /// <summary>
-        /// Enable WayPoint playback after spawn or critical operation is complete.
-        /// Decrements reference count; only enables if count reaches 0.
-        /// </summary>
-        public void EnableWayPointPlayback(string reason)
-        {
-            wayPointPlaybackDisableCount = Mathf.Max(0, wayPointPlaybackDisableCount - 1);
-            if (wayPointPlaybackDisableCount == 0)
-            {
-                allowWayPointPlayback = true;
-                Debug.Log($"[BicycleSimulatorController] 🔓 WayPoint playback ENABLED: {reason}");
-            }
-            else
-            {
-                Debug.Log($"[BicycleSimulatorController] ⏱️ WayPoint playback still disabled ({wayPointPlaybackDisableCount} nested): {reason}");
-            }
-        }
-
-        public float GetSpeedMps()
-        {
-            if (rb == null) return 0f;
-            Vector3 v = rb.velocity;
-            v.y = 0f;
-            return v.magnitude;
-        }
-
-        public float GetSpeedKph() => GetSpeedMps() * 3.6f;
-
-        public void HaltIntegratedVelocity()
-        {
-            velocity = 0f;
-            acceleration = 0f;
-            customAccelerationAxis = 0f;
-            rawCustomAccelerationAxis = 0f;
-        }
-
-        bool IsWahooConnected()
-        {
-            return tcp_bike_connection != null && tcp_bike_connection.IsConnected();
-        }
-
-        static bool GameplaySpaceHeld()
-        {
-            if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)
-                || Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand))
-                return false;
-            return Input.GetKey(KeyCode.Space);
-        }
-
-        bool HasRiderDriveInput()
-        {
-            if (IsWahooConnected())
-                return true;
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.S)
-                || Input.GetKey(KeyCode.D) || GameplaySpaceHeld()
-                || Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.DownArrow)
-                || Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.RightArrow))
-                return true;
-            if (Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.1f)
-                return true;
-            if (Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.1f)
-                return true;
-            return false;
-        }
-
-        bool ShouldHoldIdle()
-        {
-            if (IsWahooConnected())
-                return false;
-            return !HasRiderDriveInput();
-        }
-
-        void HoldIdlePhysics()
-        {
-            HaltIntegratedVelocity();
-            customSteerAxis = 0f;
-            customLeanAxis = 0f;
-            ZeroRigidbody(rb);
-            ZeroRigidbody(fWheelRb);
-            ZeroRigidbody(rWheelRb);
-            spawnController?.ZeroAllVelocities();
-        }
-
-        static void ZeroRigidbody(Rigidbody body)
-        {
-            if (body == null) return;
-            body.velocity = Vector3.zero;
-            body.angularVelocity = Vector3.zero;
-        }
-
-        IEnumerator LogData()
-        {
-            while (true)
-            {
-                // Update the simulation time
-                simulationTime += Time.deltaTime;
-
-                // Write the data to the CSV file
-                using (StreamWriter writer = new StreamWriter(filePath, true))
                 {
-                    writer.WriteLine($"{simulationTime},{target_velocity_wahoo_bike},{actual_velocity_unity_bike},{customAccelerationAxis}");
+                    tcp_bike_connection =
+                        BikeConnectorTCP
+                        .GetComponent<tcp_client>();
                 }
 
-                // Wait for the next frame
-                yield return new WaitForEndOfFrame();
+                steeringInput =
+                    GetComponent<FFBInspectorBike>();
             }
-        }
 
+            GetConstantVelocityUsageFromCommandLine();
+        }
 
         private void OnEnable()
         {
-            string parentPath = GetFullHierarchyPath();
-            Debug.Log($"[BicycleSimulatorController] ✅ ONENABLE: Scene='{gameObject.scene.name}' | GameObject='{gameObject.name}' | Path='{parentPath}'");
-            
-            // Reinitialize Arduino connection when script is re-enabled (e.g., after spawn)
-            // This fixes brake input loss when SimBikeSpawnController temporarily disables this script
-            if (sp != null && !sp.IsOpen)
+            if (sp != null &&
+                !sp.IsOpen)
             {
-                Debug.Log($"[BicycleSimulatorController] Arduino disconnected, attempting reconnection...");
                 InitializeArduinoConnection();
             }
-            
-            // steeringAction.Enable();
-            // inputBikerActionMap.Enable();
         }
 
         private void OnDisable()
         {
-            // steeringAction.Disable();
-            // inputBikerActionMap.Disable();
-            
-            // Clean up Arduino connection
-            if (sp != null && sp.IsOpen)
+            if (sp != null &&
+                sp.IsOpen)
             {
                 try
                 {
                     sp.Close();
                     sp.Dispose();
-                    Debug.Log($"[BicycleSimulatorController] Arduino connection closed on {actualComPort} (will reconnect on re-enable)");
                 }
-                catch (Exception ex)
+                catch
                 {
-                    Debug.LogWarning($"[BicycleSimulatorController] Error closing Arduino connection: {ex.Message}");
+                    // Ignore shutdown error.
                 }
             }
         }
 
-        void FixedUpdate()
-        {
-            if (wayPointSystem.recordingState == WayPointSystem.RecordingState.DoNothing || wayPointSystem.recordingState == WayPointSystem.RecordingState.Record)
-            {
-                if(isSumoVehicle){
-                    bool isInsidePhsyicsArea = Vehicle.SumoVehicleDetect(ref sock, id);
-                    if (isInsidePhsyicsArea)
-                    {
-                        ApplyPhysicsUpdate();
-                    }
+        // ==========================================================
+        // Spawn protection API
+        // ==========================================================
 
+        public void DisableSumoTeleport(string reason)
+        {
+            sumoTeleportDisableCount++;
+
+            sumoTeleportDisabledReason =
+                reason;
+
+            allowSumoTeleport =
+                false;
+        }
+
+        public void EnableSumoTeleport(string reason)
+        {
+            sumoTeleportDisableCount =
+                Mathf.Max(
+                    0,
+                    sumoTeleportDisableCount - 1
+                );
+
+            if (sumoTeleportDisableCount == 0)
+                allowSumoTeleport = true;
+        }
+
+        public void DisableWayPointPlayback(string reason)
+        {
+            wayPointPlaybackDisableCount++;
+
+            wayPointPlaybackDisabledReason =
+                reason;
+
+            allowWayPointPlayback =
+                false;
+        }
+
+        public void EnableWayPointPlayback(string reason)
+        {
+            wayPointPlaybackDisableCount =
+                Mathf.Max(
+                    0,
+                    wayPointPlaybackDisableCount - 1
+                );
+
+            if (wayPointPlaybackDisableCount == 0)
+                allowWayPointPlayback = true;
+        }
+
+        // ==========================================================
+        // Public speed helpers
+        // ==========================================================
+
+        public float GetSpeedMps()
+        {
+            if (rb == null)
+                return 0f;
+
+            Vector3 horizontalVelocity =
+                rb.velocity;
+
+            horizontalVelocity.y =
+                0f;
+
+            return horizontalVelocity.magnitude;
+        }
+
+        public float GetSpeedKph()
+        {
+            return GetSpeedMps() * 3.6f;
+        }
+        public float TargetSpeedKph
+        {
+            get
+            {
+                return target_velocity_wahoo_bike * 3.6f;
+            }
+        }
+
+        
+        public void HaltIntegratedVelocity()
+        {
+            velocity = 0f;
+            acceleration = 0f;
+
+            customAccelerationAxis = 0f;
+            rawCustomAccelerationAxis = 0f;
+        }
+
+        // ==========================================================
+        // FixedUpdate / Update
+        // ==========================================================
+
+        private void FixedUpdate()
+        {
+            if (
+                wayPointSystem.recordingState ==
+                    WayPointSystem.RecordingState.DoNothing ||
+                wayPointSystem.recordingState ==
+                    WayPointSystem.RecordingState.Record)
+            {
+                if (isSumoVehicle)
+                {
+                    bool insidePhysicsArea =
+                        Vehicle.SumoVehicleDetect(
+                            ref sock,
+                            id
+                        );
+
+                    if (insidePhysicsArea)
+                        ApplyPhysicsUpdate();
                 }
             }
-            if(isSimulatorVehicle)
+
+            if (isSimulatorVehicle)
             {
                 ApplyPhysicsUpdate();
             }
-
-
         }
-        void Update()
+
+        private void Update()
         {
             ApplyCustomInput();
-            
-            // Display Arduino connection status and errors
+
             DisplayArduinoStatus();
 
-            //GetKeyUp/Down requires an Update Cycle
-            //BunnyHopping
             if (bunnyHopInputState == 1)
             {
                 isBunnyHopping = true;
-                bunnyHopAmount += Time.deltaTime * 8f;
+
+                bunnyHopAmount +=
+                    Time.deltaTime * 8f;
             }
+
             if (bunnyHopInputState == -1)
                 StartCoroutine(DelayBunnyHop());
 
-            if (bunnyHopInputState == -1 && !isAirborne)
-                rb.AddForce(transform.up * bunnyHopAmount * bunnyHopStrength, ForceMode.VelocityChange);
+            if (
+                bunnyHopInputState == -1 &&
+                !isAirborne)
+            {
+                rb.AddForce(
+                    transform.up *
+                    bunnyHopAmount *
+                    bunnyHopStrength,
+                    ForceMode.VelocityChange
+                );
+            }
             else
-                bunnyHopAmount = Mathf.Lerp(bunnyHopAmount, 0, Time.deltaTime * 8f);
+            {
+                bunnyHopAmount =
+                    Mathf.Lerp(
+                        bunnyHopAmount,
+                        0f,
+                        Time.deltaTime * 8f
+                    );
+            }
 
-            bunnyHopAmount = Mathf.Clamp01(bunnyHopAmount);
-
-
+            bunnyHopAmount =
+                Mathf.Clamp01(
+                    bunnyHopAmount
+                );
         }
-        float GroundConformity(bool toggle)
+
+        // ==========================================================
+        // Physics
+        // ==========================================================
+
+        private float GroundConformity(bool toggle)
         {
             if (toggle)
             {
-                groundZ = transform.rotation.eulerAngles.z;
+                groundZ =
+                    transform.rotation.eulerAngles.z;
             }
-            return groundZ;
 
+            return groundZ;
         }
 
-        void ApplyPhysicsUpdate()
+        private void ApplyPhysicsUpdate()
         {
-            if (isSimulatorVehicle && ShouldHoldIdle())
+            if (rb == null ||
+                fWheelRb == null ||
+                rWheelRb == null ||
+                fPhysicsWheelConfigJoint == null)
             {
-                HoldIdlePhysics();
                 return;
             }
 
-            // Steering architecture:
-            // - SUMO / non-simulator bikes keep the original physics-wheel steering.
-            // - The CAVE simulator bike does NOT directly rotate the dynamic front-wheel
-            //   Rigidbody/Transform. In Unity 6 that legacy technique causes solver jitter.
-            //   The physical wheel therefore stays naturally aligned by its joint, while
-            //   the visual handlebar/fork still show the rider's steering input below.
-            if (!isSimulatorVehicle)
-            {
-                fPhysicsWheel.transform.rotation = Quaternion.Euler(
+            /*
+             * IMPORTANT:
+             * No HoldIdlePhysics() here.
+             *
+             * We do NOT zero all three rigidbodies just because
+             * Wahoo/TCP temporarily has no input.
+             */
+
+            float currentSpeed =
+                rb.velocity.magnitude;
+
+            float safeCurrentSpeed =
+                Mathf.Max(
+                    currentSpeed,
+                    0.1f
+                );
+
+            // ======================================================
+            // Physical steering
+            // ======================================================
+
+            /*
+             * KEEP THE MINUS SIGN.
+             *
+             * This is the established Akhilesh bicycle
+             * steering direction.
+             */
+            fPhysicsWheel.transform.rotation =
+                Quaternion.Euler(
                     transform.rotation.eulerAngles.x,
                     transform.rotation.eulerAngles.y
-                        + customSteerAxis * steerAngle.Evaluate(rb.velocity.magnitude)
+                        + customSteerAxis *
+                        steerAngle.Evaluate(currentSpeed)
                         + oscillationSteerEffect,
-                    0f);
+                    0f
+                );
+
+            fPhysicsWheelConfigJoint.axis =
+                new Vector3(
+                    1f,
+                    0f,
+                    0f
+                );
+
+            // ======================================================
+            // Power
+            // ======================================================
+
+                       if (!sprint)
+            {
+                currentTopSpeed =
+                    Mathf.Lerp(
+                        currentTopSpeed,
+                        topSpeed * relaxedSpeed,
+                        Time.deltaTime
+                    );
+            }
+            else
+            {
+                currentTopSpeed =
+                    Mathf.Lerp(
+                        currentTopSpeed,
+                        topSpeed,
+                        Time.deltaTime
+                    );
             }
 
-            fPhysicsWheelConfigJoint.axis = new Vector3(1, 0, 0);
+            if (
+                currentSpeed < currentTopSpeed &&
+                rawCustomAccelerationAxis > 0f)
+            {
+                rWheelRb.AddTorque(
+                    transform.right *
+                    torque *
+                    customAccelerationAxis
+                );
+            }
 
-            //Power Control. Wheel Torque + Acceleration curves
+            if (
+                currentSpeed < currentTopSpeed &&
+                rawCustomAccelerationAxis > 0f &&
+                !isAirborne &&
+                !isBunnyHopping)
+            {
+                rb.AddForce(
+                    transform.forward *
+                    accelerationCurve.Evaluate(
+                        customAccelerationAxis
+                    )
+                );
+            }
 
-            //cache rb velocity
-            float currentSpeed = rb.velocity.magnitude;
-            // Debug.Log("currentSpeed:"+currentSpeed);
-
-
-            if (!sprint)
-                currentTopSpeed = Mathf.Lerp(currentTopSpeed, topSpeed * relaxedSpeed, Time.deltaTime);
-            else
-                currentTopSpeed = Mathf.Lerp(currentTopSpeed, topSpeed, Time.deltaTime);
             
 
-            if (currentSpeed < currentTopSpeed && rawCustomAccelerationAxis > 0){
-                // Debug.Log("11111");
-                rWheelRb.AddTorque(transform.right * torque * customAccelerationAxis);
-            }
-
-            if (currentSpeed < currentTopSpeed && rawCustomAccelerationAxis > 0 && !isAirborne && !isBunnyHopping){
-                // Debug.Log("22222");
-                rb.AddForce(transform.forward * accelerationCurve.Evaluate(customAccelerationAxis));
-            }
-
-            if (currentSpeed < reversingSpeed && rawCustomAccelerationAxis < 0 && !isAirborne && !isBunnyHopping){
-                // Debug.Log("3333");
-                rb.AddForce(-transform.forward * accelerationCurve.Evaluate(customAccelerationAxis) * 0.5f);
-            }
-
-            if (transform.InverseTransformDirection(rb.velocity).z < 0){
-                // Debug.Log("4444");
-                isReversing = true;
-            }
-            else
-                isReversing = false;
-
-            if (rawCustomAccelerationAxis < 0 && isReversing == false && !isAirborne && !isBunnyHopping){
-                // Debug.Log("5555");
-
-                rb.AddForce(-transform.forward * accelerationCurve.Evaluate(customAccelerationAxis) * 2);
-            }
-
-
-            // Center of Mass handling
-            if (stuntMode)
-                rb.centerOfMass = GetComponent<BoxCollider>().center;
-            else
-                rb.centerOfMass = Vector3.zero + centerOfMassOffset;
-
-            //Handles
-            cycleGeometry.handles.transform.localRotation = Quaternion.Euler(0, customSteerAxis * steerAngle.Evaluate(currentSpeed) + oscillationSteerEffect * 5, 0) * initialHandlesRotation;
-
-            //LowerFork
-            cycleGeometry.lowerFork.transform.localRotation = Quaternion.Euler(0, customSteerAxis * steerAngle.Evaluate(currentSpeed) + oscillationSteerEffect * 5, customSteerAxis * -axisAngle) * initialLowerForkLocalRotaion;
-
-            //FWheelVisual
-            xQuat = Mathf.Sin(Mathf.Deg2Rad * (transform.rotation.eulerAngles.y));
-            zQuat = Mathf.Cos(Mathf.Deg2Rad * (transform.rotation.eulerAngles.y));
-            cycleGeometry.fWheelVisual.transform.rotation = Quaternion.Euler(xQuat * (customSteerAxis * -axisAngle), customSteerAxis * steerAngle.Evaluate(currentSpeed) + oscillationSteerEffect * 5, zQuat * (customSteerAxis * -axisAngle));
-            cycleGeometry.fWheelVisual.transform.GetChild(0).transform.localRotation = cycleGeometry.RWheel.transform.rotation;
-
-            //Crank
-            crankCurrentQuat = cycleGeometry.RWheel.transform.rotation.eulerAngles.x;
-            if (customAccelerationAxis > 0 && !isAirborne && !isBunnyHopping)
+            if (
+                currentSpeed < reversingSpeed &&
+                rawCustomAccelerationAxis < 0f &&
+                !isAirborne &&
+                !isBunnyHopping)
             {
-                crankSpeed += Mathf.Sqrt(customAccelerationAxis * Mathf.Abs(Mathf.DeltaAngle(crankCurrentQuat, crankLastQuat) * pedalAdjustments.pedalingSpeed));
-                crankSpeed %= 360;
+                rb.AddForce(
+                    -transform.forward *
+                    accelerationCurve.Evaluate(
+                        customAccelerationAxis
+                    ) *
+                    0.5f
+                );
             }
-            else if (Mathf.Floor(crankSpeed) > restingCrank)
-                crankSpeed += -6;
-            else if (Mathf.Floor(crankSpeed) < restingCrank)
-                crankSpeed = Mathf.Lerp(crankSpeed, restingCrank, Time.deltaTime * 5);
 
-            crankLastQuat = crankCurrentQuat;
-            cycleGeometry.crank.transform.localRotation = Quaternion.Euler(crankSpeed, 0, 0);
+            isReversing =
+                transform
+                    .InverseTransformDirection(
+                        rb.velocity
+                    ).z < 0f;
 
-            //Pedals
-            cycleGeometry.lPedal.transform.localPosition = pedalAdjustments.lPedalOffset + new Vector3(0, Mathf.Cos(Mathf.Deg2Rad * (crankSpeed + 180)) * pedalAdjustments.crankRadius, Mathf.Sin(Mathf.Deg2Rad * (crankSpeed + 180)) * pedalAdjustments.crankRadius);
-            cycleGeometry.rPedal.transform.localPosition = pedalAdjustments.rPedalOffset + new Vector3(0, Mathf.Cos(Mathf.Deg2Rad * (crankSpeed)) * pedalAdjustments.crankRadius, Mathf.Sin(Mathf.Deg2Rad * (crankSpeed)) * pedalAdjustments.crankRadius);
+            if (
+                rawCustomAccelerationAxis < 0f &&
+                !isReversing &&
+                !isAirborne &&
+                !isBunnyHopping)
+            {
+                rb.AddForce(
+                    -transform.forward *
+                    accelerationCurve.Evaluate(
+                        customAccelerationAxis
+                    ) *
+                    2f
+                );
+            }
 
-            //FGear
-            if (cycleGeometry.fGear != null)
-                cycleGeometry.fGear.transform.rotation = cycleGeometry.crank.transform.rotation;
-            //RGear
-            if (cycleGeometry.rGear != null)
-                cycleGeometry.rGear.transform.rotation = rPhysicsWheel.transform.rotation;
+            // ======================================================
+            // Center of mass
+            // ======================================================
 
-            //CycleOscillation
-            if ((sprint && currentSpeed > 5 && isReversing == false) || isAirborne || isBunnyHopping)
-                pickUpSpeed += Time.deltaTime * 2;
+            if (stuntMode)
+            {
+                rb.centerOfMass =
+                    GetComponent<BoxCollider>().center;
+            }
             else
-                pickUpSpeed -= Time.deltaTime * 2;
+            {
+                rb.centerOfMass =
+                    centerOfMassOffset;
+            }
 
-            pickUpSpeed = Mathf.Clamp(pickUpSpeed, 0.1f, 1);
+            // ======================================================
+            // Visual steering
+            // ======================================================
 
-            cycleOscillation = -Mathf.Sin(Mathf.Deg2Rad * (crankSpeed + 90)) * (oscillationAmount * (Mathf.Clamp(currentTopSpeed / currentSpeed, 1f, 1.5f))) * pickUpSpeed;
-            //turnLeanAmount = -leanCurve.Evaluate(customLeanAxis) * Mathf.Clamp(currentSpeed * 0.1f, 0, 1);
-            turnLeanAmount = 0.0f;
+            cycleGeometry.handles.transform.localRotation =
+                Quaternion.Euler(
+                    0f,
+                    customSteerAxis *
+                    steerAngle.Evaluate(currentSpeed) +
+                    oscillationSteerEffect * 5f,
+                    0f
+                ) *
+                initialHandlesRotation;
+
+            cycleGeometry.lowerFork.transform.localRotation =
+                Quaternion.Euler(
+                    0f,
+                    customSteerAxis *
+                    steerAngle.Evaluate(currentSpeed) +
+                    oscillationSteerEffect * 5f,
+
+                    customSteerAxis *
+                    -axisAngle
+                ) *
+                initialLowerForkLocalRotaion;
+
+            xQuat =
+                Mathf.Sin(
+                    Mathf.Deg2Rad *
+                    transform.rotation.eulerAngles.y
+                );
+
+            zQuat =
+                Mathf.Cos(
+                    Mathf.Deg2Rad *
+                    transform.rotation.eulerAngles.y
+                );
+
+            cycleGeometry.fWheelVisual.transform.rotation =
+                Quaternion.Euler(
+                    xQuat *
+                    customSteerAxis *
+                    -axisAngle,
+
+                    customSteerAxis *
+                    steerAngle.Evaluate(currentSpeed) +
+                    oscillationSteerEffect * 5f,
+
+                    zQuat *
+                    customSteerAxis *
+                    -axisAngle
+                );
+
+            if (
+                cycleGeometry.fWheelVisual.transform.childCount > 0)
+            {
+                cycleGeometry
+                    .fWheelVisual
+                    .transform
+                    .GetChild(0)
+                    .localRotation =
+                    cycleGeometry.RWheel.transform.rotation;
+            }
+
+            // ======================================================
+            // Crank / pedals
+            // ======================================================
+
+            crankCurrentQuat =
+                cycleGeometry.RWheel
+                .transform
+                .rotation
+                .eulerAngles
+                .x;
+
+            if (
+                customAccelerationAxis > 0f &&
+                !isAirborne &&
+                !isBunnyHopping)
+            {
+                crankSpeed +=
+                    Mathf.Sqrt(
+                        customAccelerationAxis *
+                        Mathf.Abs(
+                            Mathf.DeltaAngle(
+                                crankCurrentQuat,
+                                crankLastQuat
+                            ) *
+                            pedalAdjustments.pedalingSpeed
+                        )
+                    );
+
+                crankSpeed %= 360f;
+            }
+            else if (
+                Mathf.Floor(crankSpeed) >
+                restingCrank)
+            {
+                crankSpeed -= 6f;
+            }
+            else if (
+                Mathf.Floor(crankSpeed) <
+                restingCrank)
+            {
+                crankSpeed =
+                    Mathf.Lerp(
+                        crankSpeed,
+                        restingCrank,
+                        Time.deltaTime * 5f
+                    );
+            }
+
+            crankLastQuat =
+                crankCurrentQuat;
+
+            cycleGeometry.crank
+                .transform
+                .localRotation =
+                Quaternion.Euler(
+                    crankSpeed,
+                    0f,
+                    0f
+                );
+
+            cycleGeometry.lPedal
+                .transform
+                .localPosition =
+                pedalAdjustments.lPedalOffset +
+                new Vector3(
+                    0f,
+                    Mathf.Cos(
+                        Mathf.Deg2Rad *
+                        (crankSpeed + 180f)
+                    ) *
+                    pedalAdjustments.crankRadius,
+
+                    Mathf.Sin(
+                        Mathf.Deg2Rad *
+                        (crankSpeed + 180f)
+                    ) *
+                    pedalAdjustments.crankRadius
+                );
+
+            cycleGeometry.rPedal
+                .transform
+                .localPosition =
+                pedalAdjustments.rPedalOffset +
+                new Vector3(
+                    0f,
+                    Mathf.Cos(
+                        Mathf.Deg2Rad *
+                        crankSpeed
+                    ) *
+                    pedalAdjustments.crankRadius,
+
+                    Mathf.Sin(
+                        Mathf.Deg2Rad *
+                        crankSpeed
+                    ) *
+                    pedalAdjustments.crankRadius
+                );
+
+            if (cycleGeometry.fGear != null)
+            {
+                cycleGeometry.fGear
+                    .transform
+                    .rotation =
+                    cycleGeometry.crank
+                    .transform
+                    .rotation;
+            }
+
+            if (cycleGeometry.rGear != null)
+            {
+                cycleGeometry.rGear
+                    .transform
+                    .rotation =
+                    rPhysicsWheel
+                    .transform
+                    .rotation;
+            }
+
+            // ======================================================
+            // Oscillation
+            // ======================================================
+
+            if (
+                (sprint &&
+                 currentSpeed > 5f &&
+                 !isReversing) ||
+                isAirborne ||
+                isBunnyHopping)
+            {
+                pickUpSpeed +=
+                    Time.deltaTime * 2f;
+            }
+            else
+            {
+                pickUpSpeed -=
+                    Time.deltaTime * 2f;
+            }
+
+            pickUpSpeed =
+                Mathf.Clamp(
+                    pickUpSpeed,
+                    0.1f,
+                    1f
+                );
+
+            /*
+             * safeCurrentSpeed prevents division by zero
+             * immediately after spawn.
+             */
+            cycleOscillation =
+    -Mathf.Sin(
+        Mathf.Deg2Rad *
+        (crankSpeed + 90f)
+    ) *
+    (
+        oscillationAmount *
+        Mathf.Clamp(
+            currentTopSpeed /
+            safeCurrentSpeed,
+            1f,
+            1.5f
+        )
+    ) *
+    pickUpSpeed;
+
+            turnLeanAmount =
+                0f;
+
+            /*
+             * Hardware simulator:
+             * no artificial steering oscillation.
+             */
             if (isSimulatorVehicle)
             {
-                oscillationSteerEffect = 0f;
+                oscillationSteerEffect =
+                    0f;
             }
             else
             {
                 oscillationSteerEffect =
                     cycleOscillation *
-                    Mathf.Clamp01(customAccelerationAxis) *
-                    (oscillationAffectSteerRatio *
-                    Mathf.Clamp(topSpeed / Mathf.Max(currentSpeed, 0.1f), 1f, 1.5f));
+                    Mathf.Clamp01(
+                        customAccelerationAxis
+                    ) *
+                    (
+                        oscillationAffectSteerRatio *
+                        Mathf.Clamp(
+                            topSpeed /
+                            safeCurrentSpeed,
+                            1f,
+                            1.5f
+                        )
+                    );
             }
 
-            //FrictionSettings
-            wheelFrictionSettings.fPhysicMaterial.staticFriction = wheelFrictionSettings.fFriction.x;
-            wheelFrictionSettings.fPhysicMaterial.dynamicFriction = wheelFrictionSettings.fFriction.y;
-            wheelFrictionSettings.rPhysicMaterial.staticFriction = wheelFrictionSettings.rFriction.x;
-            wheelFrictionSettings.rPhysicMaterial.dynamicFriction = wheelFrictionSettings.rFriction.y;
+            // ======================================================
+            // Friction
+            // ======================================================
 
-            if (Physics.Raycast(fPhysicsWheel.transform.position, Vector3.down, out hit, Mathf.Infinity))
-                if (hit.distance < 0.5f)
+            if (wheelFrictionSettings.fPhysicMaterial != null)
+            {
+                wheelFrictionSettings
+                    .fPhysicMaterial
+                    .staticFriction =
+                    wheelFrictionSettings
+                    .fFriction.x;
+
+                wheelFrictionSettings
+                    .fPhysicMaterial
+                    .dynamicFriction =
+                    wheelFrictionSettings
+                    .fFriction.y;
+            }
+
+            if (wheelFrictionSettings.rPhysicMaterial != null)
+            {
+                wheelFrictionSettings
+                    .rPhysicMaterial
+                    .staticFriction =
+                    wheelFrictionSettings
+                    .rFriction.x;
+
+                wheelFrictionSettings
+                    .rPhysicMaterial
+                    .dynamicFriction =
+                    wheelFrictionSettings
+                    .rFriction.y;
+            }
+
+            if (
+                Physics.Raycast(
+                    fPhysicsWheel.transform.position,
+                    Vector3.down,
+                    out hit,
+                    Mathf.Infinity
+                ) &&
+                hit.distance < 0.5f)
+            {
+                Vector3 localVelocity =
+                    fPhysicsWheel
+                    .transform
+                    .InverseTransformDirection(
+                        fWheelRb.velocity
+                    );
+
+                float frictionSum =
+                    wheelFrictionSettings
+                    .fFriction.x +
+                    wheelFrictionSettings
+                    .fFriction.y;
+
+                if (Mathf.Abs(frictionSum) > 0.0001f)
                 {
-                    Vector3 velf = fPhysicsWheel.transform.InverseTransformDirection(fWheelRb.velocity);
-                    velf.x *= Mathf.Clamp01(1 / (wheelFrictionSettings.fFriction.x + wheelFrictionSettings.fFriction.y));
-                    fWheelRb.velocity = fPhysicsWheel.transform.TransformDirection(velf);
-                }
-            if (Physics.Raycast(rPhysicsWheel.transform.position, Vector3.down, out hit, Mathf.Infinity))
-                if (hit.distance < 0.5f)
-                {
-                    Vector3 velr = rPhysicsWheel.transform.InverseTransformDirection(rWheelRb.velocity);
-                    velr.x *= Mathf.Clamp01(1 / (wheelFrictionSettings.rFriction.x + wheelFrictionSettings.rFriction.y));
-                    rWheelRb.velocity = rPhysicsWheel.transform.TransformDirection(velr);
+                    localVelocity.x *=
+                        Mathf.Clamp01(
+                            1f /
+                            frictionSum
+                        );
                 }
 
-            //Impact sensing
-            deceleration = (fWheelRb.velocity - lastVelocity) / Time.fixedDeltaTime;
-            lastVelocity = fWheelRb.velocity;
+                fWheelRb.velocity =
+                    fPhysicsWheel
+                    .transform
+                    .TransformDirection(
+                        localVelocity
+                    );
+            }
+
+            if (
+                Physics.Raycast(
+                    rPhysicsWheel.transform.position,
+                    Vector3.down,
+                    out hit,
+                    Mathf.Infinity
+                ) &&
+                hit.distance < 0.5f)
+            {
+                Vector3 localVelocity =
+                    rPhysicsWheel
+                    .transform
+                    .InverseTransformDirection(
+                        rWheelRb.velocity
+                    );
+
+                float frictionSum =
+                    wheelFrictionSettings
+                    .rFriction.x +
+                    wheelFrictionSettings
+                    .rFriction.y;
+
+                if (Mathf.Abs(frictionSum) > 0.0001f)
+                {
+                    localVelocity.x *=
+                        Mathf.Clamp01(
+                            1f /
+                            frictionSum
+                        );
+                }
+
+                rWheelRb.velocity =
+                    rPhysicsWheel
+                    .transform
+                    .TransformDirection(
+                        localVelocity
+                    );
+            }
+
+            // ======================================================
+            // Impact sensing
+            // ======================================================
+
+            deceleration =
+                (fWheelRb.velocity -
+                 lastVelocity) /
+                Time.fixedDeltaTime;
+
+            lastVelocity =
+                fWheelRb.velocity;
+
             impactFrames--;
-            impactFrames = Mathf.Clamp(impactFrames, 0, 15);
-            if (deceleration.y > 200 && lastDeceleration.y < -1)
-                impactFrames = 30;
 
-            lastDeceleration = deceleration;
+            impactFrames =
+                Mathf.Clamp(
+                    impactFrames,
+                    0,
+                    15
+                );
 
-            if (impactFrames > 0 && inelasticCollision)
+            if (
+                deceleration.y > 200f &&
+                lastDeceleration.y < -1f)
             {
-                fWheelRb.velocity = new Vector3(fWheelRb.velocity.x, -Mathf.Abs(fWheelRb.velocity.y), fWheelRb.velocity.z);
-                rWheelRb.velocity = new Vector3(rWheelRb.velocity.x, -Mathf.Abs(rWheelRb.velocity.y), rWheelRb.velocity.z);
+                impactFrames = 30;
             }
 
-            //AirControl
-            if (Physics.Raycast(transform.position + new Vector3(0, 1f, 0), Vector3.down, out hit, Mathf.Infinity))
+            lastDeceleration =
+                deceleration;
+
+            if (
+                impactFrames > 0 &&
+                inelasticCollision)
             {
-                if (hit.distance > 2f || impactFrames > 0)
+                fWheelRb.velocity =
+                    new Vector3(
+                        fWheelRb.velocity.x,
+                        -Mathf.Abs(
+                            fWheelRb.velocity.y
+                        ),
+                        fWheelRb.velocity.z
+                    );
+
+                rWheelRb.velocity =
+                    new Vector3(
+                        rWheelRb.velocity.x,
+                        -Mathf.Abs(
+                            rWheelRb.velocity.y
+                        ),
+                        rWheelRb.velocity.z
+                    );
+            }
+
+            // ======================================================
+            // Air state
+            // ======================================================
+
+            if (
+                Physics.Raycast(
+                    transform.position +
+                    Vector3.up,
+                    Vector3.down,
+                    out hit,
+                    Mathf.Infinity
+                ))
+            {
+                if (
+                    hit.distance > 2f ||
+                    impactFrames > 0)
                 {
                     isAirborne = true;
-                    restingCrank = 100;
+                    restingCrank = 100f;
                 }
                 else if (isBunnyHopping)
                 {
-                    restingCrank = 100;
+                    restingCrank = 100f;
                 }
                 else
                 {
                     isAirborne = false;
-                    restingCrank = 10;
+                    restingCrank = 10f;
                 }
-                // For stunts
-                // 5f is the snap to ground distance
-                if (hit.distance > airTimeSettings.heightThreshold && airTimeSettings.freestyle)
+
+                if (
+                    hit.distance >
+                    airTimeSettings.heightThreshold &&
+                    airTimeSettings.freestyle)
                 {
                     stuntMode = true;
-                    // Stunt + flips controls (Not available for Waypoint system as of yet)
-                    // You may use Numpad Inputs as well.
-                    rb.AddTorque(Vector3.up * customSteerAxis * 4 * airTimeSettings.airTimeRotationSensitivity, ForceMode.Impulse);
-                    rb.AddTorque(transform.right * rawCustomAccelerationAxis * -3 * airTimeSettings.airTimeRotationSensitivity, ForceMode.Impulse);
+
+                    rb.AddTorque(
+                        Vector3.up *
+                        customSteerAxis *
+                        4f *
+                        airTimeSettings
+                            .airTimeRotationSensitivity,
+                        ForceMode.Impulse
+                    );
+
+                    rb.AddTorque(
+                        transform.right *
+                        rawCustomAccelerationAxis *
+                        -3f *
+                        airTimeSettings
+                            .airTimeRotationSensitivity,
+                        ForceMode.Impulse
+                    );
                 }
                 else
+                {
                     stuntMode = false;
+                }
             }
 
-            // Setting the Main Rotational movements of the bicycle
+            // ======================================================
+            // Bicycle rotational orientation
+            // ======================================================
+
             if (airTimeSettings.freestyle)
             {
-                if (!stuntMode && isAirborne)
-                    transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, transform.rotation.eulerAngles.y, turnLeanAmount + cycleOscillation + GroundConformity(groundConformity)), Time.deltaTime * airTimeSettings.groundSnapSensitivity);
-                else if (!stuntMode && !isAirborne)
-                    transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(transform.rotation.eulerAngles.x, transform.rotation.eulerAngles.y, turnLeanAmount + cycleOscillation + GroundConformity(groundConformity)), Time.deltaTime * 10 * airTimeSettings.groundSnapSensitivity);
-            }
-            else
-            {
-                //Pre-version 1.5
-                transform.rotation = Quaternion.Euler(transform.rotation.eulerAngles.x, transform.rotation.eulerAngles.y, turnLeanAmount + cycleOscillation + GroundConformity(groundConformity));
-            }
-
-            // Unity 6 CAVE steering: apply only a controlled yaw-rate to the root
-            // Rigidbody after the legacy upright/lean code has run. We deliberately do
-            // not teleport or MoveRotation the three connected rigidbodies; the joints
-            // remain fully physics-driven, which removes the scene/camera shaking.
-            if (isSimulatorVehicle && !isAirborne && !isBunnyHopping)
-            {
-                ApplyUnity6SimulatorSteering(currentSpeed);
-            }
-
-            //Wheelie
-            if(!isAirborne && wheelieInput && rawCustomAccelerationAxis>0)
-            {
-                rb.angularDrag = 15;
-                wheeliePower = customAccelerationAxis*150*System.Convert.ToInt32(wheelieToggle);
-                var rot = Quaternion.FromToRotation(transform.forward, new Vector3(transform.forward.x,0.75f,transform.forward.z));
-                rb.AddTorque(new Vector3(rot.x, rot.y, rot.z) * wheeliePower, ForceMode.Acceleration);
-            }
-            else
-            {
-                rb.angularDrag = 1;
-            }
-        }
-
-        /// <summary>
-        /// Unity 6-safe CAVE steering.
-        ///
-        /// The original Unity-2022 implementation steers by directly changing the
-        /// Transform rotation of a dynamic front-wheel Rigidbody that is connected to
-        /// the frame with a ConfigurableJoint. In Unity 6 that solver interaction is the
-        /// source of the weak/unstable steering seen on the lab PC.
-        ///
-        /// For the simulator vehicle we therefore leave the physical wheel/joints fully
-        /// physics-driven and command only the root Rigidbody's Y angular velocity. The
-        /// target yaw-rate comes from a bicycle model, but is smoothed and capped so that
-        /// Fanatec saturation cannot make the CAVE camera over-responsive.
-        /// </summary>
-        private void ApplyUnity6SimulatorSteering(float currentSpeed)
-        {
-            if (rb == null || simulatorWheelBase <= 0.01f)
-                return;
-
-            Vector3 horizontalVelocity = Vector3.ProjectOnPlane(rb.velocity, Vector3.up);
-            float signedForwardSpeed = Vector3.Dot(horizontalVelocity, transform.forward);
-
-            // Smooth the already-clamped Fanatec steering command. This removes tiny
-            // hardware changes from becoming instant chassis-yaw changes in the CAVE.
-            float steerStep = Mathf.Max(0.01f, simulatorSteeringResponse) * Time.fixedDeltaTime;
-            simulatorSmoothedSteerAxis = Mathf.MoveTowards(
-                simulatorSmoothedSteerAxis,
-                customSteerAxis,
-                steerStep);
-
-            float targetYawRateRad = 0f;
-
-            if (Mathf.Abs(signedForwardSpeed) >= simulatorSteeringMinSpeed)
-            {
-                // Preserve the Akhilesh left/right sign. The visual steering curve may be
-                // 25-30 degrees; for chassis dynamics we cap the effective steering angle
-                // to avoid an unrealistically tight response in the CAVE.
-                float visualSteerDeg =
-                    -simulatorSmoothedSteerAxis * steerAngle.Evaluate(currentSpeed);
-
-                float effectiveLimit = Mathf.Clamp(simulatorEffectiveMaxSteerDeg, 1f, 35f);
-                float effectiveSteerDeg = Mathf.Clamp(
-                    visualSteerDeg,
-                    -effectiveLimit,
-                    effectiveLimit);
-
-                float steerRad = effectiveSteerDeg * Mathf.Deg2Rad;
-                targetYawRateRad =
-                    (signedForwardSpeed / simulatorWheelBase) * Mathf.Tan(steerRad);
-
-                float maxYawRad = Mathf.Max(1f, simulatorMaxYawRateDeg) * Mathf.Deg2Rad;
-                targetYawRateRad = Mathf.Clamp(targetYawRateRad, -maxYawRad, maxYawRad);
-            }
-
-            // Angular velocity is the correct physics-level command here: it lets PhysX
-            // integrate the connected root/front/rear rigidbodies normally instead of us
-            // moving every body manually each FixedUpdate.
-            Vector3 av = rb.angularVelocity;
-            float response = Mathf.Max(0.01f, simulatorYawResponse);
-            av.y = Mathf.MoveTowards(
-                av.y,
-                targetYawRateRad,
-                response * Time.fixedDeltaTime);
-            rb.angularVelocity = av;
-        }
-
-        void ApplyCustomInput()
-        {
-          //  Debug.Log("Target Velocity: "   + target_velocity_wahoo_bike.ToString("F1"));
-          //  Debug.Log("Actual Velocity: "   + actual_velocity_unity_bike.ToString("F1"));
-          //  Debug.Log("Torque Input: "   + customAccelerationAxis);
-            if (wayPointSystem.recordingState == WayPointSystem.RecordingState.DoNothing || wayPointSystem.recordingState == WayPointSystem.RecordingState.Record)
-            {
-                if(isSumoVehicle){
-
-                    // if (toggle)
-                    // {
-                    //     rbMarker.x = rb.position.x+2;
-                    //     toggle = false;
-                    // }
-                    // else
-                    // {
-                    //     rbMarker.x = rb.position.x;
-                    //     toggle = true;
-                    // }
-                    rbMarker.x = rb.position.x;
-                    rbMarker.y = rb.position.z;
-
-
-                    // extract bool from sumo stepinfo
-                    bool isInsidePhsyicsArea = Vehicle.SumoVehicleDetect(ref sock, id);
-                    Vector2 SUMO_groundtruth_xy = Vehicle.SUMO_groundtruth_back(ref sock, id);
-                    SUMOMarker.x = SUMO_groundtruth_xy.x;
-                    SUMOMarker.y = SUMO_groundtruth_xy.y;
-                    if(isInsidePhsyicsArea){
-                    // if(false){
-                        if (rb.isKinematic){
-                            rb.isKinematic = false;
-                            float steeringGain = (float)0.2;
-                            //check for sumo vehicle state lad (look ahead disgance bool)
-                            var (steeringValue, torqueInput, desiredVelocity) = Vehicle.SumoVehicleControlWarmup(ref sock, id, rb, steeringGain, ref pidControllerSpeed, ref pidControllerDist, ref lookAheadMarker);
-
-                            // set steering
-                            customSteerAxis = steeringValue;
-                            customLeanAxis = steeringValue/2;
-                            customSteerAxis = Mathf.Clamp(customSteerAxis,-1f,1f);
-                            customLeanAxis = Mathf.Clamp(customLeanAxis, -1f,1f);
-
-                            // set torque
-                            customAccelerationAxis = torqueInput; 
-                            rawCustomAccelerationAxis = torqueInput;
-                            customAccelerationAxis = Mathf.Clamp(customAccelerationAxis,-1f,1f);
-                            rawCustomAccelerationAxis = Mathf.Clamp(rawCustomAccelerationAxis,-1f,1f);
-
-                            if (desiredVelocity <0.1)
-                            {
-                                // To immediately stop the Rigidbody from moving:
-                                rb.isKinematic=true;
-                            } else
-                                rb.isKinematic=false;
-                        }
-                        else{
-                            float steeringGain = (float)0.2;
-                            //check for sumo vehicle state lad (look ahead disgance bool)
-                            var (steeringValue, torqueInput, desiredVelocity) = Vehicle.SumoVehicleControl(ref sock, id, rb, steeringGain, ref pidControllerSpeed, ref pidControllerDist, ref lookAheadMarker);
-
-                            // set steering
-                            customSteerAxis = steeringValue;
-                            customLeanAxis = steeringValue/2;
-                            customSteerAxis = Mathf.Clamp(customSteerAxis,-1f,1f);
-                            customLeanAxis = Mathf.Clamp(customLeanAxis, -1f,1f);
-
-                            // set torque
-                            customAccelerationAxis = torqueInput; 
-                            rawCustomAccelerationAxis = torqueInput;
-                            customAccelerationAxis = Mathf.Clamp(customAccelerationAxis,-1f,1f);
-                            rawCustomAccelerationAxis = Mathf.Clamp(rawCustomAccelerationAxis,-1f,1f);
-
-                            if (desiredVelocity <0.1)
-                            {
-                                // To immediately stop the Rigidbody from moving:
-                                rb.isKinematic=true;
-                            } else
-                                rb.isKinematic=false;
-                        } 
-                    }
-                    else
-                    {
-                        // SUMO teleport guard: only apply if spawn is not in progress
-                        if (allowSumoTeleport)
-                        {
-                            float steeringGain = (float)0.2;
-
-                            // set steering
-                            customSteerAxis = 0;
-                            customLeanAxis = 0;
-
-                            // set torque
-                            customAccelerationAxis = 0; 
-                            rawCustomAccelerationAxis = 0;
-
-                            rb.velocity = new Vector3(0, 0, 5);
-
-                            rb = Vehicle.SumoVehicleTeleport(ref sock, id, rb, steeringGain, ref pidControllerSpeed, ref pidControllerDist, ref lookAheadMarker);
-                            rb.isKinematic = true;
-                        }
-                        // else: SUMO teleport is disabled (likely spawn in progress); do nothing
-       
-                    }
-
-                }
-                else if (isSimulatorVehicle) 
+                if (
+                    !stuntMode &&
+                    isAirborne)
                 {
-                    bool wahooOk = tcp_bike_connection != null && tcp_bike_connection.IsConnected();
-                    bool fanatecOk = steeringInput != null && steeringInput.HasSteeringDevice;
-                    bool arduinoOk = arduinoConnected && sp != null && sp.IsOpen;
+                    transform.rotation =
+                        Quaternion.Lerp(
+                            transform.rotation,
+                            Quaternion.Euler(
+                                0f,
+                                transform.rotation
+                                    .eulerAngles.y,
+                                turnLeanAmount +
+                                cycleOscillation +
+                                GroundConformity(
+                                    groundConformity
+                                )
+                            ),
+                            Time.deltaTime *
+                            airTimeSettings
+                                .groundSnapSensitivity
+                        );
+                }
+                else if (
+                    !stuntMode &&
+                    !isAirborne)
+                {
+                    transform.rotation =
+                        Quaternion.Lerp(
+                            transform.rotation,
+                            Quaternion.Euler(
+                                transform.rotation
+                                    .eulerAngles.x,
 
-                    actual_velocity_unity_bike = rb.velocity.magnitude;
+                                transform.rotation
+                                    .eulerAngles.y,
 
-                    if (useConstantVelocity || wahooOk)
+                                turnLeanAmount +
+                                cycleOscillation +
+                                GroundConformity(
+                                    groundConformity
+                                )
+                            ),
+                            Time.deltaTime *
+                            10f *
+                            airTimeSettings
+                                .groundSnapSensitivity
+                        );
+                }
+            }
+            else
+            {
+                transform.rotation =
+                    Quaternion.Euler(
+                        transform.rotation
+                            .eulerAngles.x,
+
+                        transform.rotation
+                            .eulerAngles.y,
+
+                        turnLeanAmount +
+                        cycleOscillation +
+                        GroundConformity(
+                            groundConformity
+                        )
+                    );
+            }
+
+            // ======================================================
+            // Wheelie
+            // ======================================================
+
+            if (
+                !isAirborne &&
+                wheelieInput &&
+                rawCustomAccelerationAxis > 0f)
+            {
+                // Unity 2022 API
+                rb.angularDrag = 15f;
+
+                wheeliePower =
+                    customAccelerationAxis *
+                    150f *
+                    Convert.ToInt32(
+                        wheelieToggle
+                    );
+
+                Quaternion rot =
+                    Quaternion.FromToRotation(
+                        transform.forward,
+                        new Vector3(
+                            transform.forward.x,
+                            0.75f,
+                            transform.forward.z
+                        )
+                    );
+
+                rb.AddTorque(
+                    new Vector3(
+                        rot.x,
+                        rot.y,
+                        rot.z
+                    ) *
+                    wheeliePower,
+                    ForceMode.Acceleration
+                );
+            }
+            else
+            {
+                // Unity 2022 API
+                rb.angularDrag = 1f;
+            }
+            }
+
+        // ==========================================================
+        // Inputs
+        // ==========================================================
+
+        private static bool GameplaySpaceHeld()
+        {
+            if (
+                Input.GetKey(KeyCode.LeftControl) ||
+                Input.GetKey(KeyCode.RightControl) ||
+                Input.GetKey(KeyCode.LeftCommand) ||
+                Input.GetKey(KeyCode.RightCommand))
+            {
+                return false;
+            }
+
+            return Input.GetKey(
+                KeyCode.Space
+            );
+        }
+
+        private void ApplyCustomInput()
+        {
+            if (
+                wayPointSystem.recordingState ==
+                    WayPointSystem.RecordingState.DoNothing ||
+                wayPointSystem.recordingState ==
+                    WayPointSystem.RecordingState.Record)
+            {
+                // ==================================================
+                // SUMO vehicle
+                // ==================================================
+
+                if (isSumoVehicle)
+                {
+                    rbMarker.x =
+                        rb.position.x;
+
+                    rbMarker.y =
+                        rb.position.z;
+
+                    bool insidePhysicsArea =
+                        Vehicle.SumoVehicleDetect(
+                            ref sock,
+                            id
+                        );
+
+                    Vector2 sumoGroundTruth =
+                        Vehicle.SUMO_groundtruth_back(
+                            ref sock,
+                            id
+                        );
+
+                    SUMOMarker.x =
+                        sumoGroundTruth.x;
+
+                    SUMOMarker.y =
+                        sumoGroundTruth.y;
+
+                    if (insidePhysicsArea)
+                    {
+                        float steeringGain =
+                            0.2f;
+
+                        if (rb.isKinematic)
+                        {
+                            rb.isKinematic =
+                                false;
+
+                            var (steeringValue, torqueInput, desiredVelocity) =
+    Vehicle.SumoVehicleControlWarmup(
+        ref sock,
+        id,
+        rb,
+        steeringGain,
+        ref pidControllerSpeed,
+        ref pidControllerDist,
+        ref lookAheadMarker
+    );
+
+                            customSteerAxis = Mathf.Clamp(steeringValue, -1f, 1f);
+                            customLeanAxis = Mathf.Clamp(steeringValue / 2f, -1f, 1f);
+
+                            customAccelerationAxis = Mathf.Clamp(torqueInput, -1f, 1f);
+                            rawCustomAccelerationAxis = customAccelerationAxis;
+
+                            rb.isKinematic = desiredVelocity < 0.1f;
+                        }
+                        else
+                        {
+                            var (steeringValue, torqueInput, desiredVelocity) =
+    Vehicle.SumoVehicleControl(
+        ref sock,
+        id,
+        rb,
+        steeringGain,
+        ref pidControllerSpeed,
+        ref pidControllerDist,
+        ref lookAheadMarker
+    );
+
+                            customSteerAxis = Mathf.Clamp(steeringValue, -1f, 1f);
+                            customLeanAxis = Mathf.Clamp(steeringValue / 2f, -1f, 1f);
+
+                            customAccelerationAxis = Mathf.Clamp(torqueInput, -1f, 1f);
+                            rawCustomAccelerationAxis = customAccelerationAxis;
+
+                            rb.isKinematic = desiredVelocity < 0.1f;
+                        }
+                    }
+                    else if (allowSumoTeleport)
+                    {
+                        float steeringGain =
+                            0.2f;
+
+                        customSteerAxis =
+                            0f;
+
+                        customLeanAxis =
+                            0f;
+
+                        customAccelerationAxis =
+                            0f;
+
+                        rawCustomAccelerationAxis =
+                            0f;
+
+                        rb.velocity =
+                            new Vector3(
+                                0f,
+                                0f,
+                                5f
+                            );
+
+                        rb =
+                            Vehicle.SumoVehicleTeleport(
+                                ref sock,
+                                id,
+                                rb,
+                                steeringGain,
+                                ref pidControllerSpeed,
+                                ref pidControllerDist,
+                                ref lookAheadMarker
+                            );
+
+                        rb.isKinematic =
+                            true;
+                    }
+                }
+
+                // ==================================================
+                // Simulator bike
+                // ==================================================
+
+                else if (isSimulatorVehicle)
+                {
+                                 
+                    bool wahooOk =
+                        tcp_bike_connection != null &&
+                        tcp_bike_connection
+                            .IsConnected();
+
+                    bool fanatecOk =
+                        steeringInput != null &&
+                        steeringInput
+                            .HasSteeringDevice;
+
+                    bool arduinoOk =
+                        arduinoConnected &&
+                        sp != null &&
+                        sp.IsOpen;
+
+                    actual_velocity_unity_bike =
+                        rb.velocity.magnitude;
+
+                    // ==============================================
+                    // Speed / pedalling
+                    // ==============================================
+
+                    if (
+                        useConstantVelocity ||
+                        wahooOk)
                     {
                         if (useConstantVelocity)
-                            target_velocity_wahoo_bike = constantSimVelocity;
-                        else
-                            target_velocity_wahoo_bike = ((float)tcp_bike_connection.targetOutputVelocity / 3.6f) * globalSpeedGainSimBike;
-
-                        acceleration = wahooOk
-                            ? ((float)tcp_bike_connection.targetOutputPower) / mass_kg
-                            : 0f;
-                        if (useConstantVelocity && !wahooOk)
-                            velocity = Mathf.Clamp(constantSimVelocity, 0f, topSpeed);
-
-                        if (arduinoOk)
-                            ApplyArduinoBrakeToAcceleration();
-                        else
-                            ApplyKeyboardBrakeToWahooLoop();
-
-                        if (velocity <= 0.0f && acceleration < 0.0f)
-                            acceleration = 0.0f;
-
-                        velocity += globalaccGainSimBike * acceleration * Time.deltaTime;
-                        if (velocity < 0f) velocity = 0f;
-                        if (velocity > topSpeed) velocity = topSpeed;
-
-                        float torqueInput = piControllerSpeedWahoo != null
-                            ? piControllerSpeedWahoo.Control(velocity, actual_velocity_unity_bike)
-                            : 0f;
-
-                        if (velocity < 0.1f)
                         {
-                            float stopGain = 0.5f;
-                            rb.velocity = Vector3.Lerp(rb.velocity, Vector3.zero, Time.deltaTime * stopGain);
-                            rb.angularVelocity = Vector3.Lerp(rb.angularVelocity, Vector3.zero, Time.deltaTime * stopGain);
+                            target_velocity_wahoo_bike =
+                                constantSimVelocity;
+                        }
+                        else
+                        {
+                            target_velocity_wahoo_bike =
+    ((float)tcp_bike_connection.targetOutputVelocity / 3.6f)
+    * globalSpeedGainSimBike;
                         }
 
-                        customAccelerationAxis = Mathf.Clamp(torqueInput, -1f, 1f);
-                        rawCustomAccelerationAxis = customAccelerationAxis;
+                        if (wahooOk)
+                        {
+                            acceleration =
+    ((float)tcp_bike_connection.targetOutputPower) / mass_kg;
+                        }
+                        else
+                        {
+                            acceleration =
+                                0f;
+                        }
+
+                        if (
+                            useConstantVelocity &&
+                            !wahooOk)
+                        {
+                            velocity =
+                                Mathf.Clamp(
+                                    constantSimVelocity,
+                                    0f,
+                                    topSpeed
+                                );
+                        }
+
+                        if (arduinoOk)
+                        {
+                            ApplyArduinoBrakeToAcceleration();
+                        }
+                        else
+                        {
+                            ApplyKeyboardBrakeToWahooLoop();
+                        }
+
+                        if (
+                            velocity <= 0f &&
+                            acceleration < 0f)
+                        {
+                            acceleration =
+                                0f;
+                        }
+
+                        velocity +=
+                            globalaccGainSimBike *
+                            acceleration *
+                            Time.deltaTime;
+
+                        velocity =
+                            Mathf.Clamp(
+                                velocity,
+                                0f,
+                                topSpeed
+                            );
+
+                        float torqueInput =
+    piControllerSpeedWahoo != null
+        ? piControllerSpeedWahoo
+            .Control(
+                velocity,
+                actual_velocity_unity_bike
+            )
+        : 0f;
+
+                        /*
+                         * Only gently settle at true zero target speed.
+                         * We DO NOT zero front/rear/root rigidbody
+                         * angular velocity every physics frame.
+                         */
+                        if (velocity < 0.1f)
+                        {
+                            float stopGain =
+                                0.5f;
+
+                            rb.velocity =
+                                Vector3.Lerp(
+                                    rb.velocity,
+                                    Vector3.zero,
+                                    Time.deltaTime *
+                                    stopGain
+                                );
+
+                            rb.angularVelocity =
+                                Vector3.Lerp(
+                                    rb.angularVelocity,
+                                    Vector3.zero,
+                                    Time.deltaTime *
+                                    stopGain
+                                );
+                        }
+
+                        customAccelerationAxis =
+                            Mathf.Clamp(
+                                torqueInput,
+                                -1f,
+                                1f
+                            );
+
+                        rawCustomAccelerationAxis =
+                            customAccelerationAxis;
                     }
                     else
                     {
-                        leftBrakeSignal = 0.0f;
-                        rightBrakeSignal = 0.0f;
-                        CustomInput("Vertical", ref customAccelerationAxis, 1, 1, false);
-                        CustomInput("Vertical", ref rawCustomAccelerationAxis, 1, 1, true);
-                        if (Input.GetKey(KeyCode.S) || GameplaySpaceHeld())
+                        leftBrakeSignal =
+                            0f;
+
+                        rightBrakeSignal =
+                            0f;
+
+                        CustomInput(
+                            "Vertical",
+                            ref customAccelerationAxis,
+                            1f,
+                            1f,
+                            false
+                        );
+
+                        CustomInput(
+                            "Vertical",
+                            ref rawCustomAccelerationAxis,
+                            1f,
+                            1f,
+                            true
+                        );
+
+                        if (
+                            Input.GetKey(KeyCode.S) ||
+                            GameplaySpaceHeld())
                         {
-                            customAccelerationAxis = Mathf.Min(customAccelerationAxis, -1f);
-                            rawCustomAccelerationAxis = customAccelerationAxis;
+                            customAccelerationAxis =
+                                Mathf.Min(
+                                    customAccelerationAxis,
+                                    -1f
+                                );
+
+                            rawCustomAccelerationAxis =
+                                customAccelerationAxis;
                         }
                     }
+
+                    // ==============================================
+                    // Fanatec steering
+                    // ==============================================
 
                     if (fanatecOk)
                     {
-                        steeringValueFanatec = steeringInput.steeringInputCorrected;
+                        steeringValueFanatec =
+                            steeringInput
+                                .steeringInputCorrected;
 
-                        const float steeringDeadzone = 0.01f;
+                        const float steeringDeadzone =
+                            0.01f;
 
-                        if (Mathf.Abs(steeringValueFanatec) < steeringDeadzone)
-                            steeringValueFanatec = 0f;
+                        if (
+                            Mathf.Abs(
+                                steeringValueFanatec
+                            ) <
+                            steeringDeadzone)
+                        {
+                            steeringValueFanatec =
+                                0f;
+                        }
 
-                        float steeringGain = globalSteeringGain;
+                        float steeringGain =
+                            globalSteeringGain;
 
-                        customSteerAxis = steeringValueFanatec * steeringGain;
-                        customLeanAxis = steeringValueFanatec * steeringGain / 2f;
+                        customSteerAxis =
+                            steeringValueFanatec *
+                            steeringGain;
 
-                        customSteerAxis = Mathf.Clamp(customSteerAxis, -1f, 1f);
-                        customLeanAxis = Mathf.Clamp(customLeanAxis / 2f, -1f, 1f);
+                        customLeanAxis =
+                            steeringValueFanatec *
+                            steeringGain /
+                            2f;
+
+                        customSteerAxis =
+                            Mathf.Clamp(
+                                customSteerAxis,
+                                -1f,
+                                1f
+                            );
+
+                        customLeanAxis =
+                            Mathf.Clamp(
+                                customLeanAxis /
+                                2f,
+                                -1f,
+                                1f
+                            );
                     }
                     else
                     {
-                        CustomInput("Horizontal", ref customSteerAxis, 5, 5, false);
-                        CustomInput("Horizontal", ref customLeanAxis, 1, 1, false);
+                        CustomInput(
+                            "Horizontal",
+                            ref customSteerAxis,
+                            5f,
+                            5f,
+                            false
+                        );
+
+                        CustomInput(
+                            "Horizontal",
+                            ref customLeanAxis,
+                            1f,
+                            1f,
+                            false
+                        );
                     }
                 }
 
-                else {
-                    CustomInput("Horizontal",   ref customSteerAxis, 5, 5, false);
-                    CustomInput("Vertical",     ref customAccelerationAxis, 1, 1, false);
-                    CustomInput("Horizontal",   ref customLeanAxis, 1, 1, false);
-                    CustomInput("Vertical",     ref rawCustomAccelerationAxis, 1, 1, true);
-                }
+                // ==================================================
+                // Normal keyboard bicycle
+                // ==================================================
 
-                sprint = Input.GetKey(KeyCode.LeftShift);
-
-                wheelieInput = !isSimulatorVehicle && Input.GetKey(KeyCode.LeftControl);
-
-                // Bunny hop is disabled on the hardware/experiment bike; Space is brake fallback.
-                if (isSimulatorVehicle)
-                    bunnyHopInputState = 0;
-                else if (Input.GetKey(KeyCode.Space))
-                    bunnyHopInputState = 1;
-                else if (Input.GetKeyUp(KeyCode.Space))
-                    bunnyHopInputState = -1;
                 else
-                    bunnyHopInputState = 0;
-
-                //Record
-                if (wayPointSystem.recordingState == WayPointSystem.RecordingState.Record)
                 {
-                  //  Debug.LogWarning("---------> this is not intended!");
+                    CustomInput(
+                        "Horizontal",
+                        ref customSteerAxis,
+                        5f,
+                        5f,
+                        false
+                    );
 
-                    if (Time.frameCount % wayPointSystem.frameIncrement == 0)
+                    CustomInput(
+                        "Vertical",
+                        ref customAccelerationAxis,
+                        1f,
+                        1f,
+                        false
+                    );
+
+                    CustomInput(
+                        "Horizontal",
+                        ref customLeanAxis,
+                        1f,
+                        1f,
+                        false
+                    );
+
+                    CustomInput(
+                        "Vertical",
+                        ref rawCustomAccelerationAxis,
+                        1f,
+                        1f,
+                        true
+                    );
+                }
+
+                sprint =
+                    Input.GetKey(
+                        KeyCode.LeftShift
+                    );
+
+                /*
+                 * Physical experiment bike:
+                 * disable accidental wheelie.
+                 */
+                wheelieInput =
+                    !isSimulatorVehicle &&
+                    Input.GetKey(
+                        KeyCode.LeftControl
+                    );
+
+                /*
+                 * Physical experiment bike:
+                 * Space is braking fallback, NOT bunny hop.
+                 */
+                if (isSimulatorVehicle)
+                {
+                    bunnyHopInputState =
+                        0;
+                }
+                else if (
+                    Input.GetKey(
+                        KeyCode.Space
+                    ))
+                {
+                    bunnyHopInputState =
+                        1;
+                }
+                else if (
+                    Input.GetKeyUp(
+                        KeyCode.Space
+                    ))
+                {
+                    bunnyHopInputState =
+                        -1;
+                }
+                else
+                {
+                    bunnyHopInputState =
+                        0;
+                }
+
+                // ==================================================
+                // Recording
+                // ==================================================
+
+                if (
+                    wayPointSystem.recordingState ==
+                    WayPointSystem.RecordingState.Record)
+                {
+                    if (
+                        Time.frameCount %
+                        wayPointSystem.frameIncrement ==
+                        0)
                     {
-                        wayPointSystem.bicyclePositionTransform.Add(new Vector3(Mathf.Round(transform.position.x * 100f) * 0.01f, Mathf.Round(transform.position.y * 100f) * 0.01f, Mathf.Round(transform.position.z * 100f) * 0.01f));
-                        wayPointSystem.bicycleRotationTransform.Add(transform.rotation);
-                        wayPointSystem.movementInstructionSet.Add(new Vector2Int((int)Input.GetAxisRaw("Horizontal"), (int)Input.GetAxisRaw("Vertical")));
-                        wayPointSystem.sprintInstructionSet.Add(sprint);
-                        wayPointSystem.bHopInstructionSet.Add(bunnyHopInputState);
+                        wayPointSystem
+                            .bicyclePositionTransform
+                            .Add(
+                                new Vector3(
+                                    Mathf.Round(
+                                        transform.position.x *
+                                        100f
+                                    ) *
+                                    0.01f,
+
+                                    Mathf.Round(
+                                        transform.position.y *
+                                        100f
+                                    ) *
+                                    0.01f,
+
+                                    Mathf.Round(
+                                        transform.position.z *
+                                        100f
+                                    ) *
+                                    0.01f
+                                )
+                            );
+
+                        wayPointSystem
+                            .bicycleRotationTransform
+                            .Add(
+                                transform.rotation
+                            );
+
+                        wayPointSystem
+                            .movementInstructionSet
+                            .Add(
+                                new Vector2Int(
+                                    (int)Input.GetAxisRaw(
+                                        "Horizontal"
+                                    ),
+
+                                    (int)Input.GetAxisRaw(
+                                        "Vertical"
+                                    )
+                                )
+                            );
+
+                        wayPointSystem
+                            .sprintInstructionSet
+                            .Add(
+                                sprint
+                            );
+
+                        wayPointSystem
+                            .bHopInstructionSet
+                            .Add(
+                                bunnyHopInputState
+                            );
                     }
                 }
             }
-            else
+            else if (
+                wayPointSystem.recordingState ==
+                    WayPointSystem.RecordingState.Playback &&
+                allowWayPointPlayback)
             {
-              //  Debug.LogWarning("---------> this is not intended!");
-                if (wayPointSystem.recordingState == WayPointSystem.RecordingState.Playback && allowWayPointPlayback)
+                int index =
+                    Time.frameCount /
+                    wayPointSystem.frameIncrement;
+
+                if (
+                    wayPointSystem
+                        .movementInstructionSet
+                        .Count -
+                    1 >
+                    index)
                 {
-                    if (wayPointSystem.movementInstructionSet.Count - 1 > Time.frameCount / wayPointSystem.frameIncrement)
-                    {
-                        transform.position = Vector3.Lerp(transform.position, wayPointSystem.bicyclePositionTransform[Time.frameCount / wayPointSystem.frameIncrement], Time.deltaTime * wayPointSystem.frameIncrement);
-                        transform.rotation = Quaternion.Lerp(transform.rotation, wayPointSystem.bicycleRotationTransform[Time.frameCount / wayPointSystem.frameIncrement], Time.deltaTime * wayPointSystem.frameIncrement);
-                        WayPointInput(wayPointSystem.movementInstructionSet[Time.frameCount / wayPointSystem.frameIncrement].x, ref customSteerAxis, 5, 5, false);
-                        WayPointInput(wayPointSystem.movementInstructionSet[Time.frameCount / wayPointSystem.frameIncrement].y, ref customAccelerationAxis, 1, 1, false);
-                        WayPointInput(wayPointSystem.movementInstructionSet[Time.frameCount / wayPointSystem.frameIncrement].x, ref customLeanAxis, 1, 1, false);
-                        WayPointInput(wayPointSystem.movementInstructionSet[Time.frameCount / wayPointSystem.frameIncrement].y, ref rawCustomAccelerationAxis, 1, 1, true);
-                        sprint = wayPointSystem.sprintInstructionSet[Time.frameCount / wayPointSystem.frameIncrement];
-                        bunnyHopInputState = wayPointSystem.bHopInstructionSet[Time.frameCount / wayPointSystem.frameIncrement];
-                    }
+                    transform.position =
+                        Vector3.Lerp(
+                            transform.position,
+
+                            wayPointSystem
+                                .bicyclePositionTransform[
+                                    index
+                                ],
+
+                            Time.deltaTime *
+                            wayPointSystem
+                                .frameIncrement
+                        );
+
+                    transform.rotation =
+                        Quaternion.Lerp(
+                            transform.rotation,
+
+                            wayPointSystem
+                                .bicycleRotationTransform[
+                                    index
+                                ],
+
+                            Time.deltaTime *
+                            wayPointSystem
+                                .frameIncrement
+                        );
+
+                    WayPointInput(
+                        wayPointSystem
+                            .movementInstructionSet[
+                                index
+                            ].x,
+
+                        ref customSteerAxis,
+                        5f,
+                        5f,
+                        false
+                    );
+
+                    WayPointInput(
+                        wayPointSystem
+                            .movementInstructionSet[
+                                index
+                            ].y,
+
+                        ref customAccelerationAxis,
+                        1f,
+                        1f,
+                        false
+                    );
+
+                    WayPointInput(
+                        wayPointSystem
+                            .movementInstructionSet[
+                                index
+                            ].x,
+
+                        ref customLeanAxis,
+                        1f,
+                        1f,
+                        false
+                    );
+
+                    WayPointInput(
+                        wayPointSystem
+                            .movementInstructionSet[
+                                index
+                            ].y,
+
+                        ref rawCustomAccelerationAxis,
+                        1f,
+                        1f,
+                        true
+                    );
+
+                    sprint =
+                        wayPointSystem
+                            .sprintInstructionSet[
+                                index
+                            ];
+
+                    bunnyHopInputState =
+                        wayPointSystem
+                            .bHopInstructionSet[
+                                index
+                            ];
                 }
             }
         }
 
-        void OnDrawGizmos(){
-            if (bDrawGizmo){
-                Gizmos.color = Color.red;
-                Vector3 LadPoint = new Vector3(lookAheadMarker.x, 0.1f, lookAheadMarker.y);
-                Gizmos.DrawSphere(LadPoint, 1.0f);
+        // ==========================================================
+        // Arduino brake
+        // ==========================================================
 
-                Gizmos.color = Color.blue;
-                Vector3 rbMarkerPoint = new Vector3(rbMarker.x, 0.1f, rbMarker.y);
-                Gizmos.DrawSphere(rbMarkerPoint, 1.0f);
-
-                Gizmos.color = Color.green;
-                Vector3 SUMO_groundtruth = new Vector3(SUMOMarker.x, 0.1f, SUMOMarker.y);
-                Gizmos.DrawSphere(SUMO_groundtruth, 1.0f);
-            }
-        }
-
-        void ApplyArduinoBrakeToAcceleration()
+        private void ApplyArduinoBrakeToAcceleration()
         {
             try
             {
-                if (sp.BytesToRead <= 0) return;
+                if (
+                    sp == null ||
+                    !sp.IsOpen ||
+                    sp.BytesToRead <= 0)
+                {
+                    return;
+                }
 
                 string data;
+
                 try
                 {
-                    data = sp.ReadLine().Trim();
+                    data =
+                        sp.ReadLine().Trim();
                 }
                 catch (TimeoutException)
                 {
-                    data = sp.ReadExisting().Trim();
-                    string[] lines = data.Split(new char[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
-                    if (lines.Length > 0)
-                        data = lines[lines.Length - 1];
+                    data =
+                        sp.ReadExisting().Trim();
+
+                    string[] lines =
+                        data.Split(
+                            new[]
+                            {
+                                '\r',
+                                '\n'
+                            },
+                            StringSplitOptions
+                                .RemoveEmptyEntries
+                        );
+
+                    if (lines.Length == 0)
+                        return;
+
+                    data =
+                        lines[
+                            lines.Length - 1
+                        ];
                 }
 
-                if (string.IsNullOrEmpty(data)) return;
+                if (string.IsNullOrEmpty(data))
+                    return;
 
-                string[] values = data.Split(',');
-                if (values.Length < 2) return;
+                string[] values =
+                    data.Split(',');
 
-                if (float.TryParse(values[0].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float rawLeftBrake) &&
-                    float.TryParse(values[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float rawRightBrake))
+                if (values.Length < 2)
+                    return;
+
+                if (
+                    float.TryParse(
+                        values[0].Trim(),
+                        NumberStyles.Float,
+                        CultureInfo.InvariantCulture,
+                        out float rawLeftBrake
+                    ) &&
+                    float.TryParse(
+                        values[1].Trim(),
+                        NumberStyles.Float,
+                        CultureInfo.InvariantCulture,
+                        out float rawRightBrake
+                    ))
                 {
-                    leftBrakeSignal = rawLeftBrake - 16.5f;
-                    rightBrakeSignal = rawRightBrake - 17.0f;
-                    float totalBrakedeacceleration = (leftBrakeSignal + rightBrakeSignal) / 200.0f * brakeSensitivity;
-                    acceleration -= totalBrakedeacceleration;
+                    leftBrakeSignal =
+                        rawLeftBrake -
+                        16.5f;
+
+                    rightBrakeSignal =
+                        rawRightBrake -
+                        17f;
+
+                    float totalBrakeDeceleration =
+                        (
+                            leftBrakeSignal +
+                            rightBrakeSignal
+                        ) /
+                        200f *
+                        brakeSensitivity;
+
+                    acceleration -=
+                        totalBrakeDeceleration;
                 }
             }
-            catch (TimeoutException) { }
+            catch (TimeoutException)
+            {
+            }
             catch (System.IO.IOException)
             {
-                arduinoConnected = false;
-                arduinoErrorMessage = "Arduino connection lost: The connection to the Arduino has been interrupted.";
+                arduinoConnected =
+                    false;
+
+                arduinoErrorMessage =
+                    "Arduino connection lost.";
             }
             catch (InvalidOperationException)
             {
-                arduinoConnected = false;
-                arduinoErrorMessage = "Arduino port error: Serial port is not open or has been closed.";
-            }
-            catch (Exception) { }
-        }
+                arduinoConnected =
+                    false;
 
-        void ApplyKeyboardBrakeToWahooLoop()
-        {
-            leftBrakeSignal = 0.0f;
-            rightBrakeSignal = 0.0f;
-            if (Input.GetKey(KeyCode.S) || GameplaySpaceHeld())
+                arduinoErrorMessage =
+                    "Arduino serial port is not open.";
+            }
+            catch
             {
-                acceleration -= brakeSensitivity;
-                velocity *= Mathf.Clamp01(1f - Time.deltaTime * 4f);
             }
         }
 
-        //Input Manager Controls
-        float CustomInput(string name, ref float axis, float sensitivity, float gravity, bool isRaw)
+        private void ApplyKeyboardBrakeToWahooLoop()
         {
-            var r = Input.GetAxisRaw(name);
-            var s = sensitivity;
-            var g = gravity;
-            var t = Time.unscaledDeltaTime;
+            leftBrakeSignal =
+                0f;
+
+            rightBrakeSignal =
+                0f;
+
+            if (
+                Input.GetKey(KeyCode.S) ||
+                GameplaySpaceHeld())
+            {
+                acceleration -=
+                    brakeSensitivity;
+
+                velocity *=
+                    Mathf.Clamp01(
+                        1f -
+                        Time.deltaTime *
+                        4f
+                    );
+            }
+        }
+
+        // ==========================================================
+        // Input helpers
+        // ==========================================================
+
+        private float CustomInput(
+            string name,
+            ref float axis,
+            float sensitivity,
+            float gravity,
+            bool isRaw)
+        {
+            float input =
+                Input.GetAxisRaw(name);
+
+            float t =
+                Time.unscaledDeltaTime;
 
             if (isRaw)
-                axis = r;
+            {
+                axis = input;
+            }
             else
             {
-                if (r != 0)
-                    axis = Mathf.Clamp(axis + r * s * t, -1f, 1f);
+                if (input != 0f)
+                {
+                    axis =
+                        Mathf.Clamp(
+                            axis +
+                            input *
+                            sensitivity *
+                            t,
+                            -1f,
+                            1f
+                        );
+                }
                 else
-                    axis = Mathf.Clamp01(Mathf.Abs(axis) - g * t) * Mathf.Sign(axis);
+                {
+                    axis =
+                        Mathf.Clamp01(
+                            Mathf.Abs(axis) -
+                            gravity *
+                            t
+                        ) *
+                        Mathf.Sign(axis);
+                }
             }
+
             return axis;
         }
 
-        float WayPointInput(float instruction, ref float axis, float sensitivity, float gravity, bool isRaw)
+        private float WayPointInput(
+            float instruction,
+            ref float axis,
+            float sensitivity,
+            float gravity,
+            bool isRaw)
         {
-            var r = instruction;
-            var s = sensitivity;
-            var g = gravity;
-            var t = Time.unscaledDeltaTime;
+            float t =
+                Time.unscaledDeltaTime;
 
             if (isRaw)
-                axis = r;
+            {
+                axis =
+                    instruction;
+            }
             else
             {
-                if (r != 0)
-                    axis = Mathf.Clamp(axis + r * s * t, -1f, 1f);
+                if (instruction != 0f)
+                {
+                    axis =
+                        Mathf.Clamp(
+                            axis +
+                            instruction *
+                            sensitivity *
+                            t,
+                            -1f,
+                            1f
+                        );
+                }
                 else
-                    axis = Mathf.Clamp01(Mathf.Abs(axis) - g * t) * Mathf.Sign(axis);
+                {
+                    axis =
+                        Mathf.Clamp01(
+                            Mathf.Abs(axis) -
+                            gravity *
+                            t
+                        ) *
+                        Mathf.Sign(axis);
+                }
             }
 
             return axis;
         }
 
-        IEnumerator DelayBunnyHop()
+        private IEnumerator DelayBunnyHop()
         {
-            yield return new WaitForSeconds(0.5f);
-            isBunnyHopping = false;
-            yield return null;
+            yield return
+                new WaitForSeconds(
+                    0.5f
+                );
+
+            isBunnyHopping =
+                false;
         }
-        
-        /// <summary>
-        /// Attempts to reconnect to the Arduino
-        /// </summary>
+
+        // ==========================================================
+        // Logging
+        // ==========================================================
+
+        private IEnumerator LogData()
+        {
+            while (true)
+            {
+                simulationTime +=
+                    Time.deltaTime;
+
+                using (
+                    StreamWriter writer =
+                        new StreamWriter(
+                            filePath,
+                            true
+                        ))
+                {
+                    writer.WriteLine(
+                        $"{simulationTime}," +
+                        $"{target_velocity_wahoo_bike}," +
+                        $"{actual_velocity_unity_bike}," +
+                        $"{customAccelerationAxis}"
+                    );
+                }
+
+                yield return
+                    new WaitForEndOfFrame();
+            }
+        }
+
+        // ==========================================================
+        // Arduino reconnect / diagnostics
+        // ==========================================================
+
         public void AttemptArduinoReconnection()
         {
-          //  Debug.Log("Attempting Arduino reconnection...");
-            
-            if (sp != null && sp.IsOpen)
+            if (
+                sp != null &&
+                sp.IsOpen)
             {
                 try
                 {
-                  //  Debug.Log("Closing existing Arduino connection...");
                     sp.Close();
-                  //  Debug.Log("Existing connection closed successfully");
                 }
-                catch (Exception ex)
+                catch
                 {
-                  //  Debug.LogWarning("Error closing Arduino connection: " + ex.Message);
                 }
             }
-            
-            try
-            {
-                // Reinitialize with current port settings
-                if (sp == null)
-                {
-                    if (!ArduinoPortIsAvailable(actualComPort))
-                    {
-                        arduinoConnected = false;
-                        return;
-                    }
-                    sp = new SerialPort(actualComPort, baudRate);
-                }
-                
-                // if (enableArduinoDebugLogs)
-                  //  Debug.Log("Opening serial port " + actualComPort + " for reconnection...");
-                sp.Open();
-                // if (enableArduinoDebugLogs)
-                  //  Debug.Log("Serial port opened successfully for reconnection");
-                
-                // if (enableArduinoDebugLogs)
-                  //  Debug.Log("Setting timeouts to " + readTimeoutMs + "ms...");
-                sp.ReadTimeout = readTimeoutMs;
-                sp.WriteTimeout = readTimeoutMs;
-                // if (enableArduinoDebugLogs)
-                  //  Debug.Log("Timeouts set successfully");
-                
-                arduinoConnected = true;
-                arduinoErrorMessage = "";
-                // if (enableArduinoDebugLogs)
-                  //  Debug.Log("Arduino reconnected successfully on " + actualComPort);
-            }
-            catch (TimeoutException ex)
-            {
-                arduinoConnected = false;
-                arduinoErrorMessage = "Arduino reconnection timeout: The operation has timed out. Please check if the Arduino is properly connected to " + actualComPort + ".";
-              //  Debug.LogError("Arduino Reconnection Error: " + arduinoErrorMessage);
-                // if (enableArduinoDebugLogs)
-                  //  Debug.LogError("Timeout Exception Details: " + ex.ToString());
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                arduinoConnected = false;
-                arduinoErrorMessage = "Arduino access denied: Another application may be using " + actualComPort + ". Please close other applications using the serial port.";
-              //  Debug.LogError("Arduino Reconnection Error: " + arduinoErrorMessage);
-                // if (enableArduinoDebugLogs)
-                  //  Debug.LogError("Unauthorized Access Exception Details: " + ex.ToString());
-            }
-            catch (System.IO.IOException ex)
-            {
-                arduinoConnected = false;
-                arduinoErrorMessage = "Arduino reconnection failed: The specified port " + actualComPort + " was not found. Please check if the Arduino is connected to the correct port.";
-              //  Debug.LogError("Arduino Reconnection Error: " + arduinoErrorMessage);
-                // if (enableArduinoDebugLogs)
-                  //  Debug.LogError("IO Exception Details: " + ex.ToString());
-            }
-            catch (Exception ex)
-            {
-                arduinoConnected = false;
-                arduinoErrorMessage = "Arduino reconnection error: " + ex.Message;
-              //  Debug.LogError("Arduino Reconnection Error: " + arduinoErrorMessage);
-              //  Debug.LogError("General Exception Details: " + ex.ToString());
-            }
+
+            InitializeArduinoConnection();
         }
-        
-        /// <summary>
-        /// Debug method to test Arduino communication
-        /// </summary>
+
         public void TestArduinoCommunication()
         {
-            if (!arduinoConnected)
+            if (
+                !arduinoConnected ||
+                sp == null ||
+                !sp.IsOpen)
             {
-              //  Debug.LogWarning("Cannot test Arduino communication - not connected");
                 return;
             }
-            
-          //  Debug.Log("Testing Arduino communication...");
-          //  Debug.Log("Serial port status - IsOpen: " + sp.IsOpen + ", BytesToRead: " + sp.BytesToRead);
-            
+
             try
             {
-                // Try to read any available data
                 if (sp.BytesToRead > 0)
-                {
-                    string testData = sp.ReadLine();
-                  //  Debug.Log("Test read successful - Data: " + testData);
-                }
-                else
-                {
-                  //  Debug.Log("No data available to read from Arduino");
-                }
+                    sp.ReadLine();
             }
-            catch (Exception ex)
+            catch
             {
-              //  Debug.LogError("Test read failed: " + ex.Message);
             }
         }
-        
-        /// <summary>
-        /// Displays Arduino connection status and error messages to the user
-        /// </summary>
+
         public void DisplayArduinoStatus()
         {
-            if (!arduinoConnected && !string.IsNullOrEmpty(arduinoErrorMessage))
+            if (
+                enableArduinoDebugLogs &&
+                Time.frameCount % 300 == 0 &&
+                arduinoConnected &&
+                sp != null &&
+                sp.IsOpen)
             {
-              //  Debug.LogWarning("ARDUINO CONNECTION ERROR: " + arduinoErrorMessage);
-                // You can also display this in the UI if you have a UI system
-                // For example: UIManager.Instance.ShowError(arduinoErrorMessage);
+                Debug.Log(
+                    "Arduino Status: Connected - Port: " +
+                    actualComPort +
+                    ", BaudRate: " +
+                    baudRate +
+                    ", BytesToRead: " +
+                    sp.BytesToRead
+                );
             }
-            
-            // Add periodic status logging for debugging
-            if (enableArduinoDebugLogs && Time.frameCount % 300 == 0) // Log every 300 frames (about 5 seconds at 60fps)
-            {
-                if (arduinoConnected && sp != null && sp.IsOpen)
-                {
-                   Debug.Log("Arduino Status: Connected - Port: " + actualComPort + ", BaudRate: " + baudRate + 
-                             ", IsOpen: " + sp.IsOpen + ", BytesToRead: " + sp.BytesToRead);
-                }
-                else
-                {
-                  //  Debug.LogWarning("Arduino Status: Disconnected - Port: " + actualComPort + " - Last Error: " + arduinoErrorMessage);
-                }
-            }
+        }
+
+        // ==========================================================
+        // Gizmos
+        // ==========================================================
+
+        private void OnDrawGizmos()
+        {
+            if (!bDrawGizmo)
+                return;
+
+            Gizmos.color =
+                Color.red;
+
+            Gizmos.DrawSphere(
+                new Vector3(
+                    lookAheadMarker.x,
+                    0.1f,
+                    lookAheadMarker.y
+                ),
+                1f
+            );
+
+            Gizmos.color =
+                Color.blue;
+
+            Gizmos.DrawSphere(
+                new Vector3(
+                    rbMarker.x,
+                    0.1f,
+                    rbMarker.y
+                ),
+                1f
+            );
+
+            Gizmos.color =
+                Color.green;
+
+            Gizmos.DrawSphere(
+                new Vector3(
+                    SUMOMarker.x,
+                    0.1f,
+                    SUMOMarker.y
+                ),
+                1f
+            );
         }
     }
 }

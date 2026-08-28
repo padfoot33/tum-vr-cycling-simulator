@@ -28,7 +28,7 @@ namespace CyclingExperiment.Editor
 
         private static void ApplyLock(bool lockRun, int route, bool traffic)
         {
-            var refs = Object.FindObjectOfType<ExperimentRefs>();
+            var refs = Object.FindFirstObjectByType<ExperimentRefs>();
             if (refs == null)
             {
                 EditorUtility.DisplayDialog("Lock Run",

@@ -74,7 +74,10 @@ namespace CyclingExperiment
         private void Awake()
         {
             CacheRefs();
-            ConfigureExperimentPhysics(gameObject);
+
+            // Do not modify the SimBike collider at runtime.
+            // Keep the original bicycle physics configuration.
+            EnsureOneAudioListener(gameObject);
         }
 
         /// <summary>
@@ -233,3 +236,5 @@ namespace CyclingExperiment
         }
     }
 }
+
+

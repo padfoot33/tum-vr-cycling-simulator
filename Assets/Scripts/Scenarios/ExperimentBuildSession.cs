@@ -1,7 +1,6 @@
 using CyclingExperiment.AI;
 using System;
 using UnityEngine;
-using CyclingExperiment.AI;
 
 namespace CyclingExperiment.Scenarios
 {
@@ -78,7 +77,7 @@ namespace CyclingExperiment.Scenarios
             ParticipantId = string.IsNullOrWhiteSpace(participantId) ? "P01" : participantId.Trim();
             TrialIndex = trialIndex < 1 ? 1 : trialIndex;
         }
-        
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void LoadCommandLineSession()
         {
@@ -93,28 +92,50 @@ namespace CyclingExperiment.Scenarios
             {
                 string arg = args[i].ToLowerInvariant();
 
-                if (arg == "--participant" && i + 1 < args.Length)
+                // SimManager: --participantid
+                // Old launcher: --participant
+                if ((arg == "--participantid" || arg == "--participant") &&
+                    i + 1 < args.Length)
                 {
                     participant = args[++i];
                 }
-                else if (arg == "--trial" && i + 1 < args.Length)
+
+                // SimManager: --id
+                // Old launcher: --trial
+                else if ((arg == "--id" || arg == "--trial") &&
+                         i + 1 < args.Length)
                 {
                     int.TryParse(args[++i], out trial);
                 }
+
                 else if (arg == "--route" && i + 1 < args.Length)
                 {
                     int.TryParse(args[++i], out route);
                 }
+
                 else if (arg == "--traffic" && i + 1 < args.Length)
                 {
                     string value = args[++i].ToLowerInvariant();
-                    traffic = value == "1" || value == "true" || value == "on";
+
+                    traffic =
+                        value == "1" ||
+                        value == "true" ||
+                        value == "on";
                 }
             }
 
             if (!string.IsNullOrWhiteSpace(participant))
             {
+                if (int.TryParse(participant, out int participantNumber))
+                {
+                    participant = "P" + participantNumber.ToString("00");
+                }
+
                 SetParticipantTrial(participant, trial);
+
+                Debug.Log(
+                    $"[ExperimentBuildSession] SimManager participant/trial detected: Participant={ParticipantId}, Trial={TrialIndex}"
+                );
             }
 
             if (route == 1 || route == 2 || route == TestRunRouteIndex)
@@ -122,13 +143,16 @@ namespace CyclingExperiment.Scenarios
                 Apply(route, traffic, true);
 
                 Debug.Log(
-                    $"[ExperimentBuildSession] Participant={ParticipantId}, Trial={TrialIndex}, Route={RouteIndex}, Traffic={TrafficEnabled}");
+                    $"[ExperimentBuildSession] Participant={ParticipantId}, Trial={TrialIndex}, Route={RouteIndex}, Traffic={TrafficEnabled}"
+                );
             }
         }
-        
+
         public static void SetPlayTestRun(bool enabled)
         {
             _playTestRun = enabled;
         }
     }
 }
+
+
