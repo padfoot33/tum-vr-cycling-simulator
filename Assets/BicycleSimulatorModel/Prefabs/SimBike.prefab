@@ -3014,7 +3014,7 @@ MonoBehaviour:
   chestMovementAggression: 25
   centered: 0.2
   noiseProperties:
-    useNoise: 1
+    useNoise: 0
     noiseRange: 0.25
     speedScale: 75
   bodyDampingProperties:
@@ -3909,7 +3909,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 0
 --- !u!153 &2964336327937628556
@@ -4213,7 +4213,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 0
 --- !u!153 &2964336328285610951
@@ -6421,7 +6421,7 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 0
 --- !u!114 &8356943455148778340
@@ -6453,6 +6453,8 @@ MonoBehaviour:
   proportionalTermWahoo: 2125
   globalSpeedGainSimBike: 1.5
   globalaccGainSimBike: 0.3
+  followHardwareSpeed: 1
+  safetyCeilingMps: 13.9
   cycleGeometry:
     handles: {fileID: 5608909790043819723}
     lowerFork: {fileID: 6219313523685568941}
@@ -6572,13 +6574,13 @@ MonoBehaviour:
     m_RotationOrder: 4
   torque: 10
   topSpeed: 15
-  relaxedSpeed: 0.5
+  relaxedSpeed: 1
   reversingSpeed: 0
   centerOfMassOffset: {x: 0, y: 0, z: 0}
   isReversing: 0
   isAirborne: 0
   stuntMode: 0
-  oscillationAmount: 0.47
+  oscillationAmount: 0
   oscillationAffectSteerRatio: 0.055
   cycleOscillation: 0
   rb: {fileID: 0}
@@ -6604,7 +6606,7 @@ MonoBehaviour:
   bunnyHopInputState: 0
   currentTopSpeed: 0
   pickUpSpeed: 0
-  groundConformity: 1
+  groundConformity: 0
   inelasticCollision: 0
   lastVelocity: {x: 0, y: 0, z: 0}
   deceleration: {x: 0, y: 0, z: 0}
@@ -9269,7 +9271,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &3484109670346603708
 Transform:
   m_ObjectHideFlags: 0
@@ -12245,7 +12247,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &7764346581563270346
 Transform:
   m_ObjectHideFlags: 0
@@ -13166,7 +13168,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &4358963940013580214
 Transform:
   m_ObjectHideFlags: 0

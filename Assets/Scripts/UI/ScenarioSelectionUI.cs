@@ -24,7 +24,13 @@ namespace CyclingExperiment.UI
         public float scenario2Heading = 0f;
 
         [Header("Cyclist")]
-        [SerializeField, Tooltip("Play cap in km/h. Applied when you pick a scenario.")]
+        [SerializeField, Tooltip("When on (lab default), do not overwrite topSpeed on scenario pick; Wahoo drives speed up to the safety ceiling.")]
+        private bool followHardwareSpeed = true;
+
+        [SerializeField, Tooltip("Hard ceiling in km/h while followHardwareSpeed is on.")]
+        private float safetyMaxSpeedKph = 50f;
+
+        [SerializeField, Tooltip("Play cap in km/h when followHardwareSpeed is off (keyboard / editor testing).")]
         private float cyclistMaxSpeedKph = 20f;
 
         [Header("Keys")]
@@ -437,8 +443,34 @@ namespace CyclingExperiment.UI
         {
             if (motion == null) return;
 
-            float kph = Mathf.Max(1f, cyclistMaxSpeedKph);
-            motion.MaxSpeedMps = kph / 3.6f;
+            var sim = motion.Transform != null
+                ? motion.Transform.GetComponent<SBPScripts.Simulator.BicycleSimulatorController>()
+                : null;
+
+            if (followHardwareSpeed)
+            {
+                float ceilingMps = Mathf.Max(1f, safetyMaxSpeedKph) / 3.6f;
+                if (sim != null)
+                {
+                    sim.followHardwareSpeed = true;
+                    sim.safetyCeilingMps = ceilingMps;
+                    // Headroom so the PI controller can track the trainer without hitting a stale low cap.
+                    if (sim.topSpeed < ceilingMps)
+                        sim.topSpeed = ceilingMps;
+                }
+                else
+                {
+                    motion.MaxSpeedMps = ceilingMps;
+                }
+            }
+            else
+            {
+                float kph = Mathf.Max(1f, cyclistMaxSpeedKph);
+                motion.MaxSpeedMps = kph / 3.6f;
+                if (sim != null)
+                    sim.followHardwareSpeed = false;
+            }
+
             motion.StopLongitudinalSpeed();
         }
 
