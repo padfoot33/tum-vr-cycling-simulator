@@ -185,6 +185,12 @@ namespace SBPScripts.Simulator
         [Tooltip("Steer Angle over Speed")]
         public AnimationCurve steerAngle;
 
+        [Tooltip(
+            "Below this ground speed (m/s), physical front-wheel yaw is scaled down " +
+            "so A/D at rest does not twist the whole bike / camera. Visual bars still turn."
+        )]
+        public float minSteerSpeed = 0.5f;
+
         public float axisAngle;
 
         public AnimationCurve leanCurve;
@@ -968,14 +974,30 @@ namespace SBPScripts.Simulator
              *
              * This is the established Akhilesh bicycle
              * steering direction.
+             *
+             * Scale physical front-wheel yaw by ground speed so A/D
+             * at rest turns bars only — not the whole chassis/camera.
+             * Visual steering below still uses the full steer angle.
              */
+            float steerSpeedFactor =
+                minSteerSpeed <= 0f
+                    ? 1f
+                    : Mathf.Clamp01(
+                        currentSpeed / minSteerSpeed
+                    );
+
+            float physicalSteerDeg =
+                customSteerAxis *
+                steerAngle.Evaluate(currentSpeed) *
+                steerSpeedFactor;
+
             fPhysicsWheel.transform.rotation =
                 Quaternion.Euler(
                     transform.rotation.eulerAngles.x,
                     transform.rotation.eulerAngles.y
-                        + customSteerAxis *
-                        steerAngle.Evaluate(currentSpeed)
-                        + oscillationSteerEffect,
+                        + physicalSteerDeg
+                        + oscillationSteerEffect *
+                        steerSpeedFactor,
                     0f
                 );
 
@@ -985,6 +1007,18 @@ namespace SBPScripts.Simulator
                     0f,
                     0f
                 );
+
+            // Kill residual yaw twist when parked / creeping with no pedal input.
+            if (
+                currentSpeed < minSteerSpeed &&
+                Mathf.Abs(rawCustomAccelerationAxis) < 0.05f)
+            {
+                Vector3 angularVelocity =
+                    rb.angularVelocity;
+                angularVelocity.y = 0f;
+                rb.angularVelocity =
+                    angularVelocity;
+            }
 
             // ======================================================
             // Power
