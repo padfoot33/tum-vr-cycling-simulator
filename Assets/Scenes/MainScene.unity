@@ -35149,19 +35149,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8356943455148778340, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: wheelFrictionSettings.fFriction.x
-      value: 0.6
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8356943455148778340, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: wheelFrictionSettings.fFriction.y
-      value: 0.5
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8356943455148778340, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: wheelFrictionSettings.rFriction.x
-      value: 0.6
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8356943455148778340, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: wheelFrictionSettings.rFriction.y
-      value: 0.5
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 9082841014273762199, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: scenario1Spawn

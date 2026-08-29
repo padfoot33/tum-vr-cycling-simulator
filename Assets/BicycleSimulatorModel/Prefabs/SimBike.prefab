@@ -3879,7 +3879,7 @@ Transform:
   m_GameObject: {fileID: 2964336327937628551}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.0005393658, y: 0.4540188, z: -0.766622}
+  m_LocalPosition: {x: -0.0005393658, y: 0.4460188, z: -0.766622}
   m_LocalScale: {x: 0.2990096, y: 0.2990096, z: 0.2990096}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3909,9 +3909,9 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
-  m_CollisionDetection: 2
+  m_CollisionDetection: 0
 --- !u!153 &2964336327937628556
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -3925,7 +3925,7 @@ ConfigurableJoint:
   m_Anchor: {x: 0, y: 0, z: 0}
   m_Axis: {x: 1, y: 0, z: 0}
   m_AutoConfigureConnectedAnchor: 1
-  m_ConnectedAnchor: {x: -0.0005393658, y: 0.4540188, z: -0.766622}
+  m_ConnectedAnchor: {x: -0.0005393658, y: 0.4460188, z: -0.766622}
   m_SecondaryAxis: {x: 0, y: 0, z: 0}
   m_XMotion: 0
   m_YMotion: 0
@@ -4078,7 +4078,7 @@ SphereCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2964336327937628551}
-  m_Material: {fileID: 13400000, guid: a1b2c3d4e5f6789012345678abcdef01, type: 2}
+  m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -4183,7 +4183,7 @@ Transform:
   m_GameObject: {fileID: 2964336328285610948}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.44310714, z: 0.811}
+  m_LocalPosition: {x: 0, y: 0.43510714, z: 0.811}
   m_LocalScale: {x: 40.2795, y: 40.2795, z: 40.2795}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4213,9 +4213,9 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
-  m_CollisionDetection: 2
+  m_CollisionDetection: 0
 --- !u!153 &2964336328285610951
 ConfigurableJoint:
   m_ObjectHideFlags: 0
@@ -4229,7 +4229,7 @@ ConfigurableJoint:
   m_Anchor: {x: 0, y: 0, z: 0}
   m_Axis: {x: 0, y: 1, z: 0}
   m_AutoConfigureConnectedAnchor: 1
-  m_ConnectedAnchor: {x: 0, y: 0.44310714, z: 0.811}
+  m_ConnectedAnchor: {x: 0, y: 0.43510714, z: 0.811}
   m_SecondaryAxis: {x: 0, y: 0, z: 0}
   m_XMotion: 0
   m_YMotion: 0
@@ -4325,7 +4325,7 @@ SphereCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2964336328285610948}
-  m_Material: {fileID: 13400000, guid: a1b2c3d4e5f6789012345678abcdef01, type: 2}
+  m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -6391,7 +6391,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -6421,9 +6421,9 @@ Rigidbody:
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
-  m_Interpolate: 1
+  m_Interpolate: 0
   m_Constraints: 0
-  m_CollisionDetection: 2
+  m_CollisionDetection: 0
 --- !u!114 &8356943455148778340
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6466,10 +6466,10 @@ MonoBehaviour:
   fPhysicsWheel: {fileID: 2964336328285610948}
   rPhysicsWheel: {fileID: 2964336327937628551}
   wheelFrictionSettings:
-    fPhysicMaterial: {fileID: 13400000, guid: a1b2c3d4e5f6789012345678abcdef01, type: 2}
-    rPhysicMaterial: {fileID: 13400000, guid: a1b2c3d4e5f6789012345678abcdef01, type: 2}
-    fFriction: {x: 0.6, y: 0.5}
-    rFriction: {x: 0.6, y: 0.5}
+    fPhysicMaterial: {fileID: 13400000, guid: 48093e1aadb74e744b9ea0d7f06a0723, type: 2}
+    rPhysicMaterial: {fileID: 13400000, guid: 48093e1aadb74e744b9ea0d7f06a0723, type: 2}
+    fFriction: {x: 0, y: 0}
+    rFriction: {x: 0, y: 0}
   accelerationCurve:
     serializedVersion: 2
     m_Curve:
