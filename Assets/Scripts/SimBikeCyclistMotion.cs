@@ -78,7 +78,6 @@ namespace CyclingExperiment
             // Do not modify the SimBike collider at runtime.
             // Keep the original bicycle physics configuration.
             EnsureOneAudioListener(gameObject);
-            ConfigureExperimentCameras(gameObject, applyDefaultSubtreeActive: false);
         }
 
         /// <summary>
@@ -93,75 +92,6 @@ namespace CyclingExperiment
                 box.isTrigger = true;
 
             EnsureOneAudioListener(bike);
-        }
-
-        /// <summary>
-        /// Wire camera stabilizers and (optionally) apply default subtree active flags.
-        /// Default: VR_Glasses on, StereoSetup/CaveScreenSetup off. For CAVE, enable StereoSetup
-        /// in the Hierarchy and disable VR_Glasses; pass applyDefaultSubtreeActive=false from Awake
-        /// so that choice is preserved.
-        /// </summary>
-        public static void ConfigureExperimentCameras(GameObject bike, bool applyDefaultSubtreeActive = true)
-        {
-            if (bike == null) return;
-
-            Transform root = bike.transform;
-            Transform vrGlasses = FindChildRecursive(root, "VR_Glasses");
-            Transform stereoSetup = FindChildRecursive(root, "StereoSetup");
-            Transform caveSetup = FindChildRecursive(root, "CaveScreenSetup");
-
-            if (applyDefaultSubtreeActive)
-            {
-                if (vrGlasses != null)
-                    vrGlasses.gameObject.SetActive(true);
-
-                if (stereoSetup != null)
-                    stereoSetup.gameObject.SetActive(false);
-
-                if (caveSetup != null)
-                    caveSetup.gameObject.SetActive(false);
-
-                Transform body = FindChildRecursive(root, "Body");
-                if (body != null)
-                {
-                    Transform legacyCam = body.Find("Camera");
-                    if (legacyCam != null)
-                        legacyCam.gameObject.SetActive(false);
-                }
-            }
-            else
-            {
-                // Play: if neither VR nor Stereo is on, enable VR so there is a view.
-                bool vrOn = vrGlasses != null && vrGlasses.gameObject.activeSelf;
-                bool stereoOn = stereoSetup != null && stereoSetup.gameObject.activeSelf;
-                if (!vrOn && !stereoOn && vrGlasses != null)
-                    vrGlasses.gameObject.SetActive(true);
-
-                if (caveSetup != null && caveSetup.gameObject.activeSelf)
-                    caveSetup.gameObject.SetActive(false);
-            }
-
-            if (vrGlasses != null)
-                CyclingExperiment.Camera.SimBikeCameraStabilizer.EnsureOn(vrGlasses, root);
-
-            if (stereoSetup != null)
-                CyclingExperiment.Camera.SimBikeCameraStabilizer.EnsureOn(stereoSetup, root);
-
-            EnsureOneAudioListener(bike);
-        }
-
-        static Transform FindChildRecursive(Transform parent, string name)
-        {
-            if (parent == null) return null;
-            if (parent.name == name) return parent;
-
-            for (int i = 0; i < parent.childCount; i++)
-            {
-                Transform found = FindChildRecursive(parent.GetChild(i), name);
-                if (found != null) return found;
-            }
-
-            return null;
         }
 
         public static void EnsureOneAudioListener(GameObject bike)

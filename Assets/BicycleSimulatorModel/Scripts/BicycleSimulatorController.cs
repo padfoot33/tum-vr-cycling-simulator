@@ -165,12 +165,6 @@ namespace SBPScripts.Simulator
         public float globalSpeedGainSimBike = 0.5f;
         public float globalaccGainSimBike = 0.03f;
 
-        [Tooltip("When true (lab default), PI setpoint follows Wahoo speed up to safetyCeilingMps.")]
-        public bool followHardwareSpeed = true;
-
-        [Tooltip("Hard max speed in m/s while followHardwareSpeed is on (~13.9 ≈ 50 km/h).")]
-        public float safetyCeilingMps = 13.9f;
-
         private float steeringValueFanatec;
 
         private FFBInspectorBike steeringInput;
@@ -198,7 +192,7 @@ namespace SBPScripts.Simulator
         public float torque;
         public float topSpeed;
 
-        [Range(0.1f, 1f)]
+        [Range(0.1f, 0.9f)]
         [Tooltip("Ratio of Relaxed mode to Top Speed")]
         public float relaxedSpeed;
 
@@ -996,12 +990,12 @@ namespace SBPScripts.Simulator
             // Power
             // ======================================================
 
-                       if (isSimulatorVehicle || sprint)
+                       if (!sprint)
             {
                 currentTopSpeed =
                     Mathf.Lerp(
                         currentTopSpeed,
-                        topSpeed,
+                        topSpeed * relaxedSpeed,
                         Time.deltaTime
                     );
             }
@@ -1010,7 +1004,7 @@ namespace SBPScripts.Simulator
                 currentTopSpeed =
                     Mathf.Lerp(
                         currentTopSpeed,
-                        topSpeed * relaxedSpeed,
+                        topSpeed,
                         Time.deltaTime
                     );
             }
@@ -1583,15 +1577,6 @@ namespace SBPScripts.Simulator
             // Bicycle rotational orientation
             // ======================================================
 
-            float rollZ = 0f;
-            if (!isSimulatorVehicle)
-            {
-                rollZ =
-                    turnLeanAmount +
-                    cycleOscillation +
-                    GroundConformity(groundConformity);
-            }
-
             if (airTimeSettings.freestyle)
             {
                 if (
@@ -1605,7 +1590,11 @@ namespace SBPScripts.Simulator
                                 0f,
                                 transform.rotation
                                     .eulerAngles.y,
-                                rollZ
+                                turnLeanAmount +
+                                cycleOscillation +
+                                GroundConformity(
+                                    groundConformity
+                                )
                             ),
                             Time.deltaTime *
                             airTimeSettings
@@ -1626,7 +1615,11 @@ namespace SBPScripts.Simulator
                                 transform.rotation
                                     .eulerAngles.y,
 
-                                rollZ
+                                turnLeanAmount +
+                                cycleOscillation +
+                                GroundConformity(
+                                    groundConformity
+                                )
                             ),
                             Time.deltaTime *
                             10f *
@@ -1645,7 +1638,11 @@ namespace SBPScripts.Simulator
                         transform.rotation
                             .eulerAngles.y,
 
-                        rollZ
+                        turnLeanAmount +
+                        cycleOscillation +
+                        GroundConformity(
+                            groundConformity
+                        )
                     );
             }
 
@@ -1889,15 +1886,6 @@ namespace SBPScripts.Simulator
     * globalSpeedGainSimBike;
                         }
 
-                        if (followHardwareSpeed)
-                        {
-                            float ceiling =
-                                Mathf.Max(0.1f, safetyCeilingMps);
-                            // Ceiling only — Wahoo target drives the setpoint below.
-                            topSpeed = ceiling;
-                            currentTopSpeed = ceiling;
-                        }
-
                         if (wahooOk)
                         {
                             acceleration =
@@ -1938,30 +1926,17 @@ namespace SBPScripts.Simulator
                                 0f;
                         }
 
-                        if (followHardwareSpeed)
-                        {
-                            // Trainer speed (TCP already applies brake reduction).
-                            velocity =
-                                Mathf.Clamp(
-                                    target_velocity_wahoo_bike,
-                                    0f,
-                                    topSpeed
-                                );
-                        }
-                        else
-                        {
-                            velocity +=
-                                globalaccGainSimBike *
-                                acceleration *
-                                Time.deltaTime;
+                        velocity +=
+                            globalaccGainSimBike *
+                            acceleration *
+                            Time.deltaTime;
 
-                            velocity =
-                                Mathf.Clamp(
-                                    velocity,
-                                    0f,
-                                    topSpeed
-                                );
-                        }
+                        velocity =
+                            Mathf.Clamp(
+                                velocity,
+                                0f,
+                                topSpeed
+                            );
 
                         float torqueInput =
     piControllerSpeedWahoo != null

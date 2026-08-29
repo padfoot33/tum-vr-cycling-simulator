@@ -2,14 +2,6 @@
 
 Working notes for current development. The project map lives in [PROJECT_MINDMAP.md](PROJECT_MINDMAP.md).
 
-## 29 Aug 2026 — SimBike speed uncap + camera stabilize
-
-- Scenario pick no longer forces **20 km/h** when `followHardwareSpeed` is on ([`ScenarioSelectionUI`](../Assets/Scripts/UI/ScenarioSelectionUI.cs)). Wahoo trainer speed drives the bike; hard ceiling default **50 km/h** (`safetyMaxSpeedKph` / `safetyCeilingMps`).
-- Turn `followHardwareSpeed` off for keyboard-only testing with the fixed `cyclistMaxSpeedKph` cap.
-- Simulator bike skips crank/ground roll on the root transform; `relaxedSpeed` is 1; Rigidbodies use Interpolate.
-- [`SimBikeCameraStabilizer`](../Assets/Scripts/Camera/SimBikeCameraStabilizer.cs) on `VR_Glasses` (and StereoSetup) keeps the view level (yaw + position only). Prefab: `VR_Glasses` on, `StereoSetup` / `CaveScreenSetup` off. For CAVE, enable StereoSetup and disable VR_Glasses in the Hierarchy.
-- CSV: `target_speed_kph` = Wahoo target; `configured_top_speed` = live `topSpeed` (ceiling while following hardware).
-
 ## 27 Aug 2026 — Fresh Unity 2022.3.62f3 project reset
 
 Created a clean editor project (`Sumonity-Unity2022-Fresh`), copied `Assets`, applied 2022.3 package pins + URP Global Settings / material version **8**, merged gameplay `ProjectSettings`, batch-validated MainScene (SimBike + `High_PipelineAsset`), then promoted `Assets` / `Packages` / `ProjectSettings` back into this repo.
