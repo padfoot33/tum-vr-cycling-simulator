@@ -35121,7 +35121,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7782976941744832388, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8356943455148778340, guid: 27497d7adc477a245bef474ce83a2505, type: 3}
       propertyPath: torque
@@ -41558,6 +41558,8 @@ MonoBehaviour:
   scenario1Heading: 0
   scenario2Position: {x: 721.5, y: 0.2, z: 70}
   scenario2Heading: 0
+  followHardwareSpeed: 1
+  safetyMaxSpeedKph: 50
   cyclistMaxSpeedKph: 54
   toggleMenuKey: 109
   toggleTrafficKey: 116

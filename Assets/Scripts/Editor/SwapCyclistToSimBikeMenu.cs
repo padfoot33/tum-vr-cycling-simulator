@@ -56,9 +56,11 @@ namespace CyclingExperiment.Editor
             EditorUtility.DisplayDialog("Swap Cyclist to SimBike",
                 "SimBike is the experiment cyclist.\n\n" +
                 "- bicyle_animated_human is disabled (not deleted)\n" +
-                "- Scene chase Camera is disabled; SimBike Main Camera is used\n" +
+                "- Scene chase Camera is disabled; VR_Glasses Main Camera is used\n" +
+                "- StereoSetup / CaveScreenSetup off by default (enable StereoSetup for CAVE)\n" +
+                "- Camera stabilizer cancels bike roll shake\n" +
                 "- Tag is Player; extra AudioListeners on CAVE eyes are off\n" +
-                "- WASD works until Wahoo/Fanatec connect\n\n" +
+                "- WASD works until Wahoo/Fanatec connect; speed follows trainer when connected\n\n" +
                 "Save MainScene.",
                 "OK");
         }
@@ -100,6 +102,7 @@ namespace CyclingExperiment.Editor
             EnsureMotionAdapter(simBike);
             DisableSpawnOnAwake(simBike);
             SimBikeCyclistMotion.ConfigureExperimentPhysics(simBike);
+            SimBikeCyclistMotion.ConfigureExperimentCameras(simBike, applyDefaultSubtreeActive: true);
             DisableCyclistRootMotion(simBike);
 
             var refs = ExperimentRefs.EnsureExists();
