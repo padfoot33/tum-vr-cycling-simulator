@@ -22,8 +22,8 @@ namespace CyclingExperiment.Scenarios
         [SerializeField, Tooltip("Bus prefab to spawn")]
         private GameObject busPrefab;
 
-        [SerializeField, Range(4f, 16f), Tooltip("Overtaking bus speed in m/s (16 ≈ 58 km/h). Tuned so the bus parks before the cyclist.")]
-        private float busSpeed = 14f;
+        [SerializeField, Tooltip("Overtaking bus speed in m/s (20 ≈ 72 km/h). Applied directly to WaypointFollower.")]
+        private float busSpeed = 20f;
 
         [SerializeField, Tooltip("Spawn this far behind the cyclist on the bus path")]
         private float spawnBehindDistance = 20f;
@@ -89,8 +89,8 @@ namespace CyclingExperiment.Scenarios
 
         private void ClampScenarioSpeeds()
         {
-            busSpeed = Mathf.Clamp(busSpeed, 4f, 16f);
-            if (overtakingCarSpeed > 14f) overtakingCarSpeed = 11f;
+            // busSpeed = Mathf.Clamp(busSpeed, 4f, 16f);
+            // if (overtakingCarSpeed > 14f) overtakingCarSpeed = 11f;
         }
 
         public void AutoAssignReferences()
@@ -416,7 +416,7 @@ namespace CyclingExperiment.Scenarios
 
         private void ResolveBusSpawn(out Vector3 spawnPos, out Quaternion spawnRot, out int nextWaypoint, out float spawnSpeed)
         {
-            spawnSpeed = busSpeed;
+            spawnSpeed = Mathf.Max(0.1f, busSpeed);
             nextWaypoint = 1;
             spawnPos = busOvertakePath.GetWaypoint(0);
             spawnRot = Quaternion.identity;
@@ -427,21 +427,6 @@ namespace CyclingExperiment.Scenarios
             busOvertakePath.TrySampleDistance(spawnAlong, out spawnPos, out Vector3 forward, out nextWaypoint);
             if (forward.sqrMagnitude > 0.01f)
                 spawnRot = Quaternion.LookRotation(forward);
-
-            float pathLength = busOvertakePath.GetTotalLength();
-            float busRemaining = Mathf.Max(8f, pathLength - spawnAlong);
-            float cyclistRemaining = Mathf.Max(8f, pathLength - cyclistAlong);
-            float cyclistSpeed = 4f;
-            if (playerTransform != null)
-            {
-                var motion = sceneRefs != null ? sceneRefs.Cyclist : null;
-                if (motion != null)
-                    cyclistSpeed = Mathf.Max(4f, motion.GetSpeedMps());
-            }
-
-            float tCyclist = cyclistRemaining / cyclistSpeed;
-            float tBus = Mathf.Max(2f, tCyclist - Mathf.Max(0.5f, parkLeadSeconds));
-            spawnSpeed = Mathf.Clamp(busRemaining / tBus, 10f, 16f);
         }
 
         private static void LogRunEvent(string marker, string phase, string segmentId, string taskContext)
